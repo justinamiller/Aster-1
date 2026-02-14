@@ -562,7 +562,7 @@ public sealed class AsterParser
             }
             
             // Check for struct initialization: Identifier { ... } or Path::Name { ... }
-            // Need to lookahead to distinguish from block expressions like match { }
+            // Lookahead distinguishes struct init from other brace uses (blocks, match arms)
             if (Check(TokenKind.LeftBrace) && LooksLikeStructInit())
             {
                 // For paths, use the full path as struct name
@@ -764,7 +764,7 @@ public sealed class AsterParser
                 if (Check(TokenKind.Comma))
                     Advance();
                 else
-                    break; // Allow trailing comma to be optional
+                    break; // No comma means end of field list (error recovery)
             }
         }
         
