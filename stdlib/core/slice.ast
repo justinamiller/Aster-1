@@ -1,0 +1,119 @@
+// Slice utilities
+// Layer: core (no alloc, no io, no OS)
+
+impl<T> slice<T> {
+    // Get length of slice
+    @stable
+    pub fn len(&self) -> usize {
+        intrinsic_slice_len(self)
+    }
+    
+    // Check if slice is empty
+    @stable
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+    
+    // Get pointer to first element
+    @stable
+    pub fn as_ptr(&self) -> ptr<T> {
+        intrinsic_slice_ptr(self)
+    }
+    
+    // Get element at index (bounds-checked)
+    @stable
+    pub fn get(&self, index: usize) -> Option<&T> {
+        if index < self.len() {
+            Option::Some(unsafe { &*self.as_ptr().add(index) })
+        } else {
+            Option::None
+        }
+    }
+    
+    // Get element at index (unchecked)
+    @stable
+    @unsafe
+    pub fn get_unchecked(&self, index: usize) -> &T {
+        &*self.as_ptr().add(index)
+    }
+    
+    // Get first element
+    @stable
+    pub fn first(&self) -> Option<&T> {
+        if self.is_empty() {
+            Option::None
+        } else {
+            self.get(0)
+        }
+    }
+    
+    // Get last element
+    @stable
+    pub fn last(&self) -> Option<&T> {
+        if self.is_empty() {
+            Option::None
+        } else {
+            self.get(self.len() - 1)
+        }
+    }
+    
+    // Split slice at index
+    @stable
+    pub fn split_at(&self, mid: usize) -> (&[T], &[T]) {
+        assert(mid <= self.len(), "split index out of bounds");
+        unsafe {
+            let ptr = self.as_ptr();
+            (
+                intrinsic_make_slice(ptr, mid),
+                intrinsic_make_slice(ptr.add(mid), self.len() - mid)
+            )
+        }
+    }
+    
+    // Get subslice
+    @stable
+    pub fn slice(&self, start: usize, end: usize) -> &[T] {
+        assert(start <= end, "slice start must be <= end");
+        assert(end <= self.len(), "slice end out of bounds");
+        unsafe {
+            intrinsic_make_slice(self.as_ptr().add(start), end - start)
+        }
+    }
+    
+    // Iterate over slice
+    @stable
+    pub fn iter(&self) -> SliceIter<T> {
+        SliceIter {
+            ptr: self.as_ptr(),
+            end: unsafe { self.as_ptr().add(self.len()) },
+        }
+    }
+}
+
+// Iterator for slices
+@stable
+pub struct SliceIter<T> {
+    ptr: ptr<T>,
+    end: ptr<T>,
+}
+
+impl<T> Iterator for SliceIter<T> {
+    type Item = &T;
+    
+    fn next(&mut self) -> Option<&T> {
+        if self.ptr.eq(&self.end) {
+            Option::None
+        } else {
+            unsafe {
+                let current = self.ptr;
+                self.ptr = self.ptr.add(1);
+                Option::Some(&*current)
+            }
+        }
+    }
+    
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = (self.end as usize - self.ptr as usize) / size_of::<T>();
+        (len, Option::Some(len))
+    }
+}

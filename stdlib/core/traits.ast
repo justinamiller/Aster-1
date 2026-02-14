@@ -1,0 +1,159 @@
+// Core traits for the Aster standard library
+// Layer: core (no alloc, no io, no OS)
+
+// Marker trait for types that can be copied bitwise
+@stable
+trait Copy {}
+
+// Trait for types that can be explicitly cloned
+@stable
+trait Clone {
+    fn clone(&self) -> Self;
+}
+
+// Trait for types that need cleanup (destructor)
+@stable
+trait Drop {
+    fn drop(&mut self);
+}
+
+// Trait for equality comparison
+@stable
+trait Eq {
+    fn eq(&self, other: &Self) -> bool;
+    
+    fn ne(&self, other: &Self) -> bool {
+        !self.eq(other)
+    }
+}
+
+// Trait for ordering comparison
+@stable
+trait Ord: Eq {
+    fn cmp(&self, other: &Self) -> Ordering;
+    
+    fn lt(&self, other: &Self) -> bool {
+        matches!(self.cmp(other), Ordering::Less)
+    }
+    
+    fn le(&self, other: &Self) -> bool {
+        !matches!(self.cmp(other), Ordering::Greater)
+    }
+    
+    fn gt(&self, other: &Self) -> bool {
+        matches!(self.cmp(other), Ordering::Greater)
+    }
+    
+    fn ge(&self, other: &Self) -> bool {
+        !matches!(self.cmp(other), Ordering::Less)
+    }
+}
+
+// Ordering enum for comparison results
+@stable
+enum Ordering {
+    Less,
+    Equal,
+    Greater,
+}
+
+// Trait for hashing
+@stable
+trait Hash {
+    fn hash(&self, state: &mut Hasher);
+}
+
+// Hasher trait for hash computation
+@stable
+trait Hasher {
+    fn write(&mut self, bytes: &[u8]);
+    fn finish(&self) -> u64;
+}
+
+// Trait for default values
+@stable
+trait Default {
+    fn default() -> Self;
+}
+
+// Trait for formatting (display)
+@stable
+trait Display {
+    fn fmt(&self, f: &mut Formatter) -> Result<(), Error>;
+}
+
+// Trait for debugging output
+@stable
+trait Debug {
+    fn fmt(&self, f: &mut Formatter) -> Result<(), Error>;
+}
+
+// Formatter type (defined in fmt module but referenced here)
+@stable
+type Formatter = opaque;
+
+// Error type for formatting
+@stable
+type Error = opaque;
+
+// Iterator trait
+@stable
+trait Iterator {
+    type Item;
+    
+    fn next(&mut self) -> Option<Self::Item>;
+    
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (0, None)
+    }
+}
+
+// IntoIterator trait for converting to iterator
+@stable
+trait IntoIterator {
+    type Item;
+    type IntoIter: Iterator<Item = Self::Item>;
+    
+    fn into_iter(self) -> Self::IntoIter;
+}
+
+// FromIterator trait for constructing from iterator
+@stable
+trait FromIterator<T> {
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self;
+}
+
+// Add trait for addition
+@stable
+trait Add<Rhs = Self> {
+    type Output;
+    fn add(self, rhs: Rhs) -> Self::Output;
+}
+
+// Sub trait for subtraction
+@stable
+trait Sub<Rhs = Self> {
+    type Output;
+    fn sub(self, rhs: Rhs) -> Self::Output;
+}
+
+// Mul trait for multiplication
+@stable
+trait Mul<Rhs = Self> {
+    type Output;
+    fn mul(self, rhs: Rhs) -> Self::Output;
+}
+
+// Div trait for division
+@stable
+trait Div<Rhs = Self> {
+    type Output;
+    fn div(self, rhs: Rhs) -> Self::Output;
+}
+
+// Rem trait for remainder
+@stable
+trait Rem<Rhs = Self> {
+    type Output;
+    fn rem(self, rhs: Rhs) -> Self::Output;
+}

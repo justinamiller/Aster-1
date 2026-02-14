@@ -1,0 +1,71 @@
+// Core primitive types for the Aster standard library
+// Layer: core (no alloc, no io, no OS)
+
+// Boolean type
+@stable
+type bool = builtin;
+
+// Character type (Unicode scalar value)
+@stable
+type char = builtin;
+
+// Signed integer types
+@stable
+type i8 = builtin;
+
+@stable
+type i16 = builtin;
+
+@stable
+type i32 = builtin;
+
+@stable
+type i64 = builtin;
+
+@stable
+type i128 = builtin;
+
+@stable
+type isize = builtin;
+
+// Unsigned integer types
+@stable
+type u8 = builtin;
+
+@stable
+type u16 = builtin;
+
+@stable
+type u32 = builtin;
+
+@stable
+type u64 = builtin;
+
+@stable
+type u128 = builtin;
+
+@stable
+type usize = builtin;
+
+// Floating point types
+@stable
+type f32 = builtin;
+
+@stable
+type f64 = builtin;
+
+// Pointer type
+@stable
+type ptr<T> = builtin;
+
+// Slice type (fat pointer: data pointer + length)
+@stable
+type slice<T> = builtin;
+
+// String slice (UTF-8 view, immutable)
+@stable
+type str = builtin;
+
+// Unit type
+@stable
+type unit = ();

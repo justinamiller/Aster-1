@@ -1,0 +1,130 @@
+// Sync module - Concurrency primitives
+// Layer: sync (requires alloc)
+// Stability: @experimental
+
+use core::*;
+
+// Mutex - Mutual exclusion lock
+@experimental
+pub struct Mutex<T> {
+    locked: bool,
+    data: T,
+}
+
+impl<T> Mutex<T> {
+    // Create a new mutex
+    @experimental
+    @alloc
+    pub fn new(data: T) -> Mutex<T> {
+        Mutex {
+            locked: false,
+            data,
+        }
+    }
+    
+    // Lock the mutex
+    @experimental
+    pub fn lock(&mut self) -> MutexGuard<T> {
+        // Spin until we can acquire the lock
+        while self.locked {
+            // Yield to scheduler (intrinsic)
+            intrinsic_yield();
+        }
+        self.locked = true;
+        MutexGuard { mutex: self }
+    }
+    
+    // Try to lock the mutex without blocking
+    @experimental
+    pub fn try_lock(&mut self) -> Option<MutexGuard<T>> {
+        if self.locked {
+            Option::None
+        } else {
+            self.locked = true;
+            Option::Some(MutexGuard { mutex: self })
+        }
+    }
+}
+
+// RAII guard for mutex
+@experimental
+pub struct MutexGuard<'a, T> {
+    mutex: &'a mut Mutex<T>,
+}
+
+impl<'a, T> MutexGuard<'a, T> {
+    pub fn get(&self) -> &T {
+        &self.mutex.data
+    }
+    
+    pub fn get_mut(&mut self) -> &mut T {
+        &mut self.mutex.data
+    }
+}
+
+impl<'a, T> Drop for MutexGuard<'a, T> {
+    fn drop(&mut self) {
+        self.mutex.locked = false;
+    }
+}
+
+// Atomic bool
+@experimental
+pub struct AtomicBool {
+    value: bool,
+}
+
+impl AtomicBool {
+    @experimental
+    pub fn new(value: bool) -> AtomicBool {
+        AtomicBool { value }
+    }
+    
+    @experimental
+    pub fn load(&self) -> bool {
+        intrinsic_atomic_load(&self.value)
+    }
+    
+    @experimental
+    pub fn store(&mut self, value: bool) {
+        intrinsic_atomic_store(&mut self.value, value)
+    }
+    
+    @experimental
+    pub fn swap(&mut self, value: bool) -> bool {
+        intrinsic_atomic_swap(&mut self.value, value)
+    }
+}
+
+// Atomic integer
+@experimental
+pub struct AtomicUsize {
+    value: usize,
+}
+
+impl AtomicUsize {
+    @experimental
+    pub fn new(value: usize) -> AtomicUsize {
+        AtomicUsize { value }
+    }
+    
+    @experimental
+    pub fn load(&self) -> usize {
+        intrinsic_atomic_load(&self.value)
+    }
+    
+    @experimental
+    pub fn store(&mut self, value: usize) {
+        intrinsic_atomic_store(&mut self.value, value)
+    }
+    
+    @experimental
+    pub fn fetch_add(&mut self, val: usize) -> usize {
+        intrinsic_atomic_fetch_add(&mut self.value, val)
+    }
+    
+    @experimental
+    pub fn fetch_sub(&mut self, val: usize) -> usize {
+        intrinsic_atomic_fetch_sub(&mut self.value, val)
+    }
+}

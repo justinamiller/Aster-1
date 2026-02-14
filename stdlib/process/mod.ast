@@ -1,0 +1,116 @@
+// Process module - Process management
+// Layer: process (requires io, alloc)
+// Stability: @stable
+
+use core::*;
+use alloc::*;
+use io::*;
+
+// Exit the process with a status code
+@stable
+pub fn exit(code: i32) -> ! {
+    intrinsic_exit(code)
+}
+
+// Abort the process (abnormal termination)
+@stable
+pub fn abort() -> ! {
+    intrinsic_abort()
+}
+
+// Get current process ID
+@stable
+pub fn id() -> u32 {
+    intrinsic_process_id()
+}
+
+// Process handle
+@experimental
+pub struct Child {
+    pid: u32,
+}
+
+impl Child {
+    @experimental
+    pub fn id(&self) -> u32 {
+        self.pid
+    }
+    
+    @experimental
+    @io
+    pub fn wait(&mut self) -> Result<ExitStatus, IOError> {
+        intrinsic_process_wait(self.pid)
+    }
+    
+    @experimental
+    @io
+    pub fn kill(&mut self) -> Result<(), IOError> {
+        intrinsic_process_kill(self.pid)
+    }
+}
+
+// Exit status
+@stable
+pub struct ExitStatus {
+    code: i32,
+}
+
+impl ExitStatus {
+    @stable
+    pub fn success(&self) -> bool {
+        self.code == 0
+    }
+    
+    @stable
+    pub fn code(&self) -> i32 {
+        self.code
+    }
+}
+
+// Command builder
+@experimental
+pub struct Command {
+    program: String,
+    args: Vec<String>,
+}
+
+impl Command {
+    @experimental
+    @alloc
+    pub fn new(program: &str) -> Command {
+        Command {
+            program: String::from(program),
+            args: Vec::new(),
+        }
+    }
+    
+    @experimental
+    @alloc
+    pub fn arg(&mut self, arg: &str) -> &mut Command {
+        self.args.push(String::from(arg));
+        self
+    }
+    
+    @experimental
+    @io
+    @alloc
+    pub fn spawn(&mut self) -> Result<Child, IOError> {
+        let pid = intrinsic_process_spawn(&self.program, &self.args)?;
+        Result::Ok(Child { pid })
+    }
+    
+    @experimental
+    @io
+    @alloc
+    pub fn output(&mut self) -> Result<Output, IOError> {
+        intrinsic_process_output(&self.program, &self.args)
+    }
+}
+
+// Process output
+@experimental
+pub struct Output {
+    pub status: ExitStatus,
+    pub stdout: Vec<u8>,
+    pub stderr: Vec<u8>,
+}

@@ -1,0 +1,156 @@
+// Math module - Mathematical functions
+// Layer: math (no alloc, no io)
+// Stability: @stable
+
+use core::*;
+
+// Constants
+@stable
+pub const PI: f64 = 3.14159265358979323846;
+
+@stable
+pub const E: f64 = 2.71828182845904523536;
+
+// Integer math
+
+@stable
+pub fn abs_i32(x: i32) -> i32 {
+    if x < 0 { -x } else { x }
+}
+
+@stable
+pub fn abs_i64(x: i64) -> i64 {
+    if x < 0 { -x } else { x }
+}
+
+@stable
+pub fn pow_i32(base: i32, exp: u32) -> i32 {
+    let mut result = 1;
+    let mut b = base;
+    let mut e = exp;
+    while e > 0 {
+        if e % 2 == 1 {
+            result *= b;
+        }
+        b *= b;
+        e /= 2;
+    }
+    result
+}
+
+@stable
+pub fn gcd(mut a: u64, mut b: u64) -> u64 {
+    while b != 0 {
+        let temp = b;
+        b = a % b;
+        a = temp;
+    }
+    a
+}
+
+@stable
+pub fn lcm(a: u64, b: u64) -> u64 {
+    (a * b) / gcd(a, b)
+}
+
+// Floating point math (delegated to intrinsics)
+
+@stable
+pub fn sqrt_f32(x: f32) -> f32 {
+    intrinsic_sqrt_f32(x)
+}
+
+@stable
+pub fn sqrt_f64(x: f64) -> f64 {
+    intrinsic_sqrt_f64(x)
+}
+
+@stable
+pub fn abs_f32(x: f32) -> f32 {
+    if x < 0.0 { -x } else { x }
+}
+
+@stable
+pub fn abs_f64(x: f64) -> f64 {
+    if x < 0.0 { -x } else { x }
+}
+
+@stable
+pub fn sin(x: f64) -> f64 {
+    intrinsic_sin(x)
+}
+
+@stable
+pub fn cos(x: f64) -> f64 {
+    intrinsic_cos(x)
+}
+
+@stable
+pub fn tan(x: f64) -> f64 {
+    intrinsic_tan(x)
+}
+
+@stable
+pub fn asin(x: f64) -> f64 {
+    intrinsic_asin(x)
+}
+
+@stable
+pub fn acos(x: f64) -> f64 {
+    intrinsic_acos(x)
+}
+
+@stable
+pub fn atan(x: f64) -> f64 {
+    intrinsic_atan(x)
+}
+
+@stable
+pub fn atan2(y: f64, x: f64) -> f64 {
+    intrinsic_atan2(y, x)
+}
+
+@stable
+pub fn exp(x: f64) -> f64 {
+    intrinsic_exp(x)
+}
+
+@stable
+pub fn ln(x: f64) -> f64 {
+    intrinsic_ln(x)
+}
+
+@stable
+pub fn log10(x: f64) -> f64 {
+    intrinsic_log10(x)
+}
+
+@stable
+pub fn log2(x: f64) -> f64 {
+    intrinsic_log2(x)
+}
+
+@stable
+pub fn pow_f64(base: f64, exp: f64) -> f64 {
+    intrinsic_pow(base, exp)
+}
+
+@stable
+pub fn floor(x: f64) -> f64 {
+    intrinsic_floor(x)
+}
+
+@stable
+pub fn ceil(x: f64) -> f64 {
+    intrinsic_ceil(x)
+}
+
+@stable
+pub fn round(x: f64) -> f64 {
+    intrinsic_round(x)
+}
+
+@stable
+pub fn trunc(x: f64) -> f64 {
+    intrinsic_trunc(x)
+}

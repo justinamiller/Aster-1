@@ -1,0 +1,32 @@
+// Example: Vector and String usage
+// Demonstrates the alloc module
+
+use stdlib::prelude::*;
+
+fn main() {
+    // Create a vector of integers
+    let mut numbers = Vec::new();
+    numbers.push(10);
+    numbers.push(20);
+    numbers.push(30);
+    
+    println("Vector contents:");
+    let mut i = 0;
+    while i < numbers.len() {
+        let num = numbers.get(i).unwrap();
+        println(&format!("  numbers[{}] = {}", i, num));
+        i += 1;
+    }
+    
+    // String operations
+    let mut greeting = String::from("Hello");
+    greeting.push(' ');
+    greeting.push_str("Aster!");
+    
+    println(&greeting.as_str());
+    
+    // Pop from vector
+    let last = numbers.pop().unwrap();
+    println(&format!("Popped: {}", last));
+    println(&format!("Remaining length: {}", numbers.len()));
+}

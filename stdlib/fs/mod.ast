@@ -1,0 +1,149 @@
+// Filesystem module
+// Layer: fs (requires io, alloc)
+// Stability: @stable
+
+use core::*;
+use alloc::*;
+use io::*;
+
+// File handle
+@stable
+pub struct File {
+    fd: i32,
+}
+
+impl File {
+    // Open a file
+    @stable
+    @io
+    pub fn open(path: &str) -> Result<File, IOError> {
+        let fd = intrinsic_file_open(path, FileMode::Read)?;
+        Result::Ok(File { fd })
+    }
+    
+    // Create a file
+    @stable
+    @io
+    pub fn create(path: &str) -> Result<File, IOError> {
+        let fd = intrinsic_file_open(path, FileMode::Write | FileMode::Create)?;
+        Result::Ok(File { fd })
+    }
+    
+    // Open with options
+    @stable
+    @io
+    pub fn open_with_mode(path: &str, mode: FileMode) -> Result<File, IOError> {
+        let fd = intrinsic_file_open(path, mode)?;
+        Result::Ok(File { fd })
+    }
+}
+
+impl Read for File {
+    @io
+    fn read(&mut self, buf: &mut [u8]) -> Result<usize, IOError> {
+        intrinsic_file_read(self.fd, buf)
+    }
+}
+
+impl Write for File {
+    @io
+    fn write(&mut self, buf: &[u8]) -> Result<usize, IOError> {
+        intrinsic_file_write(self.fd, buf)
+    }
+    
+    @io
+    fn flush(&mut self) -> Result<(), IOError> {
+        intrinsic_file_flush(self.fd)
+    }
+}
+
+impl Drop for File {
+    fn drop(&mut self) {
+        intrinsic_file_close(self.fd);
+    }
+}
+
+// File mode flags
+@stable
+pub enum FileMode {
+    Read = 1,
+    Write = 2,
+    Append = 4,
+    Create = 8,
+    Truncate = 16,
+}
+
+// Path type
+@stable
+pub struct Path {
+    inner: str,
+}
+
+impl Path {
+    @stable
+    pub fn new(s: &str) -> &Path {
+        unsafe { &*(s as *const str as *const Path) }
+    }
+    
+    @stable
+    pub fn as_str(&self) -> &str {
+        &self.inner
+    }
+    
+    @stable
+    pub fn file_name(&self) -> Option<&str> {
+        let s = self.as_str();
+        s.find("/").map(|i| s.substring(i + 1, s.len()))
+    }
+    
+    @stable
+    pub fn parent(&self) -> Option<&Path> {
+        let s = self.as_str();
+        s.find("/").map(|i| Path::new(s.substring(0, i)))
+    }
+    
+    @stable
+    pub fn exists(&self) -> bool {
+        intrinsic_path_exists(self.as_str())
+    }
+    
+    @stable
+    pub fn is_file(&self) -> bool {
+        intrinsic_path_is_file(self.as_str())
+    }
+    
+    @stable
+    pub fn is_dir(&self) -> bool {
+        intrinsic_path_is_dir(self.as_str())
+    }
+}
+
+// Read entire file to string
+@stable
+@io
+@alloc
+pub fn read_to_string(path: &str) -> Result<String, IOError> {
+    let mut file = File::open(path)?;
+    let mut s = String::new();
+    let mut buf = [0u8; 4096];
+    loop {
+        let n = file.read(&mut buf)?;
+        if n == 0 {
+            break;
+        }
+        let mut i = 0;
+        while i < n {
+            s.push(buf[i] as char);
+            i += 1;
+        }
+    }
+    Result::Ok(s)
+}
+
+// Write string to file
+@stable
+@io
+pub fn write_str(path: &str, content: &str) -> Result<(), IOError> {
+    let mut file = File::create(path)?;
+    file.write_all(content.as_bytes())
+}

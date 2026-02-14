@@ -1,0 +1,178 @@
+// Result type for the Aster standard library
+// Layer: core (no alloc, no io, no OS)
+
+// Result type for recoverable errors
+@stable
+enum Result<T, E> {
+    Ok(T),
+    Err(E),
+}
+
+impl<T, E> Result<T, E> {
+    // Returns true if the result is Ok
+    @stable
+    fn is_ok(&self) -> bool {
+        matches!(self, Result::Ok(_))
+    }
+    
+    // Returns true if the result is Err
+    @stable
+    fn is_err(&self) -> bool {
+        matches!(self, Result::Err(_))
+    }
+    
+    // Converts Result<T, E> to Option<T>
+    @stable
+    fn ok(self) -> Option<T> {
+        match self {
+            Result::Ok(val) => Option::Some(val),
+            Result::Err(_) => Option::None,
+        }
+    }
+    
+    // Converts Result<T, E> to Option<E>
+    @stable
+    fn err(self) -> Option<E> {
+        match self {
+            Result::Ok(_) => Option::None,
+            Result::Err(e) => Option::Some(e),
+        }
+    }
+    
+    // Unwraps the value, panicking if Err
+    @stable
+    fn unwrap(self) -> T {
+        match self {
+            Result::Ok(val) => val,
+            Result::Err(_) => panic("called Result::unwrap() on Err"),
+        }
+    }
+    
+    // Unwraps the error, panicking if Ok
+    @stable
+    fn unwrap_err(self) -> E {
+        match self {
+            Result::Ok(_) => panic("called Result::unwrap_err() on Ok"),
+            Result::Err(e) => e,
+        }
+    }
+    
+    // Unwraps the value or returns a default
+    @stable
+    fn unwrap_or(self, default: T) -> T {
+        match self {
+            Result::Ok(val) => val,
+            Result::Err(_) => default,
+        }
+    }
+    
+    // Unwraps the value or computes it from the error
+    @stable
+    fn unwrap_or_else<F>(self, f: F) -> T
+    where
+        F: FnOnce(E) -> T
+    {
+        match self {
+            Result::Ok(val) => val,
+            Result::Err(e) => f(e),
+        }
+    }
+    
+    // Maps a Result<T, E> to Result<U, E> by applying a function to Ok value
+    @stable
+    fn map<U, F>(self, f: F) -> Result<U, E>
+    where
+        F: FnOnce(T) -> U
+    {
+        match self {
+            Result::Ok(val) => Result::Ok(f(val)),
+            Result::Err(e) => Result::Err(e),
+        }
+    }
+    
+    // Maps a Result<T, E> to Result<T, F> by applying a function to Err value
+    @stable
+    fn map_err<F, O>(self, f: O) -> Result<T, F>
+    where
+        O: FnOnce(E) -> F
+    {
+        match self {
+            Result::Ok(val) => Result::Ok(val),
+            Result::Err(e) => Result::Err(f(e)),
+        }
+    }
+    
+    // Returns res if the result is Ok, otherwise returns the Err value
+    @stable
+    fn and<U>(self, res: Result<U, E>) -> Result<U, E> {
+        match self {
+            Result::Ok(_) => res,
+            Result::Err(e) => Result::Err(e),
+        }
+    }
+    
+    // Calls f if the result is Ok, otherwise returns the Err value
+    @stable
+    fn and_then<U, F>(self, f: F) -> Result<U, E>
+    where
+        F: FnOnce(T) -> Result<U, E>
+    {
+        match self {
+            Result::Ok(val) => f(val),
+            Result::Err(e) => Result::Err(e),
+        }
+    }
+    
+    // Returns the result if it is Ok, otherwise returns res
+    @stable
+    fn or<F>(self, res: Result<T, F>) -> Result<T, F> {
+        match self {
+            Result::Ok(val) => Result::Ok(val),
+            Result::Err(_) => res,
+        }
+    }
+    
+    // Returns the result if it is Ok, otherwise calls f
+    @stable
+    fn or_else<F, O>(self, f: O) -> Result<T, F>
+    where
+        O: FnOnce(E) -> Result<T, F>
+    {
+        match self {
+            Result::Ok(val) => Result::Ok(val),
+            Result::Err(e) => f(e),
+        }
+    }
+}
+
+impl<T: Clone, E: Clone> Clone for Result<T, E> {
+    fn clone(&self) -> Self {
+        match self {
+            Result::Ok(val) => Result::Ok(val.clone()),
+            Result::Err(e) => Result::Err(e.clone()),
+        }
+    }
+}
+
+impl<T: Copy, E: Copy> Copy for Result<T, E> {}
+
+impl<T: Eq, E: Eq> Eq for Result<T, E> {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Result::Ok(a), Result::Ok(b)) => a.eq(b),
+            (Result::Err(a), Result::Err(b)) => a.eq(b),
+            _ => false,
+        }
+    }
+}
+
+impl<T: Ord, E: Ord> Ord for Result<T, E> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match (self, other) {
+            (Result::Ok(a), Result::Ok(b)) => a.cmp(b),
+            (Result::Err(a), Result::Err(b)) => a.cmp(b),
+            (Result::Ok(_), Result::Err(_)) => Ordering::Greater,
+            (Result::Err(_), Result::Ok(_)) => Ordering::Less,
+        }
+    }
+}

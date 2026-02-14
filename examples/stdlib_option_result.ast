@@ -1,0 +1,50 @@
+// Example: Option and Result error handling
+// Demonstrates core module
+
+use stdlib::prelude::*;
+
+fn divide(a: i32, b: i32) -> Option<i32> {
+    if b == 0 {
+        Option::None
+    } else {
+        Option::Some(a / b)
+    }
+}
+
+fn safe_divide(a: i32, b: i32) -> Result<i32, &str> {
+    if b == 0 {
+        Result::Err("division by zero")
+    } else {
+        Result::Ok(a / b)
+    }
+}
+
+fn main() {
+    // Using Option
+    match divide(10, 2) {
+        Option::Some(result) => println(&format!("10 / 2 = {}", result)),
+        Option::None => println("Division failed"),
+    }
+    
+    match divide(10, 0) {
+        Option::Some(result) => println(&format!("10 / 0 = {}", result)),
+        Option::None => println("Cannot divide by zero"),
+    }
+    
+    // Using Result
+    match safe_divide(20, 4) {
+        Result::Ok(result) => println(&format!("20 / 4 = {}", result)),
+        Result::Err(msg) => println(&format!("Error: {}", msg)),
+    }
+    
+    // Using unwrap_or
+    let result = divide(100, 5).unwrap_or(0);
+    println(&format!("Result with default: {}", result));
+    
+    // Chaining with map
+    let doubled = divide(8, 2).map(|x| x * 2);
+    match doubled {
+        Option::Some(val) => println(&format!("Doubled: {}", val)),
+        Option::None => println("No value"),
+    }
+}

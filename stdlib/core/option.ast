@@ -1,0 +1,152 @@
+// Option type for the Aster standard library
+// Layer: core (no alloc, no io, no OS)
+
+// Optional value type
+@stable
+enum Option<T> {
+    Some(T),
+    None,
+}
+
+impl<T> Option<T> {
+    // Returns true if the option is Some
+    @stable
+    fn is_some(&self) -> bool {
+        matches!(self, Option::Some(_))
+    }
+    
+    // Returns true if the option is None
+    @stable
+    fn is_none(&self) -> bool {
+        matches!(self, Option::None)
+    }
+    
+    // Unwraps the value, panicking if None
+    @stable
+    fn unwrap(self) -> T {
+        match self {
+            Option::Some(val) => val,
+            Option::None => panic("called Option::unwrap() on None"),
+        }
+    }
+    
+    // Unwraps the value or returns a default
+    @stable
+    fn unwrap_or(self, default: T) -> T {
+        match self {
+            Option::Some(val) => val,
+            Option::None => default,
+        }
+    }
+    
+    // Unwraps the value or computes it from a closure
+    @stable
+    fn unwrap_or_else<F>(self, f: F) -> T 
+    where
+        F: FnOnce() -> T
+    {
+        match self {
+            Option::Some(val) => val,
+            Option::None => f(),
+        }
+    }
+    
+    // Maps an Option<T> to Option<U> by applying a function
+    @stable
+    fn map<U, F>(self, f: F) -> Option<U>
+    where
+        F: FnOnce(T) -> U
+    {
+        match self {
+            Option::Some(val) => Option::Some(f(val)),
+            Option::None => Option::None,
+        }
+    }
+    
+    // Returns None if the option is None, otherwise calls f
+    @stable
+    fn and_then<U, F>(self, f: F) -> Option<U>
+    where
+        F: FnOnce(T) -> Option<U>
+    {
+        match self {
+            Option::Some(val) => f(val),
+            Option::None => Option::None,
+        }
+    }
+    
+    // Returns the option if it contains a value, otherwise returns optb
+    @stable
+    fn or(self, optb: Option<T>) -> Option<T> {
+        match self {
+            Option::Some(_) => self,
+            Option::None => optb,
+        }
+    }
+    
+    // Returns the option if it contains a value, otherwise calls f
+    @stable
+    fn or_else<F>(self, f: F) -> Option<T>
+    where
+        F: FnOnce() -> Option<T>
+    {
+        match self {
+            Option::Some(_) => self,
+            Option::None => f(),
+        }
+    }
+    
+    // Takes the value out of the option, leaving None in its place
+    @stable
+    fn take(&mut self) -> Option<T> {
+        let mut temp = Option::None;
+        swap(self, &mut temp);
+        temp
+    }
+    
+    // Replaces the actual value with the new value, returning the old value
+    @stable
+    fn replace(&mut self, value: T) -> Option<T> {
+        let mut temp = Option::Some(value);
+        swap(self, &mut temp);
+        temp
+    }
+}
+
+impl<T: Clone> Clone for Option<T> {
+    fn clone(&self) -> Self {
+        match self {
+            Option::Some(val) => Option::Some(val.clone()),
+            Option::None => Option::None,
+        }
+    }
+}
+
+impl<T: Copy> Copy for Option<T> {}
+
+impl<T: Eq> Eq for Option<T> {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Option::Some(a), Option::Some(b)) => a.eq(b),
+            (Option::None, Option::None) => true,
+            _ => false,
+        }
+    }
+}
+
+impl<T: Ord> Ord for Option<T> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match (self, other) {
+            (Option::Some(a), Option::Some(b)) => a.cmp(b),
+            (Option::Some(_), Option::None) => Ordering::Greater,
+            (Option::None, Option::Some(_)) => Ordering::Less,
+            (Option::None, Option::None) => Ordering::Equal,
+        }
+    }
+}
+
+impl<T: Default> Default for Option<T> {
+    fn default() -> Self {
+        Option::None
+    }
+}
