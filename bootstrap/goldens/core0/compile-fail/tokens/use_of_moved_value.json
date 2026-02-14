@@ -1,0 +1,453 @@
+[
+  {
+    "kind": "Fn",
+    "value": "fn",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-fail/use_of_moved_value.ast",
+      "line": 6,
+      "column": 1,
+      "start": 154,
+      "length": 2
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "consume",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-fail/use_of_moved_value.ast",
+      "line": 6,
+      "column": 4,
+      "start": 157,
+      "length": 7
+    }
+  },
+  {
+    "kind": "LeftParen",
+    "value": "(",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-fail/use_of_moved_value.ast",
+      "line": 6,
+      "column": 11,
+      "start": 164,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "s",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-fail/use_of_moved_value.ast",
+      "line": 6,
+      "column": 12,
+      "start": 165,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Colon",
+    "value": ":",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-fail/use_of_moved_value.ast",
+      "line": 6,
+      "column": 13,
+      "start": 166,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "String",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-fail/use_of_moved_value.ast",
+      "line": 6,
+      "column": 15,
+      "start": 168,
+      "length": 6
+    }
+  },
+  {
+    "kind": "RightParen",
+    "value": ")",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-fail/use_of_moved_value.ast",
+      "line": 6,
+      "column": 21,
+      "start": 174,
+      "length": 1
+    }
+  },
+  {
+    "kind": "LeftBrace",
+    "value": "{",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-fail/use_of_moved_value.ast",
+      "line": 6,
+      "column": 23,
+      "start": 176,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "print",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-fail/use_of_moved_value.ast",
+      "line": 7,
+      "column": 5,
+      "start": 182,
+      "length": 5
+    }
+  },
+  {
+    "kind": "LeftParen",
+    "value": "(",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-fail/use_of_moved_value.ast",
+      "line": 7,
+      "column": 10,
+      "start": 187,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "s",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-fail/use_of_moved_value.ast",
+      "line": 7,
+      "column": 11,
+      "start": 188,
+      "length": 1
+    }
+  },
+  {
+    "kind": "RightParen",
+    "value": ")",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-fail/use_of_moved_value.ast",
+      "line": 7,
+      "column": 12,
+      "start": 189,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Semicolon",
+    "value": ";",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-fail/use_of_moved_value.ast",
+      "line": 7,
+      "column": 13,
+      "start": 190,
+      "length": 1
+    }
+  },
+  {
+    "kind": "RightBrace",
+    "value": "}",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-fail/use_of_moved_value.ast",
+      "line": 8,
+      "column": 1,
+      "start": 192,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Fn",
+    "value": "fn",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-fail/use_of_moved_value.ast",
+      "line": 10,
+      "column": 1,
+      "start": 195,
+      "length": 2
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "main",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-fail/use_of_moved_value.ast",
+      "line": 10,
+      "column": 4,
+      "start": 198,
+      "length": 4
+    }
+  },
+  {
+    "kind": "LeftParen",
+    "value": "(",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-fail/use_of_moved_value.ast",
+      "line": 10,
+      "column": 8,
+      "start": 202,
+      "length": 1
+    }
+  },
+  {
+    "kind": "RightParen",
+    "value": ")",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-fail/use_of_moved_value.ast",
+      "line": 10,
+      "column": 9,
+      "start": 203,
+      "length": 1
+    }
+  },
+  {
+    "kind": "LeftBrace",
+    "value": "{",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-fail/use_of_moved_value.ast",
+      "line": 10,
+      "column": 11,
+      "start": 205,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Let",
+    "value": "let",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-fail/use_of_moved_value.ast",
+      "line": 11,
+      "column": 5,
+      "start": 211,
+      "length": 3
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "s",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-fail/use_of_moved_value.ast",
+      "line": 11,
+      "column": 9,
+      "start": 215,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Equals",
+    "value": "=",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-fail/use_of_moved_value.ast",
+      "line": 11,
+      "column": 11,
+      "start": 217,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "String",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-fail/use_of_moved_value.ast",
+      "line": 11,
+      "column": 13,
+      "start": 219,
+      "length": 6
+    }
+  },
+  {
+    "kind": "ColonColon",
+    "value": "::",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-fail/use_of_moved_value.ast",
+      "line": 11,
+      "column": 19,
+      "start": 225,
+      "length": 2
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "from",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-fail/use_of_moved_value.ast",
+      "line": 11,
+      "column": 21,
+      "start": 227,
+      "length": 4
+    }
+  },
+  {
+    "kind": "LeftParen",
+    "value": "(",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-fail/use_of_moved_value.ast",
+      "line": 11,
+      "column": 25,
+      "start": 231,
+      "length": 1
+    }
+  },
+  {
+    "kind": "StringLiteral",
+    "value": "hello",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-fail/use_of_moved_value.ast",
+      "line": 11,
+      "column": 26,
+      "start": 232,
+      "length": 7
+    }
+  },
+  {
+    "kind": "RightParen",
+    "value": ")",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-fail/use_of_moved_value.ast",
+      "line": 11,
+      "column": 33,
+      "start": 239,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Semicolon",
+    "value": ";",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-fail/use_of_moved_value.ast",
+      "line": 11,
+      "column": 34,
+      "start": 240,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "consume",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-fail/use_of_moved_value.ast",
+      "line": 12,
+      "column": 5,
+      "start": 246,
+      "length": 7
+    }
+  },
+  {
+    "kind": "LeftParen",
+    "value": "(",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-fail/use_of_moved_value.ast",
+      "line": 12,
+      "column": 12,
+      "start": 253,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "s",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-fail/use_of_moved_value.ast",
+      "line": 12,
+      "column": 13,
+      "start": 254,
+      "length": 1
+    }
+  },
+  {
+    "kind": "RightParen",
+    "value": ")",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-fail/use_of_moved_value.ast",
+      "line": 12,
+      "column": 14,
+      "start": 255,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Semicolon",
+    "value": ";",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-fail/use_of_moved_value.ast",
+      "line": 12,
+      "column": 15,
+      "start": 256,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "print",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-fail/use_of_moved_value.ast",
+      "line": 13,
+      "column": 5,
+      "start": 282,
+      "length": 5
+    }
+  },
+  {
+    "kind": "LeftParen",
+    "value": "(",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-fail/use_of_moved_value.ast",
+      "line": 13,
+      "column": 10,
+      "start": 287,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "s",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-fail/use_of_moved_value.ast",
+      "line": 13,
+      "column": 11,
+      "start": 288,
+      "length": 1
+    }
+  },
+  {
+    "kind": "RightParen",
+    "value": ")",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-fail/use_of_moved_value.ast",
+      "line": 13,
+      "column": 12,
+      "start": 289,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Semicolon",
+    "value": ";",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-fail/use_of_moved_value.ast",
+      "line": 13,
+      "column": 13,
+      "start": 290,
+      "length": 1
+    }
+  },
+  {
+    "kind": "RightBrace",
+    "value": "}",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-fail/use_of_moved_value.ast",
+      "line": 14,
+      "column": 1,
+      "start": 335,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Eof",
+    "value": "",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-fail/use_of_moved_value.ast",
+      "line": 15,
+      "column": 1,
+      "start": 337,
+      "length": 0
+    }
+  }
+]

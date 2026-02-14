@@ -1,0 +1,530 @@
+[
+  {
+    "kind": "Struct",
+    "value": "struct",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_struct.ast",
+      "line": 8,
+      "column": 1,
+      "start": 220,
+      "length": 6
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "Point",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_struct.ast",
+      "line": 8,
+      "column": 8,
+      "start": 227,
+      "length": 5
+    }
+  },
+  {
+    "kind": "LeftBrace",
+    "value": "{",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_struct.ast",
+      "line": 8,
+      "column": 14,
+      "start": 233,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "x",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_struct.ast",
+      "line": 9,
+      "column": 5,
+      "start": 239,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Colon",
+    "value": ":",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_struct.ast",
+      "line": 9,
+      "column": 6,
+      "start": 240,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "i32",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_struct.ast",
+      "line": 9,
+      "column": 8,
+      "start": 242,
+      "length": 3
+    }
+  },
+  {
+    "kind": "Comma",
+    "value": ",",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_struct.ast",
+      "line": 9,
+      "column": 11,
+      "start": 245,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "y",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_struct.ast",
+      "line": 10,
+      "column": 5,
+      "start": 251,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Colon",
+    "value": ":",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_struct.ast",
+      "line": 10,
+      "column": 6,
+      "start": 252,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "i32",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_struct.ast",
+      "line": 10,
+      "column": 8,
+      "start": 254,
+      "length": 3
+    }
+  },
+  {
+    "kind": "RightBrace",
+    "value": "}",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_struct.ast",
+      "line": 11,
+      "column": 1,
+      "start": 258,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Fn",
+    "value": "fn",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_struct.ast",
+      "line": 13,
+      "column": 1,
+      "start": 261,
+      "length": 2
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "main",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_struct.ast",
+      "line": 13,
+      "column": 4,
+      "start": 264,
+      "length": 4
+    }
+  },
+  {
+    "kind": "LeftParen",
+    "value": "(",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_struct.ast",
+      "line": 13,
+      "column": 8,
+      "start": 268,
+      "length": 1
+    }
+  },
+  {
+    "kind": "RightParen",
+    "value": ")",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_struct.ast",
+      "line": 13,
+      "column": 9,
+      "start": 269,
+      "length": 1
+    }
+  },
+  {
+    "kind": "LeftBrace",
+    "value": "{",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_struct.ast",
+      "line": 13,
+      "column": 11,
+      "start": 271,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Let",
+    "value": "let",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_struct.ast",
+      "line": 14,
+      "column": 5,
+      "start": 277,
+      "length": 3
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "p",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_struct.ast",
+      "line": 14,
+      "column": 9,
+      "start": 281,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Equals",
+    "value": "=",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_struct.ast",
+      "line": 14,
+      "column": 11,
+      "start": 283,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "Point",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_struct.ast",
+      "line": 14,
+      "column": 13,
+      "start": 285,
+      "length": 5
+    }
+  },
+  {
+    "kind": "LeftBrace",
+    "value": "{",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_struct.ast",
+      "line": 14,
+      "column": 19,
+      "start": 291,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "x",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_struct.ast",
+      "line": 14,
+      "column": 21,
+      "start": 293,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Colon",
+    "value": ":",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_struct.ast",
+      "line": 14,
+      "column": 22,
+      "start": 294,
+      "length": 1
+    }
+  },
+  {
+    "kind": "IntegerLiteral",
+    "value": "10",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_struct.ast",
+      "line": 14,
+      "column": 24,
+      "start": 296,
+      "length": 2
+    }
+  },
+  {
+    "kind": "Comma",
+    "value": ",",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_struct.ast",
+      "line": 14,
+      "column": 26,
+      "start": 298,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "y",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_struct.ast",
+      "line": 14,
+      "column": 28,
+      "start": 300,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Colon",
+    "value": ":",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_struct.ast",
+      "line": 14,
+      "column": 29,
+      "start": 301,
+      "length": 1
+    }
+  },
+  {
+    "kind": "IntegerLiteral",
+    "value": "20",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_struct.ast",
+      "line": 14,
+      "column": 31,
+      "start": 303,
+      "length": 2
+    }
+  },
+  {
+    "kind": "RightBrace",
+    "value": "}",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_struct.ast",
+      "line": 14,
+      "column": 34,
+      "start": 306,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Semicolon",
+    "value": ";",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_struct.ast",
+      "line": 14,
+      "column": 35,
+      "start": 307,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Let",
+    "value": "let",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_struct.ast",
+      "line": 15,
+      "column": 5,
+      "start": 313,
+      "length": 3
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "sum",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_struct.ast",
+      "line": 15,
+      "column": 9,
+      "start": 317,
+      "length": 3
+    }
+  },
+  {
+    "kind": "Equals",
+    "value": "=",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_struct.ast",
+      "line": 15,
+      "column": 13,
+      "start": 321,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "p",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_struct.ast",
+      "line": 15,
+      "column": 15,
+      "start": 323,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Dot",
+    "value": ".",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_struct.ast",
+      "line": 15,
+      "column": 16,
+      "start": 324,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "x",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_struct.ast",
+      "line": 15,
+      "column": 17,
+      "start": 325,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Plus",
+    "value": "\u002B",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_struct.ast",
+      "line": 15,
+      "column": 19,
+      "start": 327,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "p",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_struct.ast",
+      "line": 15,
+      "column": 21,
+      "start": 329,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Dot",
+    "value": ".",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_struct.ast",
+      "line": 15,
+      "column": 22,
+      "start": 330,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "y",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_struct.ast",
+      "line": 15,
+      "column": 23,
+      "start": 331,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Semicolon",
+    "value": ";",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_struct.ast",
+      "line": 15,
+      "column": 24,
+      "start": 332,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "print",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_struct.ast",
+      "line": 16,
+      "column": 5,
+      "start": 338,
+      "length": 5
+    }
+  },
+  {
+    "kind": "LeftParen",
+    "value": "(",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_struct.ast",
+      "line": 16,
+      "column": 10,
+      "start": 343,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "sum",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_struct.ast",
+      "line": 16,
+      "column": 11,
+      "start": 344,
+      "length": 3
+    }
+  },
+  {
+    "kind": "RightParen",
+    "value": ")",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_struct.ast",
+      "line": 16,
+      "column": 14,
+      "start": 347,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Semicolon",
+    "value": ";",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_struct.ast",
+      "line": 16,
+      "column": 15,
+      "start": 348,
+      "length": 1
+    }
+  },
+  {
+    "kind": "RightBrace",
+    "value": "}",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_struct.ast",
+      "line": 17,
+      "column": 1,
+      "start": 350,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Eof",
+    "value": "",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_struct.ast",
+      "line": 18,
+      "column": 1,
+      "start": 352,
+      "length": 0
+    }
+  }
+]
