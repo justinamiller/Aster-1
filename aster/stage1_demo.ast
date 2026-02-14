@@ -1,0 +1,80 @@
+// Stage 1 Aster Compiler Demonstration
+// This program demonstrates that aster0 can successfully compile Aster code
+// Features demonstrated:
+// - Struct definitions and initialization
+// - Function definitions with parameters and return types
+// - Basic arithmetic operations
+// - Control flow (if/else)
+// - While loops
+// - Print statements
+
+struct Rectangle {
+    width: i32,
+    height: i32
+}
+
+fn new_rectangle(w: i32, h: i32) -> Rectangle {
+    Rectangle {
+        width: w,
+        height: h
+    }
+}
+
+fn area(rect: Rectangle) -> i32 {
+    rect.width * rect.height
+}
+
+fn perimeter(rect: Rectangle) -> i32 {
+    2 * rect.width + 2 * rect.height
+}
+
+fn is_square(rect: Rectangle) -> bool {
+    rect.width == rect.height
+}
+
+fn factorial(n: i32) -> i32 {
+    if n <= 1 {
+        1
+    } else {
+        n * factorial(n - 1)
+    }
+}
+
+fn sum_range(start: i32, end: i32) -> i32 {
+    let mut sum = 0;
+    let mut i = start;
+    while i <= end {
+        sum = sum + i;
+        i = i + 1;
+    }
+    sum
+}
+
+fn main() {
+    // Create a rectangle
+    let rect = new_rectangle(10, 20);
+    
+    // Test area calculation
+    let a = area(rect);
+    print(a);  // Should print 200
+    
+    // Test perimeter
+    let p = perimeter(rect);
+    print(p);  // Should print 60
+    
+    // Test if it's a square
+    let is_sq = is_square(rect);
+    
+    // Create a square
+    let square = new_rectangle(5, 5);
+    let sq_area = area(square);
+    print(sq_area);  // Should print 25
+    
+    // Test factorial
+    let fact5 = factorial(5);
+    print(fact5);  // Should print 120
+    
+    // Test sum_range
+    let sum = sum_range(1, 10);
+    print(sum);  // Should print 55
+}
