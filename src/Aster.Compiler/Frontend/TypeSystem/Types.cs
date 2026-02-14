@@ -110,3 +110,99 @@ public sealed class ErrorType : AsterType
     public static readonly ErrorType Instance = new();
     public override string DisplayName => "<error>";
 }
+
+/// <summary>Generic type parameter.</summary>
+public sealed class GenericParameter : AsterType
+{
+    public string Name { get; }
+    public int Id { get; }
+    public IReadOnlyList<TraitBound> Bounds { get; }
+    public override string DisplayName => Name;
+
+    public GenericParameter(string name, int id, IReadOnlyList<TraitBound>? bounds = null)
+    {
+        Name = name;
+        Id = id;
+        Bounds = bounds ?? Array.Empty<TraitBound>();
+    }
+}
+
+/// <summary>Type application - applying type arguments to a generic type.</summary>
+public sealed class TypeApp : AsterType
+{
+    public AsterType Constructor { get; }
+    public IReadOnlyList<AsterType> Arguments { get; }
+    public override string DisplayName => $"{Constructor.DisplayName}<{string.Join(", ", Arguments.Select(a => a.DisplayName))}>";
+
+    public TypeApp(AsterType constructor, IReadOnlyList<AsterType> arguments)
+    {
+        Constructor = constructor;
+        Arguments = arguments;
+    }
+}
+
+/// <summary>Trait bound on a type parameter.</summary>
+public sealed class TraitBound
+{
+    public string TraitName { get; }
+    public IReadOnlyList<AsterType> AssociatedTypes { get; }
+
+    public TraitBound(string traitName, IReadOnlyList<AsterType>? associatedTypes = null)
+    {
+        TraitName = traitName;
+        AssociatedTypes = associatedTypes ?? Array.Empty<AsterType>();
+    }
+
+    public override string ToString() => TraitName;
+}
+
+/// <summary>Type scheme for let-polymorphism.</summary>
+public sealed class TypeScheme
+{
+    public IReadOnlyList<GenericParameter> TypeParameters { get; }
+    public IReadOnlyList<TraitBound> Constraints { get; }
+    public AsterType Body { get; }
+
+    public TypeScheme(
+        IReadOnlyList<GenericParameter> typeParameters,
+        IReadOnlyList<TraitBound> constraints,
+        AsterType body)
+    {
+        TypeParameters = typeParameters;
+        Constraints = constraints;
+        Body = body;
+    }
+
+    /// <summary>Instantiate this scheme with fresh type variables.</summary>
+    public AsterType Instantiate(Dictionary<int, AsterType> substitution)
+    {
+        foreach (var param in TypeParameters)
+        {
+            substitution[param.Id] = new TypeVariable();
+        }
+        return Substitute(Body, substitution);
+    }
+
+    private AsterType Substitute(AsterType type, Dictionary<int, AsterType> substitution)
+    {
+        return type switch
+        {
+            GenericParameter gp when substitution.TryGetValue(gp.Id, out var sub) => sub,
+            FunctionType ft => new FunctionType(
+                ft.ParameterTypes.Select(p => Substitute(p, substitution)).ToList(),
+                Substitute(ft.ReturnType, substitution)),
+            ReferenceType rt => new ReferenceType(Substitute(rt.Inner, substitution), rt.IsMutable),
+            TypeApp ta => new TypeApp(
+                Substitute(ta.Constructor, substitution),
+                ta.Arguments.Select(a => Substitute(a, substitution)).ToList()),
+            _ => type
+        };
+    }
+
+    public override string ToString()
+    {
+        if (TypeParameters.Count == 0)
+            return Body.DisplayName;
+        return $"∀{string.Join(", ", TypeParameters.Select(p => p.Name))}. {Body.DisplayName}";
+    }
+}

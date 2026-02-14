@@ -952,3 +952,221 @@ public class ScopeTests
         Assert.Same(childSym, child.Lookup("x"));
     }
 }
+
+// ========== Type System Tests ==========
+
+public class TypeInferenceTests
+{
+    [Fact]
+    public void ConstraintSolver_UnifyPrimitiveTypes()
+    {
+        var solver = new ConstraintSolver();
+        var t1 = PrimitiveType.I32;
+        var t2 = PrimitiveType.I32;
+        
+        Assert.True(solver.Unify(t1, t2));
+    }
+
+    [Fact]
+    public void ConstraintSolver_UnifyDifferentPrimitives_Fails()
+    {
+        var solver = new ConstraintSolver();
+        var t1 = PrimitiveType.I32;
+        var t2 = PrimitiveType.F64;
+        
+        Assert.False(solver.Unify(t1, t2));
+    }
+
+    [Fact]
+    public void ConstraintSolver_UnifyTypeVariableWithConcrete()
+    {
+        var solver = new ConstraintSolver();
+        var tv = new TypeVariable();
+        var concrete = PrimitiveType.I32;
+        
+        Assert.True(solver.Unify(tv, concrete));
+        Assert.Equal(concrete, solver.Resolve(tv));
+    }
+
+    [Fact]
+    public void ConstraintSolver_UnifyFunctionTypes()
+    {
+        var solver = new ConstraintSolver();
+        var f1 = new FunctionType(
+            new[] { PrimitiveType.I32, PrimitiveType.F64 },
+            PrimitiveType.Bool);
+        var f2 = new FunctionType(
+            new[] { PrimitiveType.I32, PrimitiveType.F64 },
+            PrimitiveType.Bool);
+        
+        Assert.True(solver.Unify(f1, f2));
+    }
+
+    [Fact]
+    public void ConstraintSolver_UnifyFunctionTypesWithDifferentReturn_Fails()
+    {
+        var solver = new ConstraintSolver();
+        var f1 = new FunctionType(
+            new[] { PrimitiveType.I32 },
+            PrimitiveType.Bool);
+        var f2 = new FunctionType(
+            new[] { PrimitiveType.I32 },
+            PrimitiveType.Void);
+        
+        Assert.False(solver.Unify(f1, f2));
+    }
+
+    [Fact]
+    public void ConstraintSolver_OccursCheck_DetectsInfiniteType()
+    {
+        var solver = new ConstraintSolver();
+        var tv = new TypeVariable();
+        var fnType = new FunctionType(new[] { tv }, PrimitiveType.Void);
+        
+        Assert.False(solver.Unify(tv, fnType));
+    }
+
+    [Fact]
+    public void ConstraintSolver_UnifyReferences()
+    {
+        var solver = new ConstraintSolver();
+        var r1 = new ReferenceType(PrimitiveType.I32, false);
+        var r2 = new ReferenceType(PrimitiveType.I32, false);
+        
+        Assert.True(solver.Unify(r1, r2));
+    }
+
+    [Fact]
+    public void ConstraintSolver_UnifyMutableAndImmutableRefs_Fails()
+    {
+        var solver = new ConstraintSolver();
+        var r1 = new ReferenceType(PrimitiveType.I32, true);
+        var r2 = new ReferenceType(PrimitiveType.I32, false);
+        
+        Assert.False(solver.Unify(r1, r2));
+    }
+
+    [Fact]
+    public void TypeApp_DisplayName()
+    {
+        var constructor = new StructType("Vec", Array.Empty<(string, AsterType)>());
+        var typeApp = new TypeApp(constructor, new[] { PrimitiveType.I32 });
+        
+        Assert.Equal("Vec<i32>", typeApp.DisplayName);
+    }
+
+    [Fact]
+    public void GenericParameter_WithBounds()
+    {
+        var bound = new TraitBound("Clone");
+        var param = new GenericParameter("T", 1, new[] { bound });
+        
+        Assert.Equal("T", param.Name);
+        Assert.Single(param.Bounds);
+        Assert.Equal("Clone", param.Bounds[0].TraitName);
+    }
+
+    [Fact]
+    public void TypeScheme_Instantiate()
+    {
+        var param = new GenericParameter("T", 1);
+        var bodyType = new FunctionType(new[] { param }, param);
+        var scheme = new TypeScheme(new[] { param }, Array.Empty<TraitBound>(), bodyType);
+        
+        var instantiated = scheme.Instantiate(new Dictionary<int, AsterType>());
+        
+        Assert.IsType<FunctionType>(instantiated);
+        var fnType = (FunctionType)instantiated;
+        Assert.IsType<TypeVariable>(fnType.ParameterTypes[0]);
+        Assert.IsType<TypeVariable>(fnType.ReturnType);
+    }
+}
+
+public class TraitSolverTests
+{
+    [Fact]
+    public void TraitSolver_RegisterBuiltins()
+    {
+        var solver = new TraitSolver();
+        solver.RegisterBuiltins();
+        
+        var constraintSolver = new ConstraintSolver();
+        var obligation = new Obligation(
+            PrimitiveType.I32,
+            new TraitBound("Copy"),
+            Span.Unknown);
+        
+        Assert.True(solver.Resolve(obligation, constraintSolver));
+    }
+
+    [Fact]
+    public void TraitSolver_UnregisteredTrait_Fails()
+    {
+        var solver = new TraitSolver();
+        solver.RegisterBuiltins();
+        
+        var constraintSolver = new ConstraintSolver();
+        var obligation = new Obligation(
+            PrimitiveType.I32,
+            new TraitBound("NonexistentTrait"),
+            Span.Unknown);
+        
+        Assert.False(solver.Resolve(obligation, constraintSolver));
+    }
+
+    [Fact]
+    public void TraitSolver_CustomImpl()
+    {
+        var solver = new TraitSolver();
+        var structType = new StructType("MyStruct", Array.Empty<(string, AsterType)>());
+        var impl = new TraitImpl("Display", structType);
+        solver.RegisterImpl(impl);
+        
+        var constraintSolver = new ConstraintSolver();
+        var obligation = new Obligation(
+            structType,
+            new TraitBound("Display"),
+            Span.Unknown);
+        
+        Assert.True(solver.Resolve(obligation, constraintSolver));
+    }
+
+    [Fact]
+    public void TraitSolver_CycleDetection()
+    {
+        var solver = new TraitSolver();
+        var param = new GenericParameter("T", 1, new[] { new TraitBound("Debug") });
+        
+        // This would create a cycle if not detected
+        solver.RegisterImpl(new TraitImpl("Debug", param));
+        
+        var constraintSolver = new ConstraintSolver();
+        var obligation = new Obligation(
+            param,
+            new TraitBound("Debug"),
+            Span.Unknown);
+        
+        // Should detect the cycle via the in-progress tracking
+        solver.Resolve(obligation, constraintSolver);
+    }
+}
+
+public class ConstraintGenerationTests
+{
+    [Fact]
+    public void EqualityConstraint_ToString()
+    {
+        var c = new EqualityConstraint(PrimitiveType.I32, PrimitiveType.F64, Span.Unknown);
+        Assert.Equal("i32 = f64", c.ToString());
+    }
+
+    [Fact]
+    public void TraitConstraint_ToString()
+    {
+        var c = new TraitConstraint(
+            PrimitiveType.I32,
+            new TraitBound("Copy"),
+            Span.Unknown);
+        Assert.Equal("i32: Copy", c.ToString());
+    }
+}
