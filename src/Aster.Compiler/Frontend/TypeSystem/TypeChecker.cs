@@ -58,8 +58,24 @@ public sealed class TypeChecker
         HirBlock block => CheckBlock(block),
         HirAssignExpr assign => CheckAssign(assign),
         HirMemberAccessExpr ma => CheckMemberAccess(ma),
+        HirStructInitExpr structInit => CheckStructInit(structInit),
+        HirPathExpr path => CheckPath(path),
         _ => PrimitiveType.Void,
     };
+
+    private AsterType CheckStructInit(HirStructInitExpr structInit)
+    {
+        // For now, return a type variable
+        // In a full implementation, we'd look up the struct definition and verify fields
+        return new TypeVariable();
+    }
+
+    private AsterType CheckPath(HirPathExpr path)
+    {
+        // For paths like Option::Some, we need to resolve them
+        // For now, return a fresh type variable
+        return new TypeVariable();
+    }
 
     private AsterType CheckFunctionDecl(HirFunctionDecl fn)
     {
