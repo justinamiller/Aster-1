@@ -8,6 +8,7 @@
     <Project Path="src/Aster.Compiler.Analysis/Aster.Compiler.Analysis.csproj" />
     <Project Path="src/Aster.Compiler.Codegen/Aster.Compiler.Codegen.csproj" />
     <Project Path="src/Aster.Formatter/Aster.Formatter.csproj" />
+    <Project Path="src/Aster.Linter/Aster.Linter.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Aster.Compiler.Tests/Aster.Compiler.Tests.csproj" />
