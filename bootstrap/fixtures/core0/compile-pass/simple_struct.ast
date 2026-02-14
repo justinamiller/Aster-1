@@ -1,0 +1,17 @@
+// Test fixture: simple_struct.ast
+// Category: compile-pass
+// Tests: Basic struct definition and usage (Core-0)
+//
+// This program should compile successfully with both aster0 (seed)
+// and aster1 (Stage 1 compiler).
+
+struct Point {
+    x: i32,
+    y: i32
+}
+
+fn main() {
+    let p = Point { x: 10, y: 20 };
+    let sum = p.x + p.y;
+    print(sum);
+}

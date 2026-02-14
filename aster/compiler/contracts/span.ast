@@ -1,0 +1,123 @@
+// Span - Source location tracking
+// Part of Aster Stage 1 (Core-0 implementation)
+//
+// This module implements source span tracking for the Aster compiler.
+// A Span represents a location in source code with file, line, column,
+// start offset, and length information.
+//
+// Language Subset: Core-0
+// - Uses only: structs, basic types, functions
+// - No traits, no async, no macros
+
+/// Represents a source location span within a file.
+/// Immutable value type tracking file, line, column, start offset, and length.
+struct Span {
+    file: String,
+    line: i32,
+    column: i32,
+    start: i32,
+    length: i32
+}
+
+/// Create a new Span with the given parameters.
+fn new_span(file: String, line: i32, column: i32, start: i32, length: i32) -> Span {
+    Span {
+        file: file,
+        line: line,
+        column: column,
+        start: start,
+        length: length
+    }
+}
+
+/// A sentinel span representing an unknown or synthetic location.
+fn unknown_span() -> Span {
+    Span {
+        file: String::new(),
+        line: 0,
+        column: 0,
+        start: 0,
+        length: 0
+    }
+}
+
+/// Get the end offset of the span (exclusive).
+fn span_end(span: &Span) -> i32 {
+    span.start + span.length
+}
+
+/// Convert span to a string representation for error messages.
+/// Format: "file:line:column"
+fn span_to_string(span: &Span) -> String {
+    let mut result = String::new();
+    result.push_str(&span.file);
+    result.push_str(":");
+    result.push_str(&i32_to_string(span.line));
+    result.push_str(":");
+    result.push_str(&i32_to_string(span.column));
+    result
+}
+
+/// Helper: Convert i32 to String (Core-0 doesn't have trait-based ToString)
+fn i32_to_string(n: i32) -> String {
+    // Simple integer to string conversion
+    if n == 0 {
+        return String::from("0");
+    }
+    
+    let mut digits = Vec::new();
+    let mut num = n;
+    let is_negative = num < 0;
+    
+    if is_negative {
+        num = -num;
+    }
+    
+    while num > 0 {
+        let digit = num % 10;
+        digits.push((48 + digit) as u8);  // '0' = 48 in ASCII
+        num = num / 10;
+    }
+    
+    let mut result = String::new();
+    if is_negative {
+        result.push('-');
+    }
+    
+    // Reverse digits
+    let len = digits.len();
+    let mut i = 0;
+    while i < len {
+        let idx = len - 1 - i;
+        result.push(digits[idx] as char);
+        i = i + 1;
+    }
+    
+    result
+}
+
+/// Check if two spans are equal.
+fn spans_equal(a: &Span, b: &Span) -> bool {
+    a.file == b.file &&
+    a.line == b.line &&
+    a.column == b.column &&
+    a.start == b.start &&
+    a.length == b.length
+}
+
+/// Combine two spans to create a span that covers both.
+fn span_combine(a: &Span, b: &Span) -> Span {
+    // Assumes spans are from the same file
+    let start = if a.start < b.start { a.start } else { b.start };
+    let a_end = a.start + a.length;
+    let b_end = b.start + b.length;
+    let end = if a_end > b_end { a_end } else { b_end };
+    
+    Span {
+        file: a.file.clone(),
+        line: a.line,
+        column: a.column,
+        start: start,
+        length: end - start
+    }
+}

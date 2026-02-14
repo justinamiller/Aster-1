@@ -1,0 +1,21 @@
+// Test fixture: basic_enum.ast
+// Category: compile-pass
+// Tests: Basic enum definition and matching (Core-0)
+
+enum Option {
+    Some(i32),
+    None
+}
+
+fn unwrap_or(opt: Option, default: i32) -> i32 {
+    match opt {
+        Option::Some(value) => value,
+        Option::None => default
+    }
+}
+
+fn main() {
+    let some_value = Option::Some(42);
+    let result = unwrap_or(some_value, 0);
+    print(result);
+}
