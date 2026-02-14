@@ -263,7 +263,7 @@ public static class Program
         Console.WriteLine("  explain       Explain a diagnostic code");
         Console.WriteLine("  crash-report  View crash report details");
         Console.WriteLine();
-        Console.WriteLine("Options:");
+        Console.WriteLine("  Options:");
         Console.WriteLine("  --help, -h     Show this help message");
         Console.WriteLine("  --version, -v  Show version");
         return 0;
