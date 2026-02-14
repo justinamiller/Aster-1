@@ -5,6 +5,10 @@ using Aster.Packages;
 using Aster.DocGen;
 using Aster.Testing;
 using Aster.Lsp;
+using Aster.Compiler.Fuzzing;
+using Aster.Compiler.Fuzzing.Harnesses;
+using Aster.Compiler.Differential;
+using Aster.Compiler.Reducers;
 
 namespace Aster.CLI;
 
@@ -36,6 +40,9 @@ public static class Program
             "doc" => Doc(args.Skip(1).ToArray()),
             "test" => Test(args.Skip(1).ToArray()),
             "lsp" => Lsp(),
+            "fuzz" => Fuzz(args.Skip(1).ToArray()),
+            "differential" => Differential(args.Skip(1).ToArray()),
+            "reduce" => Reduce(args.Skip(1).ToArray()),
             "--help" or "-h" => PrintUsage(),
             "--version" or "-v" => PrintVersion(),
             _ => UnknownCommand(command),
@@ -182,6 +189,9 @@ public static class Program
         Console.WriteLine("  doc         Generate documentation");
         Console.WriteLine("  test        Run tests");
         Console.WriteLine("  lsp         Start language server");
+        Console.WriteLine("  fuzz        Run fuzzing harness");
+        Console.WriteLine("  differential Run differential testing");
+        Console.WriteLine("  reduce      Reduce/minimize a test case");
         Console.WriteLine();
         Console.WriteLine("Options:");
         Console.WriteLine("  --help, -h     Show this help message");
@@ -354,6 +364,103 @@ public static class Program
     {
         var server = new LspServer(Console.OpenStandardInput(), Console.OpenStandardOutput());
         server.RunAsync().GetAwaiter().GetResult();
+        return 0;
+    }
+
+    private static int Fuzz(string[] args)
+    {
+        if (args.Length == 0)
+        {
+            Console.Error.WriteLine("error: no harness specified");
+            Console.Error.WriteLine("Available harnesses: parser, typesystem");
+            return 1;
+        }
+
+        var harness = args[0].ToLower();
+        var smoke = args.Contains("--smoke");
+        var seed = 0;
+        
+        for (int i = 0; i < args.Length - 1; i++)
+        {
+            if (args[i] == "--seed" && int.TryParse(args[i + 1], out var parsedSeed))
+            {
+                seed = parsedSeed;
+            }
+        }
+
+        var config = smoke ? FuzzConfig.Smoke(seed) : FuzzConfig.Nightly(seed);
+
+        FuzzRunner runner = harness switch
+        {
+            "parser" => new ParserFuzz(config),
+            "typesystem" => new TypeSystemFuzz(config),
+            _ => throw new ArgumentException($"Unknown harness: {harness}")
+        };
+
+        var summary = runner.Run();
+        Console.WriteLine();
+        Console.WriteLine(summary);
+
+        return summary.Crashes + summary.WrongCode + summary.Hangs > 0 ? 1 : 0;
+    }
+
+    private static int Differential(string[] args)
+    {
+        if (args.Length == 0)
+        {
+            Console.Error.WriteLine("error: no test directory specified");
+            return 1;
+        }
+
+        var directory = args[0];
+        if (!Directory.Exists(directory))
+        {
+            Console.Error.WriteLine($"error: directory not found: {directory}");
+            return 1;
+        }
+
+        var config = new DiffConfig();
+        var runner = new DifferentialTestRunner(config);
+        var summary = runner.TestDirectory(directory);
+
+        Console.WriteLine();
+        Console.WriteLine(summary);
+
+        return summary.Mismatches > 0 ? 1 : 0;
+    }
+
+    private static int Reduce(string[] args)
+    {
+        if (args.Length == 0)
+        {
+            Console.Error.WriteLine("error: no input file specified");
+            return 1;
+        }
+
+        var filePath = args[0];
+        if (!File.Exists(filePath))
+        {
+            Console.Error.WriteLine($"error: file not found: {filePath}");
+            return 1;
+        }
+
+        var input = File.ReadAllText(filePath);
+
+        // Simple predicate: file still causes a compilation error
+        bool IsInteresting(string source)
+        {
+            var driver = new CompilationDriver();
+            var result = driver.Compile(source, "reduce.ast");
+            return result == null; // Interesting if it fails
+        }
+
+        var reducer = new DeltaReducer(IsInteresting);
+        var reduced = reducer.Reduce(input);
+
+        var outputPath = Path.ChangeExtension(filePath, ".reduced.ast");
+        File.WriteAllText(outputPath, reduced);
+        Console.WriteLine($"Reduced test case saved to: {outputPath}");
+
         return 0;
     }
 }

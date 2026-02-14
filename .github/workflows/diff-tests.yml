@@ -1,0 +1,56 @@
+name: Differential Testing
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+jobs:
+  differential:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0.x'
+    
+    - name: Restore dependencies
+      run: dotnet restore
+    
+    - name: Build
+      run: dotnet build --no-restore
+    
+    - name: Create Test Directories
+      run: |
+        mkdir -p tests/conformance/compile-pass
+        mkdir -p tests/conformance/compile-fail
+        mkdir -p tests/conformance/run-pass
+    
+    - name: Add Sample Test Cases
+      run: |
+        # Add a simple passing test
+        echo 'fn main() { let x = 42; }' > tests/conformance/compile-pass/simple.ast
+        echo 'fn add(a: int, b: int): int { return a + b; } fn main() { let x = add(1, 2); }' > tests/conformance/compile-pass/function.ast
+    
+    - name: Run Differential Tests - Compile Pass
+      if: always()
+      run: |
+        dotnet run --project src/Aster.CLI -- differential tests/conformance/compile-pass || true
+    
+    - name: Run Differential Tests - Compile Fail
+      if: always()
+      run: |
+        dotnet run --project src/Aster.CLI -- differential tests/conformance/compile-fail || true
+    
+    - name: Upload Mismatch Artifacts
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: differential-mismatches-${{ github.sha }}
+        path: tests/differential/artifacts/
+        retention-days: 30

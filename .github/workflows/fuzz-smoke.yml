@@ -1,0 +1,43 @@
+name: Fuzz Smoke Tests
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+jobs:
+  fuzz-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0.x'
+    
+    - name: Restore dependencies
+      run: dotnet restore
+    
+    - name: Build
+      run: dotnet build --no-restore
+    
+    - name: Parser Fuzz Smoke
+      run: dotnet run --project src/Aster.CLI -- fuzz parser --smoke --seed 42
+      
+    - name: Type System Fuzz Smoke
+      run: dotnet run --project src/Aster.CLI -- fuzz typesystem --smoke --seed 42
+    
+    - name: Upload Crash Artifacts
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: fuzz-crashes-${{ github.sha }}
+        path: |
+          tests/fuzz/crashes/
+          tests/fuzz/wrongcode/
+          tests/fuzz/hangs/
+        retention-days: 30
