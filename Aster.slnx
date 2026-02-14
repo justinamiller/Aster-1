@@ -21,5 +21,6 @@
     <Project Path="tests/Aster.Compiler.Tests/Aster.Compiler.Tests.csproj" />
     <Project Path="tests/Aster.Compiler.PerfTests/Aster.Compiler.PerfTests.csproj" />
     <Project Path="tests/Aster.Compiler.OptimizationTests/Aster.Compiler.OptimizationTests.csproj" />
+    <Project Path="tests/Aster.Tooling.Tests/Aster.Tooling.Tests.csproj" />
   </Folder>
 </Solution>
