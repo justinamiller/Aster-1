@@ -9,6 +9,7 @@ using Aster.Compiler.Frontend.Ownership;
 using Aster.Compiler.Frontend.Hir;
 using Aster.Compiler.MiddleEnd.Mir;
 using Aster.Compiler.MiddleEnd.BorrowChecker;
+using Aster.Compiler.MiddleEnd.PatternMatching;
 using Aster.Compiler.Backends.LLVM;
 using Aster.Compiler.Driver;
 
@@ -1168,5 +1169,129 @@ public class ConstraintGenerationTests
             new TraitBound("Copy"),
             Span.Unknown);
         Assert.Equal("i32: Copy", c.ToString());
+    }
+}
+
+// ========== Pattern Matching Tests ==========
+
+public class PatternMatchingTests
+{
+    [Fact]
+    public void PatternChecker_ExhaustiveBool()
+    {
+        var checker = new PatternChecker();
+        var arms = new[]
+        {
+            (new LiteralPattern(true, Span.Unknown) as Pattern, Span.Unknown),
+            (new LiteralPattern(false, Span.Unknown) as Pattern, Span.Unknown)
+        };
+        
+        checker.CheckMatch(PrimitiveType.Bool, arms);
+        
+        Assert.False(checker.Diagnostics.HasErrors);
+    }
+
+    [Fact]
+    public void PatternChecker_NonExhaustiveBool()
+    {
+        var checker = new PatternChecker();
+        var arms = new[]
+        {
+            (new LiteralPattern(true, Span.Unknown) as Pattern, Span.Unknown)
+        };
+        
+        checker.CheckMatch(PrimitiveType.Bool, arms);
+        
+        Assert.True(checker.Diagnostics.HasErrors);
+    }
+
+    [Fact]
+    public void PatternChecker_WildcardIsExhaustive()
+    {
+        var checker = new PatternChecker();
+        var arms = new[]
+        {
+            (new WildcardPattern(Span.Unknown) as Pattern, Span.Unknown)
+        };
+        
+        checker.CheckMatch(PrimitiveType.I32, arms);
+        
+        Assert.False(checker.Diagnostics.HasErrors);
+    }
+
+    [Fact]
+    public void PatternChecker_ExhaustiveEnum()
+    {
+        var checker = new PatternChecker();
+        var enumType = new EnumType("Option", new[]
+        {
+            ("Some", new List<AsterType> { PrimitiveType.I32 } as IReadOnlyList<AsterType>),
+            ("None", Array.Empty<AsterType>() as IReadOnlyList<AsterType>)
+        });
+        
+        var arms = new[]
+        {
+            (new ConstructorPattern("Some", new[] { new WildcardPattern(Span.Unknown) as Pattern }, Span.Unknown) as Pattern, Span.Unknown),
+            (new ConstructorPattern("None", Array.Empty<Pattern>(), Span.Unknown) as Pattern, Span.Unknown)
+        };
+        
+        checker.CheckMatch(enumType, arms);
+        
+        Assert.False(checker.Diagnostics.HasErrors);
+    }
+
+    [Fact]
+    public void PatternChecker_NonExhaustiveEnum()
+    {
+        var checker = new PatternChecker();
+        var enumType = new EnumType("Option", new[]
+        {
+            ("Some", new List<AsterType> { PrimitiveType.I32 } as IReadOnlyList<AsterType>),
+            ("None", Array.Empty<AsterType>() as IReadOnlyList<AsterType>)
+        });
+        
+        var arms = new[]
+        {
+            (new ConstructorPattern("Some", new[] { new WildcardPattern(Span.Unknown) as Pattern }, Span.Unknown) as Pattern, Span.Unknown)
+        };
+        
+        checker.CheckMatch(enumType, arms);
+        
+        Assert.True(checker.Diagnostics.HasErrors);
+    }
+
+    [Fact]
+    public void PatternChecker_UnreachableArm()
+    {
+        var checker = new PatternChecker();
+        var arms = new[]
+        {
+            (new WildcardPattern(Span.Unknown) as Pattern, Span.Unknown),
+            (new LiteralPattern(42, Span.Unknown) as Pattern, Span.Unknown)
+        };
+        
+        checker.CheckMatch(PrimitiveType.I32, arms);
+        
+        // Should have a warning for the unreachable arm
+        var diagnostics = checker.Diagnostics.ToImmutableList();
+        Assert.Contains(diagnostics, d => d.Code == "W0001");
+    }
+}
+
+// ========== Borrow Checker Tests ==========
+
+public class BorrowCheckerTests
+{
+    [Fact]
+    public void BorrowCheck_EmptyFunction()
+    {
+        var checker = new BorrowCheck();
+        var module = new MirModule("test");
+        var fn = new MirFunction("main");
+        module.Functions.Add(fn);
+        
+        checker.Check(module);
+        
+        Assert.False(checker.Diagnostics.HasErrors);
     }
 }
