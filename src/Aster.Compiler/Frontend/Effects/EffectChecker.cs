@@ -50,16 +50,31 @@ public sealed class EffectSet
 public sealed class EffectChecker
 {
     private readonly Dictionary<int, EffectSet> _functionEffects = new();
+    private readonly Dictionary<int, EffectSet> _declaredEffects = new();
     public DiagnosticBag Diagnostics { get; } = new();
 
     /// <summary>Check effects for an HIR program.</summary>
     public void Check(HirProgram program)
     {
+        // Phase 1: Infer actual effects
         foreach (var decl in program.Declarations)
         {
             if (decl is HirFunctionDecl fn)
                 InferFunctionEffects(fn);
         }
+
+        // Phase 2: Validate against declared effects
+        foreach (var decl in program.Declarations)
+        {
+            if (decl is HirFunctionDecl fn)
+                ValidateFunctionEffects(fn);
+        }
+    }
+
+    /// <summary>Set the declared effect set for a function.</summary>
+    public void SetDeclaredEffects(Symbol symbol, EffectSet effects)
+    {
+        _declaredEffects[symbol.Id] = effects;
     }
 
     private EffectSet InferFunctionEffects(HirFunctionDecl fn)
@@ -73,6 +88,26 @@ public sealed class EffectChecker
 
         _functionEffects[fn.Symbol.Id] = effects;
         return effects;
+    }
+
+    private void ValidateFunctionEffects(HirFunctionDecl fn)
+    {
+        if (!_declaredEffects.TryGetValue(fn.Symbol.Id, out var declared))
+            return; // No declared effects, skip validation
+
+        if (!_functionEffects.TryGetValue(fn.Symbol.Id, out var inferred))
+            return;
+
+        // Check if inferred effects exceed declared effects
+        var excess = inferred.Effects & ~declared.Effects;
+        if (excess != Effect.None)
+        {
+            var excessSet = new EffectSet(excess);
+            Diagnostics.ReportError(
+                "E0330",
+                $"Function '{fn.Symbol.Name}' has undeclared effects: {excessSet}. Declared: {declared}, Actual: {inferred}",
+                fn.Span);
+        }
     }
 
     private void InferBlockEffects(HirBlock block, EffectSet effects)

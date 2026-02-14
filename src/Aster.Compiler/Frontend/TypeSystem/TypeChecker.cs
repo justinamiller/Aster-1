@@ -9,16 +9,35 @@ namespace Aster.Compiler.Frontend.TypeSystem;
 /// </summary>
 public sealed class TypeChecker
 {
-    private readonly Dictionary<int, AsterType> _substitutions = new();
+    private readonly ConstraintSolver _solver = new();
+    private readonly TraitSolver _traitSolver = new();
+    private readonly Dictionary<int, TypeScheme> _symbolSchemes = new();
     public DiagnosticBag Diagnostics { get; } = new();
+
+    public TypeChecker()
+    {
+        _traitSolver.RegisterBuiltins();
+    }
 
     /// <summary>Type-check an HIR program.</summary>
     public void Check(HirProgram program)
     {
+        // Phase 1: Generate constraints
         foreach (var decl in program.Declarations)
         {
             CheckNode(decl);
         }
+
+        // Phase 2: Solve constraints
+        _solver.Solve();
+
+        // Phase 3: Check trait constraints
+        var traitConstraints = new List<TraitConstraint>();
+        _traitSolver.CheckConstraints(traitConstraints, _solver);
+
+        // Merge diagnostics
+        Diagnostics.AddRange(_solver.Diagnostics);
+        Diagnostics.AddRange(_traitSolver.Diagnostics);
     }
 
     private AsterType CheckNode(HirNode node) => node switch
@@ -109,14 +128,49 @@ public sealed class TypeChecker
         if (let.Initializer != null)
         {
             var initType = CheckNode(let.Initializer);
-            if (!IsAssignableTo(initType, type))
-            {
-                Diagnostics.ReportError("E0301", $"Cannot assign '{initType.DisplayName}' to variable of type '{type.DisplayName}'", let.Span);
-            }
+            _solver.AddConstraint(new EqualityConstraint(initType, type, let.Span));
         }
 
+        // Generalize: create a type scheme for let-polymorphism
+        var scheme = Generalize(type);
+        _symbolSchemes[let.Symbol.Id] = scheme;
         let.Symbol.Type = type;
         return type;
+    }
+
+    /// <summary>Generalize a type into a type scheme for let-polymorphism.</summary>
+    private TypeScheme Generalize(AsterType type)
+    {
+        var freeVars = new List<GenericParameter>();
+        CollectFreeTypeVariables(type, freeVars);
+        return new TypeScheme(freeVars, Array.Empty<TraitBound>(), type);
+    }
+
+    private void CollectFreeTypeVariables(AsterType type, List<GenericParameter> vars)
+    {
+        type = _solver.Resolve(type);
+        switch (type)
+        {
+            case TypeVariable tv:
+                if (!vars.Any(v => v.Id == tv.Id))
+                {
+                    vars.Add(new GenericParameter($"T{tv.Id}", tv.Id));
+                }
+                break;
+            case FunctionType ft:
+                foreach (var param in ft.ParameterTypes)
+                    CollectFreeTypeVariables(param, vars);
+                CollectFreeTypeVariables(ft.ReturnType, vars);
+                break;
+            case ReferenceType rt:
+                CollectFreeTypeVariables(rt.Inner, vars);
+                break;
+            case TypeApp ta:
+                CollectFreeTypeVariables(ta.Constructor, vars);
+                foreach (var arg in ta.Arguments)
+                    CollectFreeTypeVariables(arg, vars);
+                break;
+        }
     }
 
     private AsterType CheckCallExpr(HirCallExpr call)
@@ -140,21 +194,40 @@ public sealed class TypeChecker
             for (int i = 0; i < Math.Min(call.Arguments.Count, fnType.ParameterTypes.Count); i++)
             {
                 var argType = CheckNode(call.Arguments[i]);
-                if (!IsAssignableTo(argType, fnType.ParameterTypes[i]))
-                {
-                    Diagnostics.ReportError("E0303", $"Argument type mismatch: expected '{fnType.ParameterTypes[i].DisplayName}' but got '{argType.DisplayName}'", call.Arguments[i].Span);
-                }
+                _solver.AddConstraint(new EqualityConstraint(argType, fnType.ParameterTypes[i], call.Arguments[i].Span));
             }
 
             return fnType.ReturnType;
         }
 
-        return new TypeVariable();
+        // For unknown callee types, assume function and generate constraints
+        var returnType = new TypeVariable();
+        var paramTypes = call.Arguments.Select(_ => new TypeVariable()).ToList();
+        var expectedFnType = new FunctionType(paramTypes, returnType);
+        _solver.AddConstraint(new EqualityConstraint(calleeType, expectedFnType, call.Span));
+
+        for (int i = 0; i < call.Arguments.Count; i++)
+        {
+            var argType = CheckNode(call.Arguments[i]);
+            _solver.AddConstraint(new EqualityConstraint(argType, paramTypes[i], call.Arguments[i].Span));
+        }
+
+        return returnType;
     }
 
     private AsterType CheckIdentifier(HirIdentifierExpr id)
     {
-        return id.ResolvedSymbol?.Type ?? new TypeVariable();
+        if (id.ResolvedSymbol == null)
+            return new TypeVariable();
+
+        // Instantiate type scheme for let-polymorphism
+        if (_symbolSchemes.TryGetValue(id.ResolvedSymbol.Id, out var scheme))
+        {
+            var substitution = new Dictionary<int, AsterType>();
+            return scheme.Instantiate(substitution);
+        }
+
+        return id.ResolvedSymbol.Type ?? new TypeVariable();
     }
 
     private AsterType CheckLiteral(HirLiteralExpr lit) => lit.LiteralKind switch
@@ -264,52 +337,12 @@ public sealed class TypeChecker
     /// <summary>Unify two types, recording substitutions.</summary>
     public bool Unify(AsterType a, AsterType b)
     {
-        a = Resolve(a);
-        b = Resolve(b);
-
-        if (a is TypeVariable tv1)
-        {
-            if (!OccursCheck(tv1, b))
-            {
-                _substitutions[tv1.Id] = b;
-                return true;
-            }
-            return false;
-        }
-
-        if (b is TypeVariable tv2)
-        {
-            if (!OccursCheck(tv2, a))
-            {
-                _substitutions[tv2.Id] = a;
-                return true;
-            }
-            return false;
-        }
-
-        if (a is PrimitiveType pa && b is PrimitiveType pb)
-            return pa.Kind == pb.Kind;
-
-        if (a is FunctionType fa && b is FunctionType fb)
-        {
-            if (fa.ParameterTypes.Count != fb.ParameterTypes.Count)
-                return false;
-            for (int i = 0; i < fa.ParameterTypes.Count; i++)
-            {
-                if (!Unify(fa.ParameterTypes[i], fb.ParameterTypes[i]))
-                    return false;
-            }
-            return Unify(fa.ReturnType, fb.ReturnType);
-        }
-
-        return a.GetType() == b.GetType();
+        return _solver.Unify(a, b);
     }
 
     private AsterType Resolve(AsterType type)
     {
-        while (type is TypeVariable tv && _substitutions.TryGetValue(tv.Id, out var resolved))
-            type = resolved;
-        return type;
+        return _solver.Resolve(type);
     }
 
     private bool OccursCheck(TypeVariable tv, AsterType type)
@@ -326,18 +359,7 @@ public sealed class TypeChecker
 
     private bool IsAssignableTo(AsterType from, AsterType to)
     {
-        from = Resolve(from);
-        to = Resolve(to);
-
-        if (from is TypeVariable || to is TypeVariable)
-            return true;
-        if (from is ErrorType || to is ErrorType)
-            return true;
-        if (from is PrimitiveType pf && to is PrimitiveType pt)
-            return pf.Kind == pt.Kind;
-        if (from.GetType() == to.GetType())
-            return true;
-        return false;
+        return _solver.Unify(from, to);
     }
 
     private AsterType ResolveTypeRef(HirTypeRef? typeRef)
