@@ -2,6 +2,15 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Aster.Compiler\Aster.Compiler.csproj" />
+    <ProjectReference Include="..\Aster.Formatter\Aster.Formatter.csproj" />
+    <ProjectReference Include="..\Aster.Linter\Aster.Linter.csproj" />
+    <ProjectReference Include="..\Aster.Packages\Aster.Packages.csproj" />
+    <ProjectReference Include="..\Aster.DocGen\Aster.DocGen.csproj" />
+    <ProjectReference Include="..\Aster.Testing\Aster.Testing.csproj" />
+    <ProjectReference Include="..\Aster.Templates\Aster.Templates.csproj" />
+    <ProjectReference Include="..\Aster.Release\Aster.Release.csproj" />
+    <ProjectReference Include="..\Aster.Workspaces\Aster.Workspaces.csproj" />
+    <ProjectReference Include="..\Aster.Lsp\Aster.Lsp.csproj" />
   </ItemGroup>
 
   <PropertyGroup>
