@@ -1,0 +1,41 @@
+// Example: Using Vec and String from alloc module
+// Demonstrates heap-allocated collections
+
+use std::alloc::*;
+use std::fmt::*;
+
+fn main() {
+    // Create and use a Vec
+    let mut numbers = new_vec();
+    push(&mut numbers, 10);
+    push(&mut numbers, 20);
+    push(&mut numbers, 30);
+    
+    print("Vector contains ");
+    print(string_as_str(&format_u32(vec_len(&numbers) as u32)));
+    println(" elements");
+    
+    // Iterate through Vec
+    let mut i: usize = 0;
+    while i < vec_len(&numbers) {
+        let value = vec_get(&numbers, i);
+        print("  Element ");
+        print(string_as_str(&format_u32(i as u32)));
+        print(": ");
+        println(string_as_str(&format_i32(*value)));
+        i = i + 1;
+    }
+    
+    // String example
+    let mut message = new_string();
+    push_str(&mut message, "Hello, ");
+    push_str(&mut message, "Aster");
+    push_char(&mut message, '!');
+    
+    print("Message: ");
+    println(string_as_str(&message));
+    
+    print("Message length: ");
+    print(string_as_str(&format_u32(string_len(&message) as u32)));
+    println(" bytes");
+}

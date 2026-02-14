@@ -1,0 +1,142 @@
+// Example: Complete stdlib demonstration
+// Shows integration of multiple stdlib modules
+
+use std::core::*;
+use std::alloc::*;
+use std::fmt::*;
+use std::time::*;
+use std::math::*;
+
+struct Person {
+    name: String,
+    age: u32
+}
+
+fn create_person(name: &str, age: u32) -> Person {
+    Person {
+        name: from_str(name),
+        age: age
+    }
+}
+
+fn format_person(p: &Person) -> String {
+    let mut result = new_string();
+    push_str(&mut result, string_as_str(&p.name));
+    push_str(&mut result, " (age ");
+    push_str(&mut result, string_as_str(&format_u32(p.age)));
+    push_char(&mut result, ')');
+    result
+}
+
+fn process_numbers(numbers: &[i32]) -> (i32, i32, i32) {
+    if len(numbers) == 0 {
+        return (0, 0, 0);
+    }
+    
+    let mut sum: i32 = 0;
+    let mut min_val = *get(numbers, 0);
+    let mut max_val = *get(numbers, 0);
+    
+    let mut i: usize = 0;
+    while i < len(numbers) {
+        let value = *get(numbers, i);
+        sum = sum + value;
+        min_val = min_i32(min_val, value);
+        max_val = max_i32(max_val, value);
+        i = i + 1;
+    }
+    
+    (sum, min_val, max_val)
+}
+
+fn main() {
+    println("=== Aster Standard Library Complete Example ===");
+    println("");
+    
+    // Timing
+    let start = instant_now();
+    
+    // Working with strings and collections
+    println("1. Collections and Strings:");
+    let mut people = new_vec();
+    push(&mut people, create_person("Alice", 30));
+    push(&mut people, create_person("Bob", 25));
+    push(&mut people, create_person("Charlie", 35));
+    
+    let mut i: usize = 0;
+    while i < vec_len(&people) {
+        let person = vec_get(&people, i);
+        print("   ");
+        println(string_as_str(&format_person(person)));
+        i = i + 1;
+    }
+    
+    // Working with Option and Result
+    println("");
+    println("2. Option and Result types:");
+    
+    let numbers = [42, 17, 99, 3, 56];
+    let search_value = 99;
+    
+    let mut found: Option<usize> = none();
+    let mut j: usize = 0;
+    while j < len(&numbers) {
+        if *get(&numbers, j) == search_value {
+            found = some(j);
+            break;
+        }
+        j = j + 1;
+    }
+    
+    match found {
+        Option::Some(index) => {
+            print("   Found ");
+            print(string_as_str(&format_i32(search_value)));
+            print(" at index ");
+            println(string_as_str(&format_u32(index as u32)));
+        },
+        Option::None => {
+            print("   Value ");
+            print(string_as_str(&format_i32(search_value)));
+            println(" not found");
+        }
+    }
+    
+    // Mathematical operations
+    println("");
+    println("3. Mathematical operations:");
+    let (sum, min_val, max_val) = process_numbers(&numbers);
+    
+    print("   Numbers: ");
+    let mut k: usize = 0;
+    while k < len(&numbers) {
+        print(string_as_str(&format_i32(*get(&numbers, k))));
+        if k < len(&numbers) - 1 {
+            print(", ");
+        }
+        k = k + 1;
+    }
+    println("");
+    
+    print("   Sum: ");
+    println(string_as_str(&format_i32(sum)));
+    print("   Min: ");
+    println(string_as_str(&format_i32(min_val)));
+    print("   Max: ");
+    println(string_as_str(&format_i32(max_val)));
+    
+    let avg = sum / (len(&numbers) as i32);
+    print("   Average: ");
+    println(string_as_str(&format_i32(avg)));
+    
+    // Duration measurement
+    let duration = elapsed(&start);
+    println("");
+    println("4. Execution time:");
+    print("   Elapsed: ");
+    print(string_as_str(&format_u64(duration_as_micros(&duration))));
+    println(" microseconds");
+    
+    println("");
+    println("=== Example Complete ===");
+}
