@@ -1,0 +1,43 @@
+// Example: Math operations
+// Demonstrates mathematical functions
+
+use std::math::*;
+use std::fmt::*;
+
+fn main() {
+    println("Mathematical Operations Example");
+    println("================================");
+    
+    // Absolute value
+    let neg = -42;
+    let pos = abs_i32(neg);
+    print("abs(-42) = ");
+    println(string_as_str(&format_i32(pos)));
+    
+    // Min/Max
+    let a = 10;
+    let b = 20;
+    print("min(10, 20) = ");
+    println(string_as_str(&format_i32(min_i32(a, b))));
+    print("max(10, 20) = ");
+    println(string_as_str(&format_i32(max_i32(a, b))));
+    
+    // Clamp
+    let value = 150;
+    let clamped = clamp_i32(value, 0, 100);
+    print("clamp(150, 0, 100) = ");
+    println(string_as_str(&format_i32(clamped)));
+    
+    // Power
+    let base = 2;
+    let exp = 10;
+    let result = pow_i32(base, exp);
+    print("2^10 = ");
+    println(string_as_str(&format_i32(result)));
+    
+    // Constants
+    print("PI = ");
+    println(string_as_str(&format_f64(PI)));
+    print("E = ");
+    println(string_as_str(&format_f64(E)));
+}

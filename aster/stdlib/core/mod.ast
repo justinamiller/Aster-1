@@ -1,0 +1,71 @@
+// Core Module - Root of Aster Standard Library
+// Part of Aster Standard Library
+//
+// The core module is the foundation of the Aster standard library.
+// It provides fundamental types, traits, and operations that do not
+// require allocation or I/O.
+//
+// Stability: @stable
+// Effects: none (no alloc, no io, no OS dependencies)
+// Dependencies: compiler intrinsics only
+
+// Re-export core types and functions
+pub use primitives::*;
+pub use option::*;
+pub use result::*;
+pub use traits::*;
+pub use slice::*;
+pub use str::*;
+
+// Panic function (implemented by runtime)
+@stable
+fn panic(message: &str) -> never {
+    intrinsic_panic(message)
+}
+
+// Assertion macros
+@stable
+fn assert(condition: bool, message: &str) {
+    if !condition {
+        panic(message)
+    }
+}
+
+@stable
+fn assert_eq<T: Eq>(left: &T, right: &T, message: &str) {
+    if !left.eq(right) {
+        panic(message)
+    }
+}
+
+@stable
+fn assert_ne<T: Eq>(left: &T, right: &T, message: &str) {
+    if left.eq(right) {
+        panic(message)
+    }
+}
+
+// Memory operations (unsafe)
+@stable
+@unsafe
+fn memcpy(dst: *mut u8, src: *const u8, count: usize) {
+    intrinsic_memcpy(dst, src, count)
+}
+
+@stable
+@unsafe
+fn memset(dst: *mut u8, value: u8, count: usize) {
+    intrinsic_memset(dst, value, count)
+}
+
+@stable
+@unsafe
+fn memmove(dst: *mut u8, src: *const u8, count: usize) {
+    intrinsic_memmove(dst, src, count)
+}
+
+// Intrinsic functions
+fn intrinsic_panic(message: &str) -> never;
+fn intrinsic_memcpy(dst: *mut u8, src: *const u8, count: usize);
+fn intrinsic_memset(dst: *mut u8, value: u8, count: usize);
+fn intrinsic_memmove(dst: *mut u8, src: *const u8, count: usize);

@@ -1,0 +1,64 @@
+// Example: Environment variables and arguments
+// Demonstrates env module usage
+
+use std::env::*;
+use std::fmt::*;
+use std::alloc::*;
+
+fn main() {
+    println("Environment Example");
+    println("===================");
+    
+    // Print command-line arguments
+    let arguments = args();
+    print("Number of arguments: ");
+    println(string_as_str(&format_u32(vec_len(&arguments) as u32)));
+    
+    let mut i: usize = 0;
+    while i < vec_len(&arguments) {
+        let arg = vec_get(&arguments, i);
+        print("  Arg[");
+        print(string_as_str(&format_u32(i as u32)));
+        print("]: ");
+        println(string_as_str(arg));
+        i = i + 1;
+    }
+    
+    // Try to read an environment variable
+    println("");
+    println("Environment Variables:");
+    
+    let home = var("HOME");
+    match home {
+        Option::Some(path) => {
+            print("  HOME = ");
+            println(string_as_str(&path));
+        },
+        Option::None => {
+            println("  HOME not set");
+        }
+    }
+    
+    let user = var("USER");
+    match user {
+        Option::Some(name) => {
+            print("  USER = ");
+            println(string_as_str(&name));
+        },
+        Option::None => {
+            println("  USER not set");
+        }
+    }
+    
+    // Current directory
+    let cwd = current_dir();
+    match cwd {
+        Result::Ok(dir) => {
+            print("  Current directory: ");
+            println(string_as_str(&dir));
+        },
+        Result::Err(_) => {
+            println("  Could not get current directory");
+        }
+    }
+}

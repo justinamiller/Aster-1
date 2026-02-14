@@ -1,0 +1,64 @@
+// Example: Working with Option and Result types
+// Demonstrates core error handling patterns
+
+use std::core::*;
+use std::fmt::*;
+
+fn divide(a: i32, b: i32) -> Result<i32, &str> {
+    if b == 0 {
+        err("division by zero")
+    } else {
+        ok(a / b)
+    }
+}
+
+fn find_first(values: &[i32], target: i32) -> Option<usize> {
+    let mut i: usize = 0;
+    while i < len(values) {
+        if *get(values, i) == target {
+            return some(i);
+        }
+        i = i + 1;
+    }
+    none()
+}
+
+fn main() {
+    // Result example
+    let result1 = divide(10, 2);
+    match result1 {
+        Result::Ok(value) => {
+            print("10 / 2 = ");
+            println(string_as_str(&format_i32(value)));
+        },
+        Result::Err(msg) => {
+            println(msg);
+        }
+    }
+    
+    let result2 = divide(10, 0);
+    match result2 {
+        Result::Ok(value) => {
+            print("10 / 0 = ");
+            println(string_as_str(&format_i32(value)));
+        },
+        Result::Err(msg) => {
+            print("Error: ");
+            println(msg);
+        }
+    }
+    
+    // Option example
+    let numbers = [1, 2, 3, 4, 5];
+    let index = find_first(&numbers, 3);
+    
+    match index {
+        Option::Some(i) => {
+            print("Found at index: ");
+            println(string_as_str(&format_u32(i as u32)));
+        },
+        Option::None => {
+            println("Not found");
+        }
+    }
+}

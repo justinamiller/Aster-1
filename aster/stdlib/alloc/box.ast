@@ -1,0 +1,68 @@
+// Box - Heap-allocated value
+// Part of Aster Standard Library - Alloc Module
+//
+// Box<T> is a smart pointer to a heap-allocated value of type T.
+//
+// Stability: @stable
+// Effects: @alloc (performs heap allocation)
+// Dependencies: core
+
+/// A pointer type for heap allocation
+@stable
+@alloc
+struct Box<T> {
+    ptr: *mut T
+}
+
+/// Allocates memory on the heap and places value into it
+@stable
+@alloc
+fn new_box<T>(value: T) -> Box<T> {
+    let ptr = allocate(size_of::<T>()) as *mut T;
+    unsafe {
+        ptr.write(value);
+    }
+    Box { ptr: ptr }
+}
+
+/// Extracts the value from the box
+@stable
+fn into_inner<T>(b: Box<T>) -> T {
+    let value = unsafe { b.ptr.read() };
+    // Prevent drop from being called
+    forget(b);
+    value
+}
+
+/// Returns a reference to the boxed value
+@stable
+fn box_as_ref<T>(b: &Box<T>) -> &T {
+    unsafe { &*b.ptr }
+}
+
+/// Returns a mutable reference to the boxed value
+@stable
+fn box_as_mut<T>(b: &mut Box<T>) -> &mut T {
+    unsafe { &mut *b.ptr }
+}
+
+impl<T> Drop for Box<T> {
+    fn drop(&mut self) {
+        unsafe {
+            // Call drop on the contained value
+            self.ptr.read();
+            // Deallocate memory
+            deallocate(self.ptr as *mut u8, size_of::<T>());
+        }
+    }
+}
+
+impl<T: Clone> Clone for Box<T> {
+    fn clone(&self) -> Box<T> {
+        let value = box_as_ref(self).clone();
+        new_box(value)
+    }
+}
+
+// Prevent drop from being called
+fn forget<T>(value: T);

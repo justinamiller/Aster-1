@@ -1,0 +1,151 @@
+// Slice Type - View into contiguous sequence
+// Part of Aster Standard Library - Core Module
+//
+// A slice is a view into a block of memory represented as a pointer and a length.
+// Slices are one of Aster's primary data structures for working with sequences.
+//
+// Stability: @stable
+// Effects: none (slice itself is pure, operations may have effects)
+// Dependencies: core primitives
+
+/// Dynamically-sized view into a contiguous sequence [T]
+/// A slice is a "fat pointer" containing a pointer and length
+@stable
+type slice<T> = intrinsic;
+
+/// Returns the number of elements in the slice
+@stable
+fn len<T>(s: &[T]) -> usize {
+    intrinsic_slice_len(s)
+}
+
+/// Returns true if the slice has a length of 0
+@stable
+fn is_empty<T>(s: &[T]) -> bool {
+    len(s) == 0
+}
+
+/// Returns a reference to an element at the given index
+/// Panics if index is out of bounds
+@stable
+fn get<T>(s: &[T], index: usize) -> &T {
+    if index >= len(s) {
+        panic("slice index out of bounds")
+    }
+    intrinsic_slice_get(s, index)
+}
+
+/// Returns a mutable reference to an element at the given index
+/// Panics if index is out of bounds
+@stable
+fn get_mut<T>(s: &mut [T], index: usize) -> &mut T {
+    if index >= len(s) {
+        panic("slice index out of bounds")
+    }
+    intrinsic_slice_get_mut(s, index)
+}
+
+/// Returns a reference to the first element
+/// Panics if slice is empty
+@stable
+fn first<T>(s: &[T]) -> &T {
+    if is_empty(s) {
+        panic("slice is empty")
+    }
+    get(s, 0)
+}
+
+/// Returns a reference to the last element
+/// Panics if slice is empty
+@stable
+fn last<T>(s: &[T]) -> &T {
+    if is_empty(s) {
+        panic("slice is empty")
+    }
+    get(s, len(s) - 1)
+}
+
+/// Returns a subslice [start..end)
+/// Panics if start > end or end > len
+@stable
+fn slice_range<T>(s: &[T], start: usize, end: usize) -> &[T] {
+    if start > end || end > len(s) {
+        panic("slice range out of bounds")
+    }
+    intrinsic_slice_range(s, start, end)
+}
+
+/// Copies all elements from src to dst
+/// Panics if lengths differ
+@stable
+fn copy_from_slice<T>(dst: &mut [T], src: &[T]) {
+    if len(dst) != len(src) {
+        panic("source and destination slices have different lengths")
+    }
+    intrinsic_slice_copy(dst, src)
+}
+
+/// Swaps two elements in the slice
+@stable
+fn swap<T>(s: &mut [T], a: usize, b: usize) {
+    if a >= len(s) || b >= len(s) {
+        panic("swap index out of bounds")
+    }
+    intrinsic_slice_swap(s, a, b)
+}
+
+/// Reverses the order of elements in the slice
+@stable
+fn reverse<T>(s: &mut [T]) {
+    let mut left: usize = 0;
+    let mut right = len(s);
+    
+    while left < right {
+        right = right - 1;
+        swap(s, left, right);
+        left = left + 1;
+    }
+}
+
+/// Returns an iterator over the slice
+@stable
+fn iter<T>(s: &[T]) -> SliceIter<T> {
+    SliceIter {
+        slice: s,
+        index: 0
+    }
+}
+
+/// Iterator over a slice
+@stable
+struct SliceIter<T> {
+    slice: &[T],
+    index: usize
+}
+
+impl<T> Iterator for SliceIter<T> {
+    type Item = &T;
+    
+    fn next(&mut self) -> Option<&T> {
+        if self.index < len(self.slice) {
+            let result = get(self.slice, self.index);
+            self.index = self.index + 1;
+            Option::Some(result)
+        } else {
+            Option::None
+        }
+    }
+    
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let remaining = len(self.slice) - self.index;
+        (remaining, Option::Some(remaining))
+    }
+}
+
+// Intrinsic functions (provided by compiler)
+fn intrinsic_slice_len<T>(s: &[T]) -> usize;
+fn intrinsic_slice_get<T>(s: &[T], index: usize) -> &T;
+fn intrinsic_slice_get_mut<T>(s: &mut [T], index: usize) -> &mut T;
+fn intrinsic_slice_range<T>(s: &[T], start: usize, end: usize) -> &[T];
+fn intrinsic_slice_copy<T>(dst: &mut [T], src: &[T]);
+fn intrinsic_slice_swap<T>(s: &mut [T], a: usize, b: usize);

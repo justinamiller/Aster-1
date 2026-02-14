@@ -1,0 +1,91 @@
+// Core Primitives - Fundamental types for Aster
+// Part of Aster Standard Library - Core Module
+//
+// This module defines the primitive types available in Aster.
+// These types are intrinsic to the language and provided by the compiler.
+//
+// Stability: @stable
+// Effects: none
+// Dependencies: none (compiler intrinsics)
+
+/// Boolean type - true or false
+/// Compiler intrinsic, 1 byte
+@stable
+type bool = intrinsic;
+
+/// Character type - Unicode scalar value (4 bytes)
+/// Represents a single Unicode code point
+@stable
+type char = intrinsic;
+
+// Integer types - signed
+/// 8-bit signed integer (-128 to 127)
+@stable
+type i8 = intrinsic;
+
+/// 16-bit signed integer (-32,768 to 32,767)
+@stable
+type i16 = intrinsic;
+
+/// 32-bit signed integer (-2,147,483,648 to 2,147,483,647)
+@stable
+type i32 = intrinsic;
+
+/// 64-bit signed integer
+@stable
+type i64 = intrinsic;
+
+/// 128-bit signed integer
+@stable
+type i128 = intrinsic;
+
+/// Platform-dependent signed integer (pointer-sized)
+@stable
+type isize = intrinsic;
+
+// Integer types - unsigned
+/// 8-bit unsigned integer (0 to 255)
+@stable
+type u8 = intrinsic;
+
+/// 16-bit unsigned integer (0 to 65,535)
+@stable
+type u16 = intrinsic;
+
+/// 32-bit unsigned integer (0 to 4,294,967,295)
+@stable
+type u32 = intrinsic;
+
+/// 64-bit unsigned integer
+@stable
+type u64 = intrinsic;
+
+/// 128-bit unsigned integer
+@stable
+type u128 = intrinsic;
+
+/// Platform-dependent unsigned integer (pointer-sized)
+@stable
+type usize = intrinsic;
+
+// Floating-point types
+/// 32-bit floating point (IEEE 754 single precision)
+@stable
+type f32 = intrinsic;
+
+/// 64-bit floating point (IEEE 754 double precision)
+@stable
+type f64 = intrinsic;
+
+// Pointer types
+/// Raw pointer to type T (not null-checked, unsafe to dereference)
+@stable
+type ptr<T> = intrinsic;
+
+/// Never type - represents computation that never returns
+@stable
+type never = intrinsic;
+
+/// Unit type - zero-sized type with single value ()
+@stable
+type unit = ();

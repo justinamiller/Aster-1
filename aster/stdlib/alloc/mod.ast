@@ -1,0 +1,52 @@
+// Alloc Module - Heap allocation primitives
+// Part of Aster Standard Library
+//
+// The alloc module provides types for heap allocation.
+//
+// Stability: @stable
+// Effects: @alloc (all APIs perform heap allocation)
+// Dependencies: core
+
+pub use vec::*;
+pub use string::*;
+pub use box::*;
+
+/// Global allocator interface
+@stable
+@alloc
+fn allocate_bytes(size: usize, align: usize) -> *mut u8 {
+    if size == 0 {
+        return null_mut();
+    }
+    intrinsic_allocate(size, align)
+}
+
+/// Global deallocator interface
+@stable
+fn deallocate_bytes(ptr: *mut u8, size: usize, align: usize) {
+    if size == 0 || ptr.is_null() {
+        return;
+    }
+    intrinsic_deallocate(ptr, size, align)
+}
+
+/// Reallocate memory
+@stable
+@alloc
+fn reallocate_bytes(ptr: *mut u8, old_size: usize, new_size: usize, align: usize) -> *mut u8 {
+    if new_size == 0 {
+        deallocate_bytes(ptr, old_size, align);
+        return null_mut();
+    }
+    
+    if old_size == 0 {
+        return allocate_bytes(new_size, align);
+    }
+    
+    intrinsic_reallocate(ptr, old_size, new_size, align)
+}
+
+// Intrinsic allocator functions (implemented by runtime)
+fn intrinsic_allocate(size: usize, align: usize) -> *mut u8;
+fn intrinsic_deallocate(ptr: *mut u8, size: usize, align: usize);
+fn intrinsic_reallocate(ptr: *mut u8, old_size: usize, new_size: usize, align: usize) -> *mut u8;

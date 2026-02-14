@@ -1,0 +1,111 @@
+// Testing Module - Test framework
+// Part of Aster Standard Library
+//
+// The testing module provides a framework for writing and running tests.
+//
+// Stability: @experimental
+// Effects: @io (test output)
+// Dependencies: core, alloc, fmt
+
+/// Marks a function as a test
+@experimental
+trait Test {
+    fn run(&self) -> TestResult;
+}
+
+/// Result of running a test
+@experimental
+enum TestResult {
+    Passed,
+    Failed(String)
+}
+
+/// Test assertion - panics if condition is false
+@experimental
+fn test_assert(condition: bool, message: &str) {
+    if !condition {
+        panic(message)
+    }
+}
+
+/// Test assertion - checks equality
+@experimental
+fn test_assert_eq<T: Eq>(left: &T, right: &T, message: &str) {
+    if !left.eq(right) {
+        panic(message)
+    }
+}
+
+/// Test assertion - checks inequality
+@experimental
+fn test_assert_ne<T: Eq>(left: &T, right: &T, message: &str) {
+    if left.eq(right) {
+        panic(message)
+    }
+}
+
+/// Runs all registered tests
+@experimental
+@io
+fn run_tests(tests: &[TestFn]) {
+    let total = len(tests);
+    let mut passed: usize = 0;
+    let mut failed: usize = 0;
+    
+    println("Running tests...");
+    
+    let mut i: usize = 0;
+    while i < total {
+        let test = get(tests, i);
+        let result = run_test(test);
+        
+        match result {
+            TestResult::Passed => {
+                passed = passed + 1;
+                print(".");
+            },
+            TestResult::Failed(msg) => {
+                failed = failed + 1;
+                print("F");
+                eprintln(&msg);
+            }
+        }
+        
+        i = i + 1;
+    }
+    
+    println("");
+    
+    let mut summary = new_string();
+    push_str(&mut summary, "Tests: ");
+    push_str(&mut summary, string_as_str(&format_u32(total as u32)));
+    push_str(&mut summary, ", Passed: ");
+    push_str(&mut summary, string_as_str(&format_u32(passed as u32)));
+    push_str(&mut summary, ", Failed: ");
+    push_str(&mut summary, string_as_str(&format_u32(failed as u32)));
+    
+    println(string_as_str(&summary));
+}
+
+/// A test function
+@experimental
+struct TestFn {
+    name: String,
+    func: fn() -> TestResult
+}
+
+/// Runs a single test function
+@experimental
+fn run_test(test: &TestFn) -> TestResult {
+    (test.func)()
+}
+
+/// Creates a test function
+@experimental
+@alloc
+fn test_fn(name: &str, func: fn() -> TestResult) -> TestFn {
+    TestFn {
+        name: from_str(name),
+        func: func
+    }
+}

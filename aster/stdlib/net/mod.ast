@@ -1,0 +1,297 @@
+// Net Module - Networking primitives
+// Part of Aster Standard Library
+//
+// The net module provides basic networking functionality.
+//
+// Stability: @stable
+// Effects: @io (all networking is I/O)
+// Dependencies: core, alloc, io
+
+/// An IPv4 address
+@stable
+struct Ipv4Addr {
+    octets: [u8; 4]
+}
+
+/// Creates a new IPv4 address from four octets
+@stable
+fn ipv4(a: u8, b: u8, c: u8, d: u8) -> Ipv4Addr {
+    Ipv4Addr {
+        octets: [a, b, c, d]
+    }
+}
+
+/// An IPv6 address
+@stable
+struct Ipv6Addr {
+    segments: [u16; 8]
+}
+
+/// A socket address (IP + port)
+@stable
+enum SocketAddr {
+    V4(Ipv4Addr, u16),
+    V6(Ipv6Addr, u16)
+}
+
+/// Creates a socket address from an IPv4 address and port
+@stable
+fn socket_addr_v4(addr: Ipv4Addr, port: u16) -> SocketAddr {
+    SocketAddr::V4(addr, port)
+}
+
+/// Creates a socket address from an IPv6 address and port
+@stable
+fn socket_addr_v6(addr: Ipv6Addr, port: u16) -> SocketAddr {
+    SocketAddr::V6(addr, port)
+}
+
+/// A TCP stream between a local and remote socket
+@stable
+@io
+struct TcpStream {
+    fd: i32
+}
+
+/// Opens a TCP connection to a remote host
+@stable
+@io
+fn tcp_connect(addr: &SocketAddr) -> Result<TcpStream, IoError> {
+    let fd = unsafe {
+        intrinsic_socket(2, 1, 0) // AF_INET, SOCK_STREAM, 0
+    };
+    
+    if fd < 0 {
+        return err(IoError::Other);
+    }
+    
+    let result = match addr {
+        SocketAddr::V4(ip, port) => {
+            unsafe {
+                intrinsic_connect_v4(fd, ip, *port)
+            }
+        },
+        SocketAddr::V6(ip, port) => {
+            unsafe {
+                intrinsic_connect_v6(fd, ip, *port)
+            }
+        }
+    };
+    
+    if result < 0 {
+        unsafe { intrinsic_close(fd); }
+        err(IoError::ConnectionRefused)
+    } else {
+        ok(TcpStream { fd: fd })
+    }
+}
+
+impl Read for TcpStream {
+    @io
+    fn read(&mut self, buf: &mut [u8]) -> Result<usize, IoError> {
+        let n = unsafe {
+            intrinsic_read(self.fd, buf.as_mut_ptr(), len(buf))
+        };
+        
+        if n < 0 {
+            err(IoError::Other)
+        } else if n == 0 {
+            err(IoError::ConnectionReset)
+        } else {
+            ok(n as usize)
+        }
+    }
+}
+
+impl Write for TcpStream {
+    @io
+    fn write(&mut self, buf: &[u8]) -> Result<usize, IoError> {
+        let n = unsafe {
+            intrinsic_write(self.fd, buf.as_ptr(), len(buf))
+        };
+        
+        if n < 0 {
+            err(IoError::BrokenPipe)
+        } else {
+            ok(n as usize)
+        }
+    }
+    
+    @io
+    fn flush(&mut self) -> Result<(), IoError> {
+        ok(())
+    }
+}
+
+impl Drop for TcpStream {
+    fn drop(&mut self) {
+        unsafe {
+            intrinsic_close(self.fd);
+        }
+    }
+}
+
+/// A TCP socket server, listening for connections
+@stable
+@io
+struct TcpListener {
+    fd: i32
+}
+
+/// Creates a new TcpListener bound to the specified address
+@stable
+@io
+fn tcp_bind(addr: &SocketAddr) -> Result<TcpListener, IoError> {
+    let fd = unsafe {
+        intrinsic_socket(2, 1, 0) // AF_INET, SOCK_STREAM, 0
+    };
+    
+    if fd < 0 {
+        return err(IoError::Other);
+    }
+    
+    let result = match addr {
+        SocketAddr::V4(ip, port) => {
+            unsafe {
+                intrinsic_bind_v4(fd, ip, *port)
+            }
+        },
+        SocketAddr::V6(ip, port) => {
+            unsafe {
+                intrinsic_bind_v6(fd, ip, *port)
+            }
+        }
+    };
+    
+    if result < 0 {
+        unsafe { intrinsic_close(fd); }
+        return err(IoError::AddrInUse);
+    }
+    
+    let listen_result = unsafe {
+        intrinsic_listen(fd, 128)
+    };
+    
+    if listen_result < 0 {
+        unsafe { intrinsic_close(fd); }
+        err(IoError::Other)
+    } else {
+        ok(TcpListener { fd: fd })
+    }
+}
+
+/// Accepts a new incoming connection from this listener
+@stable
+@io
+fn accept(listener: &TcpListener) -> Result<(TcpStream, SocketAddr), IoError> {
+    let client_fd = unsafe {
+        intrinsic_accept(listener.fd)
+    };
+    
+    if client_fd < 0 {
+        err(IoError::Other)
+    } else {
+        // For simplicity, return a dummy address
+        let addr = socket_addr_v4(ipv4(0, 0, 0, 0), 0);
+        ok((TcpStream { fd: client_fd }, addr))
+    }
+}
+
+impl Drop for TcpListener {
+    fn drop(&mut self) {
+        unsafe {
+            intrinsic_close(self.fd);
+        }
+    }
+}
+
+/// A UDP socket
+@stable
+@io
+struct UdpSocket {
+    fd: i32
+}
+
+/// Creates a UDP socket bound to the specified address
+@stable
+@io
+fn udp_bind(addr: &SocketAddr) -> Result<UdpSocket, IoError> {
+    let fd = unsafe {
+        intrinsic_socket(2, 2, 0) // AF_INET, SOCK_DGRAM, 0
+    };
+    
+    if fd < 0 {
+        return err(IoError::Other);
+    }
+    
+    let result = match addr {
+        SocketAddr::V4(ip, port) => {
+            unsafe {
+                intrinsic_bind_v4(fd, ip, *port)
+            }
+        },
+        SocketAddr::V6(ip, port) => {
+            unsafe {
+                intrinsic_bind_v6(fd, ip, *port)
+            }
+        }
+    };
+    
+    if result < 0 {
+        unsafe { intrinsic_close(fd); }
+        err(IoError::AddrInUse)
+    } else {
+        ok(UdpSocket { fd: fd })
+    }
+}
+
+/// Sends data on the socket to the given address
+@stable
+@io
+fn send_to(socket: &UdpSocket, buf: &[u8], addr: &SocketAddr) -> Result<usize, IoError> {
+    let n = unsafe {
+        intrinsic_sendto(socket.fd, buf.as_ptr(), len(buf), addr)
+    };
+    
+    if n < 0 {
+        err(IoError::Other)
+    } else {
+        ok(n as usize)
+    }
+}
+
+/// Receives data from the socket
+@stable
+@io
+fn recv_from(socket: &UdpSocket, buf: &mut [u8]) -> Result<(usize, SocketAddr), IoError> {
+    let n = unsafe {
+        intrinsic_recvfrom(socket.fd, buf.as_mut_ptr(), len(buf))
+    };
+    
+    if n < 0 {
+        err(IoError::Other)
+    } else {
+        // For simplicity, return a dummy address
+        let addr = socket_addr_v4(ipv4(0, 0, 0, 0), 0);
+        ok((n as usize, addr))
+    }
+}
+
+impl Drop for UdpSocket {
+    fn drop(&mut self) {
+        unsafe {
+            intrinsic_close(self.fd);
+        }
+    }
+}
+
+// Intrinsic networking functions
+fn intrinsic_socket(domain: i32, type_: i32, protocol: i32) -> i32;
+fn intrinsic_connect_v4(fd: i32, addr: &Ipv4Addr, port: u16) -> i32;
+fn intrinsic_connect_v6(fd: i32, addr: &Ipv6Addr, port: u16) -> i32;
+fn intrinsic_bind_v4(fd: i32, addr: &Ipv4Addr, port: u16) -> i32;
+fn intrinsic_bind_v6(fd: i32, addr: &Ipv6Addr, port: u16) -> i32;
+fn intrinsic_listen(fd: i32, backlog: i32) -> i32;
+fn intrinsic_accept(fd: i32) -> i32;
+fn intrinsic_sendto(fd: i32, buf: *const u8, len: usize, addr: &SocketAddr) -> isize;
+fn intrinsic_recvfrom(fd: i32, buf: *mut u8, len: usize) -> isize;

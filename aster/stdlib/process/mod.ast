@@ -1,0 +1,164 @@
+// Process Module - Process spawning and control
+// Part of Aster Standard Library
+//
+// The process module provides utilities for working with processes.
+//
+// Stability: @stable
+// Effects: @io (process operations are I/O)
+// Dependencies: core, alloc, io
+
+/// Terminates the current process with the specified exit code
+@stable
+@io
+fn exit(code: i32) -> never {
+    unsafe {
+        intrinsic_exit(code)
+    }
+}
+
+/// Terminates the current process with a success exit code (0)
+@stable
+@io
+fn exit_success() -> never {
+    exit(0)
+}
+
+/// Terminates the current process with a failure exit code (1)
+@stable
+@io
+fn exit_failure() -> never {
+    exit(1)
+}
+
+/// A handle to a child process
+@stable
+@io
+struct Child {
+    pid: i32
+}
+
+/// Builder for spawning processes
+@stable
+@alloc
+struct Command {
+    program: String,
+    args: Vec<String>,
+    env: Vec<(String, String)>
+}
+
+/// Creates a new Command for launching the program at path
+@stable
+@alloc
+fn command(program: &str) -> Command {
+    Command {
+        program: from_str(program),
+        args: new_vec(),
+        env: new_vec()
+    }
+}
+
+/// Adds an argument to pass to the program
+@stable
+@alloc
+fn arg(cmd: &mut Command, arg: &str) {
+    push(&mut cmd.args, from_str(arg));
+}
+
+/// Adds multiple arguments to pass to the program
+@stable
+@alloc
+fn args_multiple(cmd: &mut Command, args: &[&str]) {
+    let mut i: usize = 0;
+    while i < len(args) {
+        let arg_str = get(args, i);
+        push(&mut cmd.args, from_str(*arg_str));
+        i = i + 1;
+    }
+}
+
+/// Inserts or updates an environment variable mapping
+@stable
+@alloc
+fn env_var(cmd: &mut Command, key: &str, value: &str) {
+    push(&mut cmd.env, (from_str(key), from_str(value)));
+}
+
+/// Executes the command as a child process
+@stable
+@io
+fn spawn(cmd: &Command) -> Result<Child, ()> {
+    // Build argument array
+    let argc = vec_len(&cmd.args) + 1;
+    let mut argv = with_capacity(argc + 1);
+    
+    // First arg is the program name
+    push(&mut argv, string_as_str(&cmd.program).as_ptr());
+    
+    // Add remaining args
+    let mut i: usize = 0;
+    while i < vec_len(&cmd.args) {
+        let arg = vec_get(&cmd.args, i);
+        push(&mut argv, string_as_str(arg).as_ptr());
+        i = i + 1;
+    }
+    
+    // Null terminator
+    push(&mut argv, null());
+    
+    let pid = unsafe {
+        intrinsic_fork()
+    };
+    
+    if pid < 0 {
+        // Fork failed
+        err(())
+    } else if pid == 0 {
+        // Child process
+        unsafe {
+            intrinsic_execve(
+                string_as_str(&cmd.program).as_ptr(),
+                as_slice(&argv).as_ptr(),
+                null()
+            );
+        }
+        // If execve returns, it failed
+        exit_failure()
+    } else {
+        // Parent process
+        ok(Child { pid: pid })
+    }
+}
+
+/// Waits for the child to exit and returns its exit status
+@stable
+@io
+fn wait(child: &Child) -> Result<i32, ()> {
+    let mut status: i32 = 0;
+    let result = unsafe {
+        intrinsic_waitpid(child.pid, &mut status, 0)
+    };
+    
+    if result < 0 {
+        err(())
+    } else {
+        ok(status)
+    }
+}
+
+/// Returns the process ID of the current process
+@stable
+@io
+fn id() -> u32 {
+    unsafe {
+        intrinsic_getpid() as u32
+    }
+}
+
+// Intrinsic process functions
+fn intrinsic_exit(code: i32) -> never;
+fn intrinsic_fork() -> i32;
+fn intrinsic_execve(path: *const u8, argv: *const *const u8, envp: *const *const u8) -> i32;
+fn intrinsic_waitpid(pid: i32, status: &mut i32, options: i32) -> i32;
+fn intrinsic_getpid() -> i32;
+
+fn null<T>() -> *const T;
