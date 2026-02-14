@@ -372,7 +372,7 @@ public static class Program
         if (args.Length == 0)
         {
             Console.Error.WriteLine("error: no harness specified");
-            Console.Error.WriteLine("Available harnesses: parser, typesystem");
+            Console.Error.WriteLine("Available harnesses: parser, typesystem, mirbuilder, optimizer");
             return 1;
         }
 
@@ -394,6 +394,8 @@ public static class Program
         {
             "parser" => new ParserFuzz(config),
             "typesystem" => new TypeSystemFuzz(config),
+            "mirbuilder" => new MirBuilderFuzz(config),
+            "optimizer" => new OptimizerFuzz(config),
             _ => throw new ArgumentException($"Unknown harness: {harness}")
         };
 
