@@ -100,6 +100,7 @@ public sealed class NameResolver
         ExpressionStmtNode es => new HirExprStmt(ResolveNode(es.Expression)!, es.Span),
         CallExprNode call => ResolveCallExpr(call),
         IdentifierExprNode id => ResolveIdentifier(id),
+        PathExprNode path => ResolvePath(path),
         LiteralExprNode lit => new HirLiteralExpr(lit.Value, lit.LiteralKind, lit.Span),
         BinaryExprNode bin => new HirBinaryExpr(ResolveNode(bin.Left)!, bin.Operator, ResolveNode(bin.Right)!, bin.Span),
         UnaryExprNode un => new HirUnaryExpr(un.Operator, ResolveNode(un.Operand)!, un.Span),
@@ -204,6 +205,14 @@ public sealed class NameResolver
             Diagnostics.ReportError("E0201", $"Undefined symbol '{id.Name}'", id.Span);
         }
         return new HirIdentifierExpr(id.Name, symbol, id.Span);
+    }
+
+    private HirPathExpr ResolvePath(PathExprNode path)
+    {
+        // For now, just pass through the path
+        // In a full implementation, we'd resolve each segment
+        // For Core-0, we mainly need this for enum variants like Option::Some
+        return new HirPathExpr(path.Segments, path.Span);
     }
 
     private HirIfExpr ResolveIfExpr(IfExprNode ifExpr)

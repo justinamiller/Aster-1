@@ -252,6 +252,14 @@ public sealed class IdentifierExprNode : AstNode
     public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitIdentifierExpr(this);
 }
 
+/// <summary>Path expression for namespaced names: A::B::C</summary>
+public sealed class PathExprNode : AstNode
+{
+    public IReadOnlyList<string> Segments { get; }
+    public PathExprNode(IReadOnlyList<string> segments, Span span) : base(span) => Segments = segments;
+    public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitPathExpr(this);
+}
+
 /// <summary>Member access expression: expr.member</summary>
 public sealed class MemberAccessExprNode : AstNode
 {

@@ -539,20 +539,42 @@ public sealed class AsterParser
             return new LiteralExprNode(false, LiteralKind.Bool, span);
         }
 
-        // Identifier or struct initialization
+        // Identifier, path, or struct initialization
         if (Check(TokenKind.Identifier))
         {
+            var segments = new List<string>();
             var name = Current.Value;
             var nameSpan = Current.Span;
+            segments.Add(name);
             Advance();
             
-            // Check for struct initialization: Identifier { ... }
-            if (Check(TokenKind.LeftBrace))
+            // Check for path segments: A::B::C
+            while (Check(TokenKind.ColonColon))
             {
-                return ParseStructInit(name, nameSpan);
+                Advance();
+                if (!Check(TokenKind.Identifier))
+                {
+                    ReportError("E0100", "Expected identifier after '::'");
+                    break;
+                }
+                segments.Add(Current.Value);
+                Advance();
             }
             
-            return new IdentifierExprNode(name, span);
+            // Check for struct initialization: Identifier { ... } or Path::Name { ... }
+            // Need to lookahead to distinguish from block expressions like match { }
+            if (Check(TokenKind.LeftBrace) && LooksLikeStructInit())
+            {
+                // For paths, use the full path as struct name
+                var structName = string.Join("::", segments);
+                return ParseStructInit(structName, nameSpan);
+            }
+            
+            // Return path or simple identifier
+            if (segments.Count > 1)
+                return new PathExprNode(segments, MakeSpan(span));
+            else
+                return new IdentifierExprNode(name, span);
         }
 
         // Grouped expression
@@ -678,11 +700,27 @@ public sealed class AsterParser
             return new PatternNode("", Array.Empty<PatternNode>(), false, lit, span);
         }
 
-        // Named/constructor pattern
+        // Named/constructor pattern (including paths like Option::Some)
         if (Check(TokenKind.Identifier))
         {
-            var name = Current.Value;
+            var segments = new List<string>();
+            segments.Add(Current.Value);
             Advance();
+            
+            // Handle path segments: Option::Some
+            while (Check(TokenKind.ColonColon))
+            {
+                Advance();
+                if (!Check(TokenKind.Identifier))
+                {
+                    ReportError("E0100", "Expected identifier after '::'");
+                    break;
+                }
+                segments.Add(Current.Value);
+                Advance();
+            }
+            
+            var name = string.Join("::", segments);
 
             var subPatterns = new List<PatternNode>();
             if (Check(TokenKind.LeftParen))
@@ -938,6 +976,30 @@ public sealed class AsterParser
         var name = Current.Value;
         Advance();
         return name;
+    }
+
+    private bool LooksLikeStructInit()
+    {
+        // Lookahead to distinguish struct init { field: value } from block { stmt }
+        // Current token is '{', peek ahead to see if it looks like field initialization
+        if (!Check(TokenKind.LeftBrace))
+            return false;
+        
+        var next = Peek(1);
+        
+        // Empty braces or closing brace immediately
+        if (next.Kind == TokenKind.RightBrace)
+            return true;  // Could be empty struct init
+        
+        // Check for identifier followed by colon (field: value pattern)
+        if (next.Kind == TokenKind.Identifier)
+        {
+            var afterIdent = Peek(2);
+            if (afterIdent.Kind == TokenKind.Colon)
+                return true;  // Looks like field: value
+        }
+        
+        return false;  // Probably a block expression
     }
 
     private void ReportError(string code, string message)

@@ -112,6 +112,13 @@ public sealed class HirIdentifierExpr : HirNode
     { Name = name; ResolvedSymbol = resolvedSymbol; }
 }
 
+/// <summary>HIR path expression for namespaced names.</summary>
+public sealed class HirPathExpr : HirNode
+{
+    public IReadOnlyList<string> Segments { get; }
+    public HirPathExpr(IReadOnlyList<string> segments, Span span) : base(span) { Segments = segments; }
+}
+
 /// <summary>HIR literal expression.</summary>
 public sealed class HirLiteralExpr : HirNode
 {
