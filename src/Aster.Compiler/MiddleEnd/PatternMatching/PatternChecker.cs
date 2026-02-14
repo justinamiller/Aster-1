@@ -127,8 +127,8 @@ public sealed class PatternChecker
         if (type is PrimitiveType { Kind: PrimitiveKind.Bool })
         {
             var hasTrue = matrix.Rows.Any(r => r.Patterns[0] is LiteralPattern { Value: true });
-            var hasfalse = matrix.Rows.Any(r => r.Patterns[0] is LiteralPattern { Value: false });
-            return hasTrue && hasfalse;
+            var hasFalse = matrix.Rows.Any(r => r.Patterns[0] is LiteralPattern { Value: false });
+            return hasTrue && hasFalse;
         }
 
         // For other types, we conservatively assume exhaustiveness if there's at least one pattern

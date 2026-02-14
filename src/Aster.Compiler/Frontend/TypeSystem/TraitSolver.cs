@@ -125,8 +125,8 @@ public sealed class TraitSolver
                 var allConditionsMet = true;
                 foreach (var condition in impl.WhereClause)
                 {
-                    var condType = unificationSolver.ApplySubstitutions(type);
-                    var subObligation = new Obligation(condType, condition, span);
+                    var substitutedType = unificationSolver.ApplySubstitutions(type);
+                    var subObligation = new Obligation(substitutedType, condition, span);
                     if (!Resolve(subObligation, solver))
                     {
                         allConditionsMet = false;
