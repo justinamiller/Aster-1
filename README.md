@@ -21,6 +21,11 @@ Source → Lexer → Parser → AST → Name Resolution → HIR → Type Check �
 - **MIR** — SSA-based intermediate representation
 - **Borrow Checker** — NLL-based dataflow analysis
 - **Lowerings** — Pattern matching, async, and drop lowering
+- **Incremental Compilation** — Query-based system with caching and dependency tracking
+- **Parallel Compilation** — Work-stealing scheduler with deterministic output
+- **Analysis** — CFG, SSA, dominators, liveness, def-use chains
+- **Optimizations** — DCE, constant folding, CSE, inlining, SROA, and more
+- **Pass Manager** — Multi-level optimization pipeline (O0-O3)
 
 ### Backend
 - **LLVM** — Text IR emission with runtime ABI declarations
@@ -52,5 +57,20 @@ fn main() {
 ## Running Tests
 
 ```bash
-dotnet test tests/Aster.Compiler.Tests
+# All tests (119 total)
+dotnet test
+
+# Specific test suites
+dotnet test tests/Aster.Compiler.Tests              # Compiler tests
+dotnet test tests/Aster.Compiler.OptimizationTests  # Optimization tests
+dotnet test tests/Aster.Compiler.PerfTests          # Incremental compilation tests
 ```
+
+## Architecture
+
+See [Mid-End Architecture Documentation](docs/MidEndArchitecture.md) for details on:
+- Incremental compilation system
+- Parallel compilation scheduler  
+- MIR analysis infrastructure
+- Optimization passes
+- Performance characteristics

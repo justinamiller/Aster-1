@@ -1,0 +1,16 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Aster.Compiler\Aster.Compiler.csproj" />
+    <ProjectReference Include="..\Aster.Compiler.Analysis\Aster.Compiler.Analysis.csproj" />
+    <ProjectReference Include="..\Aster.Compiler.Optimizations\Aster.Compiler.Optimizations.csproj" />
+    <ProjectReference Include="..\Aster.Compiler.Incremental\Aster.Compiler.Incremental.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
