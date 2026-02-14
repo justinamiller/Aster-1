@@ -7,3 +7,6 @@ obj/
 TestResults/
 BenchmarkDotNet.Artifacts/
 *.nupkg
+
+# Bootstrap build artifacts
+build/
