@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
     <ProjectReference Include="..\Aster.Compiler\Aster.Compiler.csproj" />
@@ -14,6 +14,9 @@
     <ProjectReference Include="..\Aster.Release\Aster.Release.csproj" />
     <ProjectReference Include="..\Aster.Workspaces\Aster.Workspaces.csproj" />
     <ProjectReference Include="..\Aster.Lsp\Aster.Lsp.csproj" />
+    <ProjectReference Include="..\Aster.Compiler.Fuzzing\Aster.Compiler.Fuzzing.csproj" />
+    <ProjectReference Include="..\Aster.Compiler.Differential\Aster.Compiler.Differential.csproj" />
+    <ProjectReference Include="..\Aster.Compiler.Reducers\Aster.Compiler.Reducers.csproj" />
   </ItemGroup>
 
   <PropertyGroup>
