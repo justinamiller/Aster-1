@@ -2,8 +2,15 @@
   <Folder Name="/src/">
     <Project Path="src/Aster.CLI/Aster.CLI.csproj" />
     <Project Path="src/Aster.Compiler/Aster.Compiler.csproj" />
+    <Project Path="src/Aster.Compiler.Incremental/Aster.Compiler.Incremental.csproj" />
+    <Project Path="src/Aster.Compiler.MidEnd/Aster.Compiler.MidEnd.csproj" />
+    <Project Path="src/Aster.Compiler.Optimizations/Aster.Compiler.Optimizations.csproj" />
+    <Project Path="src/Aster.Compiler.Analysis/Aster.Compiler.Analysis.csproj" />
+    <Project Path="src/Aster.Compiler.Codegen/Aster.Compiler.Codegen.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Aster.Compiler.Tests/Aster.Compiler.Tests.csproj" />
+    <Project Path="tests/Aster.Compiler.PerfTests/Aster.Compiler.PerfTests.csproj" />
+    <Project Path="tests/Aster.Compiler.OptimizationTests/Aster.Compiler.OptimizationTests.csproj" />
   </Folder>
 </Solution>
