@@ -1,4 +1,7 @@
 using Aster.Compiler.Driver;
+using Aster.Compiler.Telemetry;
+using Aster.Compiler.Observability;
+using Aster.Cli.Diagnostics;
 using Aster.Formatter;
 using Aster.Linter;
 using Aster.Packages;
@@ -14,12 +17,22 @@ namespace Aster.CLI;
 
 /// <summary>
 /// Command-line interface for the Aster compiler.
-/// Supports: build, run, check, emit-llvm, fmt, lint, init, add, doc, test, lsp
+/// Supports: build, run, check, emit-llvm, fmt, lint, init, add, doc, test, lsp, fuzz, differential, reduce, explain, crash-report
 /// </summary>
 public static class Program
 {
+    private static string _lastPhase = "startup";
+    private static readonly List<string> _recentDiagnostics = new();
+
     public static int Main(string[] args)
     {
+        // Install global crash handler
+        CrashReporter.InstallGlobalHandler(
+            "0.2.0",
+            () => string.Join(" ", args),
+            () => _lastPhase,
+            () => _recentDiagnostics);
+
         if (args.Length == 0)
         {
             PrintUsage();
@@ -43,6 +56,8 @@ public static class Program
             "fuzz" => Fuzz(args.Skip(1).ToArray()),
             "differential" => Differential(args.Skip(1).ToArray()),
             "reduce" => Reduce(args.Skip(1).ToArray()),
+            "explain" => Explain(args.Skip(1).ToArray()),
+            "crash-report" => CrashReport(args.Skip(1).ToArray()),
             "--help" or "-h" => PrintUsage(),
             "--version" or "-v" => PrintVersion(),
             _ => UnknownCommand(command),
@@ -192,8 +207,10 @@ public static class Program
         Console.WriteLine("  fuzz        Run fuzzing harness");
         Console.WriteLine("  differential Run differential testing");
         Console.WriteLine("  reduce      Reduce/minimize a test case");
+        Console.WriteLine("  explain     Explain a diagnostic code");
+        Console.WriteLine("  crash-report View crash report details");
         Console.WriteLine();
-        Console.WriteLine("Options:");
+        Console.WriteLine("  Options:");
         Console.WriteLine("  --help, -h     Show this help message");
         Console.WriteLine("  --version, -v  Show version");
         return 0;
@@ -463,6 +480,49 @@ public static class Program
         File.WriteAllText(outputPath, reduced);
         Console.WriteLine($"Reduced test case saved to: {outputPath}");
 
+        return 0;
+    }
+
+    private static int Explain(string[] args)
+    {
+        if (args.Length == 0)
+        {
+            Console.Error.WriteLine("error: no diagnostic code specified");
+            Console.Error.WriteLine("Usage: aster explain <code>");
+            Console.Error.WriteLine("Example: aster explain E0001");
+            return 1;
+        }
+
+        var code = args[0];
+        var explanation = DiagnosticExplainer.Explain(code);
+
+        if (explanation == null)
+        {
+            Console.Error.WriteLine($"error: unknown diagnostic code: {code}");
+            return 1;
+        }
+
+        Console.WriteLine(explanation);
+        return 0;
+    }
+
+    private static int CrashReport(string[] args)
+    {
+        if (args.Length == 0)
+        {
+            Console.Error.WriteLine("error: no crash report file specified");
+            return 1;
+        }
+
+        var reportPath = args[0];
+        if (!File.Exists(reportPath))
+        {
+            Console.Error.WriteLine($"error: crash report not found: {reportPath}");
+            return 1;
+        }
+
+        var report = CrashReporter.LoadReport(reportPath);
+        Console.WriteLine(report.Format());
         return 0;
     }
 }

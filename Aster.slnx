@@ -7,9 +7,6 @@
     <Project Path="src/Aster.Compiler.Optimizations/Aster.Compiler.Optimizations.csproj" />
     <Project Path="src/Aster.Compiler.Analysis/Aster.Compiler.Analysis.csproj" />
     <Project Path="src/Aster.Compiler.Codegen/Aster.Compiler.Codegen.csproj" />
-    <Project Path="src/Aster.Compiler.Fuzzing/Aster.Compiler.Fuzzing.csproj" />
-    <Project Path="src/Aster.Compiler.Differential/Aster.Compiler.Differential.csproj" />
-    <Project Path="src/Aster.Compiler.Reducers/Aster.Compiler.Reducers.csproj" />
     <Project Path="src/Aster.Formatter/Aster.Formatter.csproj" />
     <Project Path="src/Aster.Linter/Aster.Linter.csproj" />
     <Project Path="src/Aster.Workspaces/Aster.Workspaces.csproj" />

@@ -57,7 +57,7 @@ fn main() {
 ## Running Tests
 
 ```bash
-# All tests (158 total)
+# All tests (119 total)
 dotnet test
 
 # Specific test suites
@@ -65,29 +65,6 @@ dotnet test tests/Aster.Compiler.Tests              # Compiler tests
 dotnet test tests/Aster.Compiler.OptimizationTests  # Optimization tests
 dotnet test tests/Aster.Compiler.PerfTests          # Incremental compilation tests
 ```
-
-## Fuzzing & Miscompile Detection
-
-Aster includes a comprehensive fuzzing and differential testing system to prevent wrong-code bugs:
-
-```bash
-# Quick fuzzing (smoke mode)
-dotnet run --project src/Aster.CLI -- fuzz parser --smoke
-dotnet run --project src/Aster.CLI -- fuzz typesystem --smoke
-dotnet run --project src/Aster.CLI -- fuzz optimizer --smoke
-
-# Differential testing (O0 vs O3)
-dotnet run --project src/Aster.CLI -- differential tests/conformance/compile-pass
-
-# Test case reduction
-dotnet run --project src/Aster.CLI -- reduce failing_test.ast
-```
-
-**Documentation:**
-- [Fuzzing Implementation Summary](FUZZING_IMPLEMENTATION.md)
-- [Fuzzing Guide](docs/fuzzing-guide.md)
-- [Miscompile Policy](docs/miscompile-policy.md)
-- [Triage Runbook](docs/triage-runbook.md)
 
 ## Architecture
 
