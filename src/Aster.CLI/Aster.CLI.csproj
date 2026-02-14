@@ -2,6 +2,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Aster.Compiler\Aster.Compiler.csproj" />
+    <ProjectReference Include="..\Aster.Compiler.Telemetry\Aster.Compiler.Telemetry.csproj" />
+    <ProjectReference Include="..\Aster.Compiler.Observability\Aster.Compiler.Observability.csproj" />
+    <ProjectReference Include="..\Aster.Cli.Diagnostics\Aster.Cli.Diagnostics.csproj" />
     <ProjectReference Include="..\Aster.Formatter\Aster.Formatter.csproj" />
     <ProjectReference Include="..\Aster.Linter\Aster.Linter.csproj" />
     <ProjectReference Include="..\Aster.Packages\Aster.Packages.csproj" />

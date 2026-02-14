@@ -5,6 +5,9 @@ namespace Aster.Compiler.Diagnostics;
 /// </summary>
 public enum DiagnosticSeverity
 {
+    /// <summary>Informational message.</summary>
+    Info,
+
     /// <summary>Informational hint.</summary>
     Hint,
 
