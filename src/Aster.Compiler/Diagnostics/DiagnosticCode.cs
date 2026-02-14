@@ -60,7 +60,7 @@ public static class DiagnosticCode
     public const string E6001 = "E6001"; // Cannot move while borrowed
     public const string E6002 = "E6002"; // Cannot borrow moved value
     public const string E6003 = "E6003"; // Cannot immutably borrow while mutably borrowed
-    public const string E6004 = "E6004"; // Cannot borrow moved value (duplicate)
+    public const string E6004 = "E6004"; // Cannot borrow value
     public const string E6005 = "E6005"; // Cannot mutably borrow while already borrowed
 
     // Borrow Checking Errors (E7xxx)

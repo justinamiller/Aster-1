@@ -62,7 +62,7 @@ public static class DiagnosticRegistry
         [DiagnosticCode.E6001] = new("Cannot move while borrowed", DiagnosticCategory.Ownership),
         [DiagnosticCode.E6002] = new("Cannot borrow moved value", DiagnosticCategory.Ownership),
         [DiagnosticCode.E6003] = new("Cannot immutably borrow while mutably borrowed", DiagnosticCategory.Ownership),
-        [DiagnosticCode.E6004] = new("Cannot borrow moved value", DiagnosticCategory.Ownership),
+        [DiagnosticCode.E6004] = new("Cannot borrow value", DiagnosticCategory.Ownership),
         [DiagnosticCode.E6005] = new("Cannot mutably borrow while already borrowed", DiagnosticCategory.Ownership),
 
         // Borrow Checking (E7xxx)
