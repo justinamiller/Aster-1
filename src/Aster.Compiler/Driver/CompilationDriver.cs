@@ -144,4 +144,20 @@ public sealed class CompilationDriver
         }
         return sb.ToString();
     }
+
+    /// <summary>
+    /// Tokenize source code and return tokens.
+    /// Used for differential testing (bootstrap stage 1).
+    /// </summary>
+    public IReadOnlyList<Token>? EmitTokens(string source, string fileName)
+    {
+        var lexer = new AsterLexer(source, fileName);
+        var tokens = lexer.Tokenize();
+        _diagnostics.AddRange(lexer.Diagnostics);
+
+        if (_diagnostics.HasErrors)
+            return null;
+
+        return tokens;
+    }
 }

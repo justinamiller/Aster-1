@@ -129,15 +129,26 @@ function Test-Stage0 {
 function Test-Stage1 {
     Write-Step "Verifying Stage 1: Minimal Compiler"
     
+    # Run differential token tests
+    Write-Info "Running differential token tests..."
+    $diffTestScript = Join-Path $ScriptDir "diff-test-tokens.ps1"
+    & $diffTestScript
+    
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Stage 1 differential tests failed"
+        exit 1
+    }
+    
+    Write-Success "Stage 1 differential tests passed"
+    
     $aster1 = Join-Path $BuildDir "stage1\aster1.exe"
     if (-not (Test-Path $aster1)) {
-        Write-Warning "Stage 1 binary not found (not yet implemented)"
-        Write-Info "Stage 1 verification will be implemented when Stage 1 is built"
+        Write-Warning "Stage 1 binary not yet built"
+        Write-Info "Golden files verified. Build aster1 for full differential testing."
         return
     }
     
-    # TODO: Differential tests
-    Write-Warning "Stage 1 verification not yet implemented"
+    Write-Success "Stage 1 verified"
 }
 
 # Verify Stage 2
