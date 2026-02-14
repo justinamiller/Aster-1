@@ -1,5 +1,5 @@
 ; ASTER Compiler - LLVM IR Output
-; Generated at 2026-02-14 23:34:23 UTC
+; Generated at 2026-02-14 23:36:02 UTC
 
 ; External runtime declarations
 declare i32 @puts(ptr)
