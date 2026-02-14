@@ -1,0 +1,177 @@
+// Core Traits - Fundamental traits for Aster
+// Part of Aster Standard Library - Core Module
+//
+// This module defines the core traits that types can implement.
+// These traits enable operator overloading, cloning, comparison, and more.
+//
+// Stability: @stable
+// Effects: none (traits themselves are pure, implementations may have effects)
+// Dependencies: core primitives
+
+/// Types whose values can be duplicated simply by copying bits
+@stable
+trait Copy {
+    // Marker trait - no methods
+    // Types that implement Copy can be duplicated by memcpy
+}
+
+/// Types that can be explicitly cloned/duplicated
+@stable
+trait Clone {
+    /// Returns a copy of the value
+    fn clone(&self) -> Self;
+}
+
+/// Custom cleanup code that runs when a value goes out of scope
+@stable
+trait Drop {
+    /// Executes the destructor for this type
+    fn drop(&mut self);
+}
+
+/// Trait for equality comparisons
+@stable
+trait Eq {
+    /// This method tests for self and other values to be equal
+    fn eq(&self, other: &Self) -> bool;
+    
+    /// This method tests for !=
+    fn ne(&self, other: &Self) -> bool {
+        !self.eq(other)
+    }
+}
+
+/// Trait for types that form a total order
+@stable
+trait Ord {
+    /// Compares self with other
+    /// Returns -1 if self < other, 0 if self == other, 1 if self > other
+    fn cmp(&self, other: &Self) -> i32;
+    
+    /// This method tests less than
+    fn lt(&self, other: &Self) -> bool {
+        self.cmp(other) < 0
+    }
+    
+    /// This method tests less than or equal to
+    fn le(&self, other: &Self) -> bool {
+        self.cmp(other) <= 0
+    }
+    
+    /// This method tests greater than
+    fn gt(&self, other: &Self) -> bool {
+        self.cmp(other) > 0
+    }
+    
+    /// This method tests greater than or equal to
+    fn ge(&self, other: &Self) -> bool {
+        self.cmp(other) >= 0
+    }
+}
+
+/// Trait for hashing arbitrary data
+@stable
+trait Hash {
+    /// Feeds this value into the given hasher
+    fn hash(&self, hasher: &mut Hasher);
+}
+
+/// Trait for types that have a default value
+@stable
+trait Default {
+    /// Returns the default value for this type
+    fn default() -> Self;
+}
+
+/// Trait for formatting output (user-facing)
+@stable
+trait Display {
+    /// Formats the value using the given formatter
+    fn fmt(&self, f: &mut Formatter) -> Result<(), FormatError>;
+}
+
+/// Trait for formatting output (programmer-facing debug output)
+@stable
+trait Debug {
+    /// Formats the value using the given formatter for debugging
+    fn fmt(&self, f: &mut Formatter) -> Result<(), FormatError>;
+}
+
+/// Trait for types that can be iterated over
+@stable
+trait Iterator {
+    /// The type of the elements being iterated over
+    type Item;
+    
+    /// Advances the iterator and returns the next value
+    fn next(&mut self) -> Option<Self::Item>;
+    
+    /// Returns the number of remaining iterations (lower bound)
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (0, Option::None)
+    }
+    
+    /// Consumes the iterator, counting the number of iterations
+    fn count(mut self) -> usize {
+        let mut count: usize = 0;
+        loop {
+            match self.next() {
+                Option::Some(_) => count = count + 1,
+                Option::None => break
+            }
+        }
+        count
+    }
+}
+
+/// Conversion into an Iterator
+@stable
+trait IntoIterator {
+    /// The type of the elements being iterated over
+    type Item;
+    
+    /// The type of the iterator
+    type IntoIter: Iterator<Item = Self::Item>;
+    
+    /// Creates an iterator from a value
+    fn into_iter(self) -> Self::IntoIter;
+}
+
+/// Trait for types that can be converted from another type
+@stable
+trait From<T> {
+    /// Performs the conversion
+    fn from(value: T) -> Self;
+}
+
+/// Trait for types that can be converted to another type
+@stable
+trait Into<T> {
+    /// Performs the conversion
+    fn into(self) -> T;
+}
+
+/// Trait for fallible conversions
+@stable
+trait TryFrom<T> {
+    /// The type returned in the event of a conversion error
+    type Error;
+    
+    /// Performs the conversion
+    fn try_from(value: T) -> Result<Self, Self::Error>;
+}
+
+/// Trait for fallible conversions that consume self
+@stable
+trait TryInto<T> {
+    /// The type returned in the event of a conversion error
+    type Error;
+    
+    /// Performs the conversion
+    fn try_into(self) -> Result<T, Self::Error>;
+}
+
+// Placeholder types for formatting (defined in fmt module)
+struct Formatter;
+struct FormatError;
+struct Hasher;

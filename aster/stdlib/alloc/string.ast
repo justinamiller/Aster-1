@@ -1,0 +1,220 @@
+// String - Owned UTF-8 string
+// Part of Aster Standard Library - Alloc Module
+//
+// String is an owned, growable UTF-8 encoded string type.
+//
+// Stability: @stable
+// Effects: @alloc (performs heap allocation)
+// Dependencies: core, alloc::vec
+
+/// An owned, growable UTF-8 encoded string
+@stable
+@alloc
+struct String {
+    vec: Vec<u8>
+}
+
+/// Creates a new empty String
+@stable
+@alloc
+fn new_string() -> String {
+    String {
+        vec: new_vec()
+    }
+}
+
+/// Creates a new String with the specified capacity
+@stable
+@alloc
+fn string_with_capacity(capacity: usize) -> String {
+    String {
+        vec: with_capacity(capacity)
+    }
+}
+
+/// Creates a String from a string slice
+@stable
+@alloc
+fn from_str(s: &str) -> String {
+    let bytes = as_bytes(s);
+    let len = str_len(s);
+    let mut vec = with_capacity(len);
+    
+    let mut i: usize = 0;
+    while i < len {
+        push(&mut vec, *get(bytes, i));
+        i = i + 1;
+    }
+    
+    String { vec: vec }
+}
+
+/// Returns the length of the string in bytes
+@stable
+fn string_len(s: &String) -> usize {
+    vec_len(&s.vec)
+}
+
+/// Returns the string's capacity in bytes
+@stable
+fn string_capacity(s: &String) -> usize {
+    vec_capacity(&s.vec)
+}
+
+/// Returns true if the string has a length of 0
+@stable
+fn string_is_empty(s: &String) -> bool {
+    vec_is_empty(&s.vec)
+}
+
+/// Appends a string slice to the end of this String
+@stable
+@alloc
+fn push_str(s: &mut String, string: &str) {
+    let bytes = as_bytes(string);
+    let len = str_len(string);
+    
+    let mut i: usize = 0;
+    while i < len {
+        push(&mut s.vec, *get(bytes, i));
+        i = i + 1;
+    }
+}
+
+/// Appends the given char to the end of this String
+@stable
+@alloc
+fn push_char(s: &mut String, ch: char) {
+    // Encode char as UTF-8
+    let codepoint = ch as u32;
+    
+    if codepoint <= 0x7F {
+        // 1-byte sequence
+        push(&mut s.vec, codepoint as u8);
+    } else if codepoint <= 0x7FF {
+        // 2-byte sequence
+        push(&mut s.vec, (0xC0 | (codepoint >> 6)) as u8);
+        push(&mut s.vec, (0x80 | (codepoint & 0x3F)) as u8);
+    } else if codepoint <= 0xFFFF {
+        // 3-byte sequence
+        push(&mut s.vec, (0xE0 | (codepoint >> 12)) as u8);
+        push(&mut s.vec, (0x80 | ((codepoint >> 6) & 0x3F)) as u8);
+        push(&mut s.vec, (0x80 | (codepoint & 0x3F)) as u8);
+    } else {
+        // 4-byte sequence
+        push(&mut s.vec, (0xF0 | (codepoint >> 18)) as u8);
+        push(&mut s.vec, (0x80 | ((codepoint >> 12) & 0x3F)) as u8);
+        push(&mut s.vec, (0x80 | ((codepoint >> 6) & 0x3F)) as u8);
+        push(&mut s.vec, (0x80 | (codepoint & 0x3F)) as u8);
+    }
+}
+
+/// Removes the last character from the string and returns it
+@stable
+fn pop_char(s: &mut String) -> Option<char> {
+    if string_is_empty(s) {
+        return Option::None;
+    }
+    
+    let len = string_len(s);
+    let slice = string_as_str(s);
+    
+    // Find the start of the last character
+    let mut pos = len - 1;
+    while pos > 0 {
+        if is_char_boundary(slice, pos) {
+            break;
+        }
+        pos = pos - 1;
+    }
+    
+    let ch_slice = str_slice(slice, pos, len);
+    let mut ch_iter = chars(ch_slice);
+    let ch = next(&mut ch_iter);
+    
+    // Remove the character bytes
+    let bytes_to_remove = len - pos;
+    let mut i: usize = 0;
+    while i < bytes_to_remove {
+        pop(&mut s.vec);
+        i = i + 1;
+    }
+    
+    ch
+}
+
+/// Truncates this String to the specified byte length
+@stable
+fn truncate(s: &mut String, new_len: usize) {
+    if new_len >= string_len(s) {
+        return;
+    }
+    
+    if !is_char_boundary(string_as_str(s), new_len) {
+        panic("truncate index not on UTF-8 boundary")
+    }
+    
+    while string_len(s) > new_len {
+        pop(&mut s.vec);
+    }
+}
+
+/// Removes all characters from this String
+@stable
+fn string_clear(s: &mut String) {
+    clear(&mut s.vec)
+}
+
+/// Converts this String into a string slice
+@stable
+fn string_as_str(s: &String) -> &str {
+    let slice = as_slice(&s.vec);
+    unsafe {
+        str_from_utf8_unchecked(slice)
+    }
+}
+
+/// Reserves capacity for at least additional more bytes
+@stable
+@alloc
+fn string_reserve(s: &mut String, additional: usize) {
+    reserve(&mut s.vec, additional)
+}
+
+impl Clone for String {
+    fn clone(&self) -> String {
+        from_str(string_as_str(self))
+    }
+}
+
+impl Eq for String {
+    fn eq(&self, other: &String) -> bool {
+        string_eq_str(self, string_as_str(other))
+    }
+}
+
+/// Compares a String with a string slice for equality
+@stable
+fn string_eq_str(s: &String, other: &str) -> bool {
+    let s_str = string_as_str(s);
+    if str_len(s_str) != str_len(other) {
+        return false;
+    }
+    
+    let s_bytes = as_bytes(s_str);
+    let o_bytes = as_bytes(other);
+    let len = str_len(s_str);
+    
+    let mut i: usize = 0;
+    while i < len {
+        if *get(s_bytes, i) != *get(o_bytes, i) {
+            return false;
+        }
+        i = i + 1;
+    }
+    true
+}
+
+// Unsafe conversion from bytes to str
+@unsafe
+fn str_from_utf8_unchecked(bytes: &[u8]) -> &str;

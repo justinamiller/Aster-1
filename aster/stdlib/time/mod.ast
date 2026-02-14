@@ -1,0 +1,166 @@
+// Time Module - Time and duration types
+// Part of Aster Standard Library
+//
+// The time module provides types for measuring and working with time.
+//
+// Stability: @stable
+// Effects: @io (reading system time is an I/O operation)
+// Dependencies: core
+
+/// A duration of time measured in seconds and nanoseconds
+@stable
+struct Duration {
+    secs: u64,
+    nanos: u32
+}
+
+/// Creates a new Duration from seconds
+@stable
+fn duration_from_secs(secs: u64) -> Duration {
+    Duration {
+        secs: secs,
+        nanos: 0
+    }
+}
+
+/// Creates a new Duration from milliseconds
+@stable
+fn duration_from_millis(millis: u64) -> Duration {
+    Duration {
+        secs: millis / 1000,
+        nanos: ((millis % 1000) * 1_000_000) as u32
+    }
+}
+
+/// Creates a new Duration from microseconds
+@stable
+fn duration_from_micros(micros: u64) -> Duration {
+    Duration {
+        secs: micros / 1_000_000,
+        nanos: ((micros % 1_000_000) * 1000) as u32
+    }
+}
+
+/// Creates a new Duration from nanoseconds
+@stable
+fn duration_from_nanos(nanos: u64) -> Duration {
+    Duration {
+        secs: nanos / 1_000_000_000,
+        nanos: (nanos % 1_000_000_000) as u32
+    }
+}
+
+/// Returns the number of whole seconds in this duration
+@stable
+fn duration_as_secs(d: &Duration) -> u64 {
+    d.secs
+}
+
+/// Returns the number of whole milliseconds in this duration
+@stable
+fn duration_as_millis(d: &Duration) -> u64 {
+    d.secs * 1000 + (d.nanos / 1_000_000) as u64
+}
+
+/// Returns the number of whole microseconds in this duration
+@stable
+fn duration_as_micros(d: &Duration) -> u64 {
+    d.secs * 1_000_000 + (d.nanos / 1000) as u64
+}
+
+/// Returns the total number of nanoseconds in this duration
+@stable
+fn duration_as_nanos(d: &Duration) -> u128 {
+    (d.secs as u128) * 1_000_000_000 + (d.nanos as u128)
+}
+
+/// Adds two durations together
+@stable
+fn duration_add(a: &Duration, b: &Duration) -> Duration {
+    let mut secs = a.secs + b.secs;
+    let mut nanos = a.nanos + b.nanos;
+    
+    if nanos >= 1_000_000_000 {
+        secs = secs + 1;
+        nanos = nanos - 1_000_000_000;
+    }
+    
+    Duration { secs: secs, nanos: nanos }
+}
+
+/// Subtracts one duration from another
+@stable
+fn duration_sub(a: &Duration, b: &Duration) -> Duration {
+    if a.secs < b.secs || (a.secs == b.secs && a.nanos < b.nanos) {
+        panic("duration subtraction would underflow")
+    }
+    
+    let mut secs = a.secs - b.secs;
+    let mut nanos: i64 = (a.nanos as i64) - (b.nanos as i64);
+    
+    if nanos < 0 {
+        secs = secs - 1;
+        nanos = nanos + 1_000_000_000;
+    }
+    
+    Duration { secs: secs, nanos: nanos as u32 }
+}
+
+/// A measurement of the system clock
+@stable
+struct SystemTime {
+    secs: i64,
+    nanos: u32
+}
+
+/// Returns the current system time
+@stable
+@io
+fn now() -> SystemTime {
+    let (secs, nanos) = unsafe {
+        intrinsic_system_time()
+    };
+    SystemTime { secs: secs, nanos: nanos }
+}
+
+/// A monotonically nondecreasing clock
+@stable
+struct Instant {
+    secs: u64,
+    nanos: u32
+}
+
+/// Returns the current instant
+@stable
+@io
+fn instant_now() -> Instant {
+    let (secs, nanos) = unsafe {
+        intrinsic_monotonic_time()
+    };
+    Instant { secs: secs, nanos: nanos }
+}
+
+/// Returns the duration elapsed since this instant
+@stable
+@io
+fn elapsed(instant: &Instant) -> Duration {
+    let now = instant_now();
+    
+    if now.secs < instant.secs || (now.secs == instant.secs && now.nanos < instant.nanos) {
+        panic("instant was in the future")
+    }
+    
+    let mut secs = now.secs - instant.secs;
+    let mut nanos: i64 = (now.nanos as i64) - (instant.nanos as i64);
+    
+    if nanos < 0 {
+        secs = secs - 1;
+        nanos = nanos + 1_000_000_000;
+    }
+    
+    Duration { secs: secs, nanos: nanos as u32 }
+}
+
+// Intrinsic time functions
+fn intrinsic_system_time() -> (i64, u32);
+fn intrinsic_monotonic_time() -> (u64, u32);

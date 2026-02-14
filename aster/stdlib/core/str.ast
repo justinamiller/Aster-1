@@ -1,0 +1,186 @@
+// String Slice Type - UTF-8 string view
+// Part of Aster Standard Library - Core Module
+//
+// A string slice (str) is a view into UTF-8 encoded string data.
+// It is the most primitive string type and is typically seen in its borrowed form &str.
+//
+// Stability: @stable
+// Effects: none (str itself is pure)
+// Dependencies: core primitives, slice
+
+/// String slice - a view into UTF-8 encoded bytes
+/// Always valid UTF-8
+@stable
+type str = intrinsic;
+
+/// Returns the length of the string in bytes
+@stable
+fn str_len(s: &str) -> usize {
+    intrinsic_str_len(s)
+}
+
+/// Returns true if the string has a length of 0
+@stable
+fn str_is_empty(s: &str) -> bool {
+    str_len(s) == 0
+}
+
+/// Returns the underlying bytes of this string slice
+@stable
+fn as_bytes(s: &str) -> &[u8] {
+    intrinsic_str_as_bytes(s)
+}
+
+/// Returns a subslice of str [start..end) (byte indices)
+/// Panics if indices are not on UTF-8 character boundaries
+@stable
+fn str_slice(s: &str, start: usize, end: usize) -> &str {
+    if start > end || end > str_len(s) {
+        panic("string slice range out of bounds")
+    }
+    if !is_char_boundary(s, start) || !is_char_boundary(s, end) {
+        panic("string slice index not on UTF-8 boundary")
+    }
+    intrinsic_str_slice(s, start, end)
+}
+
+/// Checks that index is on a UTF-8 character boundary
+@stable
+fn is_char_boundary(s: &str, index: usize) -> bool {
+    if index == 0 || index == str_len(s) {
+        return true;
+    }
+    let bytes = as_bytes(s);
+    let byte = *get(bytes, index);
+    // A valid UTF-8 boundary is either:
+    // - ASCII (0b0xxxxxxx)
+    // - Start of multi-byte char (0b11xxxxxx)
+    // Not a continuation byte (0b10xxxxxx)
+    (byte & 0b11000000) != 0b10000000
+}
+
+/// Returns an iterator over the chars of a string slice
+@stable
+fn chars(s: &str) -> CharIter {
+    CharIter {
+        slice: s,
+        index: 0
+    }
+}
+
+/// Iterator over chars in a string
+@stable
+struct CharIter {
+    slice: &str,
+    index: usize
+}
+
+impl Iterator for CharIter {
+    type Item = char;
+    
+    fn next(&mut self) -> Option<char> {
+        if self.index >= str_len(self.slice) {
+            return Option::None;
+        }
+        
+        let bytes = as_bytes(self.slice);
+        let (ch, size) = decode_utf8_char(bytes, self.index);
+        self.index = self.index + size;
+        Option::Some(ch)
+    }
+}
+
+/// Decodes a single UTF-8 character from bytes at given position
+/// Returns (char, bytes_consumed)
+fn decode_utf8_char(bytes: &[u8], index: usize) -> (char, usize) {
+    let b1 = *get(bytes, index);
+    
+    // 1-byte character (ASCII)
+    if (b1 & 0b10000000) == 0 {
+        return (b1 as char, 1);
+    }
+    
+    // 2-byte character
+    if (b1 & 0b11100000) == 0b11000000 {
+        let b2 = *get(bytes, index + 1);
+        let codepoint = (((b1 & 0b00011111) as u32) << 6) | ((b2 & 0b00111111) as u32);
+        return (codepoint as char, 2);
+    }
+    
+    // 3-byte character
+    if (b1 & 0b11110000) == 0b11100000 {
+        let b2 = *get(bytes, index + 1);
+        let b3 = *get(bytes, index + 2);
+        let codepoint = (((b1 & 0b00001111) as u32) << 12) | 
+                       (((b2 & 0b00111111) as u32) << 6) | 
+                       ((b3 & 0b00111111) as u32);
+        return (codepoint as char, 3);
+    }
+    
+    // 4-byte character
+    if (b1 & 0b11111000) == 0b11110000 {
+        let b2 = *get(bytes, index + 1);
+        let b3 = *get(bytes, index + 2);
+        let b4 = *get(bytes, index + 3);
+        let codepoint = (((b1 & 0b00000111) as u32) << 18) | 
+                       (((b2 & 0b00111111) as u32) << 12) | 
+                       (((b3 & 0b00111111) as u32) << 6) | 
+                       ((b4 & 0b00111111) as u32);
+        return (codepoint as char, 4);
+    }
+    
+    // Invalid UTF-8
+    panic("invalid UTF-8 sequence")
+}
+
+/// Checks if string starts with the given prefix
+@stable
+fn starts_with(s: &str, prefix: &str) -> bool {
+    let s_len = str_len(s);
+    let p_len = str_len(prefix);
+    
+    if p_len > s_len {
+        return false;
+    }
+    
+    let s_bytes = as_bytes(s);
+    let p_bytes = as_bytes(prefix);
+    
+    let mut i: usize = 0;
+    while i < p_len {
+        if *get(s_bytes, i) != *get(p_bytes, i) {
+            return false;
+        }
+        i = i + 1;
+    }
+    true
+}
+
+/// Checks if string ends with the given suffix
+@stable
+fn ends_with(s: &str, suffix: &str) -> bool {
+    let s_len = str_len(s);
+    let sf_len = str_len(suffix);
+    
+    if sf_len > s_len {
+        return false;
+    }
+    
+    let offset = s_len - sf_len;
+    let s_bytes = as_bytes(s);
+    let sf_bytes = as_bytes(suffix);
+    
+    let mut i: usize = 0;
+    while i < sf_len {
+        if *get(s_bytes, offset + i) != *get(sf_bytes, i) {
+            return false;
+        }
+        i = i + 1;
+    }
+    true
+}
+
+// Intrinsic functions (provided by compiler)
+fn intrinsic_str_len(s: &str) -> usize;
+fn intrinsic_str_as_bytes(s: &str) -> &[u8];
+fn intrinsic_str_slice(s: &str, start: usize, end: usize) -> &str;

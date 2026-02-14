@@ -1,0 +1,222 @@
+// FS Module - Filesystem operations
+// Part of Aster Standard Library
+//
+// The fs module provides types for working with the filesystem.
+//
+// Stability: @stable
+// Effects: @io (all APIs perform I/O operations)
+// Dependencies: core, alloc, io
+
+/// A structure representing a filesystem path
+@stable
+@alloc
+struct Path {
+    inner: String
+}
+
+/// An owned, mutable path
+@stable
+type PathBuf = Path;
+
+/// Creates a new Path from a string
+@stable
+@alloc
+fn path_new(s: &str) -> Path {
+    Path {
+        inner: from_str(s)
+    }
+}
+
+/// Returns the path as a string slice
+@stable
+fn path_as_str(p: &Path) -> &str {
+    string_as_str(&p.inner)
+}
+
+/// A reference to an open file on the filesystem
+@stable
+@io
+struct File {
+    fd: i32
+}
+
+/// Options for opening a file
+@stable
+struct OpenOptions {
+    read: bool,
+    write: bool,
+    create: bool,
+    append: bool,
+    truncate: bool
+}
+
+/// Creates default OpenOptions (read-only)
+@stable
+fn open_options() -> OpenOptions {
+    OpenOptions {
+        read: true,
+        write: false,
+        create: false,
+        append: false,
+        truncate: false
+    }
+}
+
+/// Opens a file at the specified path with the given options
+@stable
+@io
+fn open(path: &Path, options: &OpenOptions) -> Result<File, IoError> {
+    let mut flags: i32 = 0;
+    
+    if options.read && options.write {
+        flags = 2; // O_RDWR
+    } else if options.write {
+        flags = 1; // O_WRONLY
+    } else {
+        flags = 0; // O_RDONLY
+    }
+    
+    if options.create {
+        flags = flags | 64; // O_CREAT
+    }
+    if options.truncate {
+        flags = flags | 512; // O_TRUNC
+    }
+    if options.append {
+        flags = flags | 1024; // O_APPEND
+    }
+    
+    let fd = unsafe {
+        intrinsic_open(path_as_str(path), flags, 0o644)
+    };
+    
+    if fd < 0 {
+        err(IoError::Other)
+    } else {
+        ok(File { fd: fd })
+    }
+}
+
+/// Opens a file in read-only mode
+@stable
+@io
+fn open_read(path: &Path) -> Result<File, IoError> {
+    let opts = open_options();
+    open(path, &opts)
+}
+
+/// Opens a file in write-only mode
+@stable
+@io
+fn open_write(path: &Path) -> Result<File, IoError> {
+    let mut opts = open_options();
+    opts.write = true;
+    opts.create = true;
+    opts.truncate = true;
+    open(path, &opts)
+}
+
+/// Closes the file
+@stable
+@io
+fn close(file: File) {
+    unsafe {
+        intrinsic_close(file.fd);
+    }
+}
+
+impl Read for File {
+    @io
+    fn read(&mut self, buf: &mut [u8]) -> Result<usize, IoError> {
+        let n = unsafe {
+            intrinsic_read(self.fd, buf.as_mut_ptr(), len(buf))
+        };
+        
+        if n < 0 {
+            err(IoError::Other)
+        } else {
+            ok(n as usize)
+        }
+    }
+}
+
+impl Write for File {
+    @io
+    fn write(&mut self, buf: &[u8]) -> Result<usize, IoError> {
+        let n = unsafe {
+            intrinsic_write(self.fd, buf.as_ptr(), len(buf))
+        };
+        
+        if n < 0 {
+            err(IoError::Other)
+        } else {
+            ok(n as usize)
+        }
+    }
+    
+    @io
+    fn flush(&mut self) -> Result<(), IoError> {
+        // fsync
+        ok(())
+    }
+}
+
+impl Drop for File {
+    fn drop(&mut self) {
+        unsafe {
+            intrinsic_close(self.fd);
+        }
+    }
+}
+
+/// Metadata information about a file
+@stable
+struct Metadata {
+    size: u64,
+    is_dir: bool,
+    is_file: bool
+}
+
+/// Queries metadata about a file
+@stable
+@io
+fn metadata(path: &Path) -> Result<Metadata, IoError> {
+    // Simplified - real implementation would use stat syscall
+    err(IoError::Other)
+}
+
+/// Removes a file from the filesystem
+@stable
+@io
+fn remove_file(path: &Path) -> Result<(), IoError> {
+    let result = unsafe {
+        intrinsic_unlink(path_as_str(path))
+    };
+    
+    if result < 0 {
+        err(IoError::Other)
+    } else {
+        ok(())
+    }
+}
+
+/// Creates a new directory
+@stable
+@io
+fn create_dir(path: &Path) -> Result<(), IoError> {
+    let result = unsafe {
+        intrinsic_mkdir(path_as_str(path), 0o755)
+    };
+    
+    if result < 0 {
+        err(IoError::Other)
+    } else {
+        ok(())
+    }
+}
+
+// Intrinsic filesystem functions
+fn intrinsic_open(path: &str, flags: i32, mode: i32) -> i32;
+fn intrinsic_close(fd: i32) -> i32;
+fn intrinsic_unlink(path: &str) -> i32;
+fn intrinsic_mkdir(path: &str, mode: i32) -> i32;

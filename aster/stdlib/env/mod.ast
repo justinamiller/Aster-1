@@ -1,0 +1,132 @@
+// Env Module - Environment variables and program arguments
+// Part of Aster Standard Library
+//
+// The env module provides access to environment variables and command-line arguments.
+//
+// Stability: @stable
+// Effects: @io (reading environment is I/O)
+// Dependencies: core, alloc
+
+/// Returns an iterator over command-line arguments
+@stable
+@io
+@alloc
+fn args() -> Vec<String> {
+    let (argc, argv) = unsafe {
+        intrinsic_get_args()
+    };
+    
+    let mut result = new_vec();
+    let mut i: usize = 0;
+    
+    while i < argc {
+        let arg_ptr = unsafe {
+            *argv.offset(i as isize)
+        };
+        let arg_str = unsafe {
+            cstr_to_str(arg_ptr)
+        };
+        push(&mut result, from_str(arg_str));
+        i = i + 1;
+    }
+    
+    result
+}
+
+/// Fetches the environment variable key from the current process
+@stable
+@io
+@alloc
+fn var(key: &str) -> Option<String> {
+    let value_ptr = unsafe {
+        intrinsic_getenv(key)
+    };
+    
+    if value_ptr.is_null() {
+        Option::None
+    } else {
+        let value_str = unsafe {
+            cstr_to_str(value_ptr)
+        };
+        Option::Some(from_str(value_str))
+    }
+}
+
+/// Sets the environment variable key to the value value
+@stable
+@io
+fn set_var(key: &str, value: &str) -> Result<(), ()> {
+    let result = unsafe {
+        intrinsic_setenv(key, value)
+    };
+    
+    if result == 0 {
+        ok(())
+    } else {
+        err(())
+    }
+}
+
+/// Removes an environment variable from the environment
+@stable
+@io
+fn remove_var(key: &str) -> Result<(), ()> {
+    let result = unsafe {
+        intrinsic_unsetenv(key)
+    };
+    
+    if result == 0 {
+        ok(())
+    } else {
+        err(())
+    }
+}
+
+/// Returns the current working directory
+@stable
+@io
+@alloc
+fn current_dir() -> Result<String, ()> {
+    let buf_size: usize = 4096;
+    let mut buf = with_capacity(buf_size);
+    
+    let result_ptr = unsafe {
+        intrinsic_getcwd(buf.as_mut_ptr(), buf_size)
+    };
+    
+    if result_ptr.is_null() {
+        err(())
+    } else {
+        let dir_str = unsafe {
+            cstr_to_str(result_ptr)
+        };
+        ok(from_str(dir_str))
+    }
+}
+
+/// Changes the current working directory
+@stable
+@io
+fn set_current_dir(path: &str) -> Result<(), ()> {
+    let result = unsafe {
+        intrinsic_chdir(path)
+    };
+    
+    if result == 0 {
+        ok(())
+    } else {
+        err(())
+    }
+}
+
+// Intrinsic environment functions
+fn intrinsic_get_args() -> (usize, *const *const u8);
+fn intrinsic_getenv(key: &str) -> *const u8;
+fn intrinsic_setenv(key: &str, value: &str) -> i32;
+fn intrinsic_unsetenv(key: &str) -> i32;
+fn intrinsic_getcwd(buf: *mut u8, size: usize) -> *const u8;
+fn intrinsic_chdir(path: &str) -> i32;
+
+// Helper to convert C string to Aster str
+@unsafe
+fn cstr_to_str(ptr: *const u8) -> &str;

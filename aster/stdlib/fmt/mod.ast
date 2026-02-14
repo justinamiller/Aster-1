@@ -1,0 +1,237 @@
+// Fmt Module - Formatting and printing
+// Part of Aster Standard Library
+//
+// The fmt module provides formatting utilities and macros.
+//
+// Stability: @stable
+// Effects: @io (printing has I/O effect), @alloc (formatting requires allocation)
+// Dependencies: core, alloc, io
+
+/// Writes formatted text to stdout
+@stable
+@io
+@alloc
+fn print(s: &str) {
+    let mut out = stdout();
+    let bytes = as_bytes(s);
+    let _ = write_all(&mut out, bytes);
+}
+
+/// Writes formatted text to stdout with newline
+@stable
+@io
+@alloc
+fn println(s: &str) {
+    let mut out = stdout();
+    let bytes = as_bytes(s);
+    let _ = write_all(&mut out, bytes);
+    let _ = write_all(&mut out, &[10]); // newline
+}
+
+/// Writes formatted text to stderr
+@stable
+@io
+@alloc
+fn eprint(s: &str) {
+    let mut err = stderr();
+    let bytes = as_bytes(s);
+    let _ = write_all(&mut err, bytes);
+}
+
+/// Writes formatted text to stderr with newline
+@stable
+@io
+@alloc
+fn eprintln(s: &str) {
+    let mut err = stderr();
+    let bytes = as_bytes(s);
+    let _ = write_all(&mut err, bytes);
+    let _ = write_all(&mut err, &[10]); // newline
+}
+
+/// A trait for objects that can be formatted into strings
+@stable
+trait Format {
+    /// Formats the value into a string
+    @alloc
+    fn format(&self) -> String;
+}
+
+impl Format for bool {
+    fn format(&self) -> String {
+        if *self {
+            from_str("true")
+        } else {
+            from_str("false")
+        }
+    }
+}
+
+impl Format for i32 {
+    fn format(&self) -> String {
+        format_i32(*self)
+    }
+}
+
+impl Format for u32 {
+    fn format(&self) -> String {
+        format_u32(*self)
+    }
+}
+
+impl Format for i64 {
+    fn format(&self) -> String {
+        format_i64(*self)
+    }
+}
+
+impl Format for u64 {
+    fn format(&self) -> String {
+        format_u64(*self)
+    }
+}
+
+impl Format for &str {
+    fn format(&self) -> String {
+        from_str(*self)
+    }
+}
+
+/// Formats an i32 as a string
+@stable
+@alloc
+fn format_i32(n: i32) -> String {
+    if n == 0 {
+        return from_str("0");
+    }
+    
+    let mut result = new_string();
+    let mut num = n;
+    let is_negative = num < 0;
+    
+    if is_negative {
+        num = -num;
+    }
+    
+    let mut digits = new_vec();
+    while num > 0 {
+        let digit = (num % 10) as u8;
+        push(&mut digits, digit + 48); // '0' = 48
+        num = num / 10;
+    }
+    
+    if is_negative {
+        push_char(&mut result, '-');
+    }
+    
+    // Reverse digits
+    let len = vec_len(&digits);
+    let mut i: usize = 0;
+    while i < len {
+        let idx = len - 1 - i;
+        let digit_byte = *vec_get(&digits, idx);
+        push_char(&mut result, digit_byte as char);
+        i = i + 1;
+    }
+    
+    result
+}
+
+/// Formats a u32 as a string
+@stable
+@alloc
+fn format_u32(n: u32) -> String {
+    if n == 0 {
+        return from_str("0");
+    }
+    
+    let mut result = new_string();
+    let mut num = n;
+    
+    let mut digits = new_vec();
+    while num > 0 {
+        let digit = (num % 10) as u8;
+        push(&mut digits, digit + 48);
+        num = num / 10;
+    }
+    
+    let len = vec_len(&digits);
+    let mut i: usize = 0;
+    while i < len {
+        let idx = len - 1 - i;
+        let digit_byte = *vec_get(&digits, idx);
+        push_char(&mut result, digit_byte as char);
+        i = i + 1;
+    }
+    
+    result
+}
+
+/// Formats an i64 as a string
+@stable
+@alloc
+fn format_i64(n: i64) -> String {
+    if n == 0 {
+        return from_str("0");
+    }
+    
+    let mut result = new_string();
+    let mut num = n;
+    let is_negative = num < 0;
+    
+    if is_negative {
+        num = -num;
+    }
+    
+    let mut digits = new_vec();
+    while num > 0 {
+        let digit = (num % 10) as u8;
+        push(&mut digits, digit + 48);
+        num = num / 10;
+    }
+    
+    if is_negative {
+        push_char(&mut result, '-');
+    }
+    
+    let len = vec_len(&digits);
+    let mut i: usize = 0;
+    while i < len {
+        let idx = len - 1 - i;
+        let digit_byte = *vec_get(&digits, idx);
+        push_char(&mut result, digit_byte as char);
+        i = i + 1;
+    }
+    
+    result
+}
+
+/// Formats a u64 as a string
+@stable
+@alloc
+fn format_u64(n: u64) -> String {
+    if n == 0 {
+        return from_str("0");
+    }
+    
+    let mut result = new_string();
+    let mut num = n;
+    
+    let mut digits = new_vec();
+    while num > 0 {
+        let digit = (num % 10) as u8;
+        push(&mut digits, digit + 48);
+        num = num / 10;
+    }
+    
+    let len = vec_len(&digits);
+    let mut i: usize = 0;
+    while i < len {
+        let idx = len - 1 - i;
+        let digit_byte = *vec_get(&digits, idx);
+        push_char(&mut result, digit_byte as char);
+        i = i + 1;
+    }
+    
+    result
+}

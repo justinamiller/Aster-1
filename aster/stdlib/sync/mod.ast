@@ -1,0 +1,154 @@
+// Sync Module - Concurrency primitives
+// Part of Aster Standard Library
+//
+// The sync module provides synchronization primitives for concurrent programming.
+//
+// Stability: @stable
+// Effects: none (blocking operations have no effect annotation)
+// Dependencies: core
+
+/// A mutual exclusion primitive useful for protecting shared data
+@stable
+struct Mutex<T> {
+    lock: AtomicBool,
+    data: T
+}
+
+/// Creates a new mutex in an unlocked state
+@stable
+fn new_mutex<T>(data: T) -> Mutex<T> {
+    Mutex {
+        lock: atomic_bool_new(false),
+        data: data
+    }
+}
+
+/// Acquires the mutex, blocking the current thread until it is able to do so
+@stable
+fn lock<T>(m: &mut Mutex<T>) -> MutexGuard<T> {
+    // Spin until we acquire the lock
+    while !atomic_bool_compare_and_swap(&mut m.lock, false, true) {
+        // Yield to scheduler
+        thread_yield();
+    }
+    
+    MutexGuard { mutex: m }
+}
+
+/// RAII guard for a locked mutex
+@stable
+struct MutexGuard<T> {
+    mutex: &mut Mutex<T>
+}
+
+impl<T> Drop for MutexGuard<T> {
+    fn drop(&mut self) {
+        atomic_bool_store(&mut self.mutex.lock, false);
+    }
+}
+
+/// Returns a reference to the protected data
+@stable
+fn guard_as_ref<T>(guard: &MutexGuard<T>) -> &T {
+    &guard.mutex.data
+}
+
+/// Returns a mutable reference to the protected data
+@stable
+fn guard_as_mut<T>(guard: &mut MutexGuard<T>) -> &mut T {
+    &mut guard.mutex.data
+}
+
+/// A reader-writer lock
+@stable
+struct RwLock<T> {
+    readers: AtomicUsize,
+    writer: AtomicBool,
+    data: T
+}
+
+/// Creates a new reader-writer lock
+@stable
+fn new_rwlock<T>(data: T) -> RwLock<T> {
+    RwLock {
+        readers: atomic_usize_new(0),
+        writer: atomic_bool_new(false),
+        data: data
+    }
+}
+
+/// Locks this rwlock with shared read access
+@stable
+fn read<T>(rw: &RwLock<T>) -> ReadGuard<T> {
+    loop {
+        if !atomic_bool_load(&rw.writer) {
+            atomic_usize_add(&rw.readers, 1);
+            if !atomic_bool_load(&rw.writer) {
+                return ReadGuard { lock: rw };
+            }
+            atomic_usize_sub(&rw.readers, 1);
+        }
+        thread_yield();
+    }
+}
+
+/// Locks this rwlock with exclusive write access
+@stable
+fn write<T>(rw: &mut RwLock<T>) -> WriteGuard<T> {
+    // Wait for writer lock
+    while !atomic_bool_compare_and_swap(&mut rw.writer, false, true) {
+        thread_yield();
+    }
+    
+    // Wait for all readers to finish
+    while atomic_usize_load(&rw.readers) > 0 {
+        thread_yield();
+    }
+    
+    WriteGuard { lock: rw }
+}
+
+@stable
+struct ReadGuard<T> {
+    lock: &RwLock<T>
+}
+
+@stable
+struct WriteGuard<T> {
+    lock: &mut RwLock<T>
+}
+
+impl<T> Drop for ReadGuard<T> {
+    fn drop(&mut self) {
+        atomic_usize_sub(&self.lock.readers, 1);
+    }
+}
+
+impl<T> Drop for WriteGuard<T> {
+    fn drop(&mut self) {
+        atomic_bool_store(&mut self.lock.writer, false);
+    }
+}
+
+// Atomic types
+@stable
+struct AtomicBool {
+    value: bool
+}
+
+@stable
+struct AtomicUsize {
+    value: usize
+}
+
+fn atomic_bool_new(value: bool) -> AtomicBool;
+fn atomic_bool_load(a: &AtomicBool) -> bool;
+fn atomic_bool_store(a: &mut AtomicBool, value: bool);
+fn atomic_bool_compare_and_swap(a: &mut AtomicBool, current: bool, new: bool) -> bool;
+
+fn atomic_usize_new(value: usize) -> AtomicUsize;
+fn atomic_usize_load(a: &AtomicUsize) -> usize;
+fn atomic_usize_add(a: &AtomicUsize, val: usize) -> usize;
+fn atomic_usize_sub(a: &AtomicUsize, val: usize) -> usize;
+
+fn thread_yield();

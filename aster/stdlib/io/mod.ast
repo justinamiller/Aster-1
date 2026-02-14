@@ -1,0 +1,188 @@
+// IO Module - Input/output operations
+// Part of Aster Standard Library
+//
+// The io module provides traits and types for I/O operations.
+//
+// Stability: @stable
+// Effects: @io (all APIs perform I/O operations)
+// Dependencies: core, alloc
+
+/// The Read trait allows for reading bytes from a source
+@stable
+trait Read {
+    /// Reads bytes from the source into the buffer
+    /// Returns the number of bytes read
+    @io
+    fn read(&mut self, buf: &mut [u8]) -> Result<usize, IoError>;
+    
+    /// Reads the exact number of bytes required to fill buf
+    @io
+    fn read_exact(&mut self, buf: &mut [u8]) -> Result<(), IoError> {
+        let mut total: usize = 0;
+        let needed = len(buf);
+        
+        while total < needed {
+            let n = self.read(slice_range_mut(buf, total, needed))?;
+            if n == 0 {
+                return err(IoError::UnexpectedEof);
+            }
+            total = total + n;
+        }
+        ok(())
+    }
+}
+
+/// The Write trait allows for writing bytes to a destination
+@stable
+trait Write {
+    /// Writes bytes from the buffer to the destination
+    /// Returns the number of bytes written
+    @io
+    fn write(&mut self, buf: &[u8]) -> Result<usize, IoError>;
+    
+    /// Attempts to write an entire buffer
+    @io
+    fn write_all(&mut self, buf: &[u8]) -> Result<(), IoError> {
+        let mut total: usize = 0;
+        let needed = len(buf);
+        
+        while total < needed {
+            let n = self.write(slice_range(buf, total, needed))?;
+            if n == 0 {
+                return err(IoError::WriteZero);
+            }
+            total = total + n;
+        }
+        ok(())
+    }
+    
+    /// Flushes this output stream
+    @io
+    fn flush(&mut self) -> Result<(), IoError>;
+}
+
+/// Standard input handle
+@stable
+@io
+struct Stdin {
+    fd: i32
+}
+
+/// Standard output handle
+@stable
+@io
+struct Stdout {
+    fd: i32
+}
+
+/// Standard error handle
+@stable
+@io
+struct Stderr {
+    fd: i32
+}
+
+/// Returns a handle to the standard input stream
+@stable
+@io
+fn stdin() -> Stdin {
+    Stdin { fd: 0 }
+}
+
+/// Returns a handle to the standard output stream
+@stable
+@io
+fn stdout() -> Stdout {
+    Stdout { fd: 1 }
+}
+
+/// Returns a handle to the standard error stream
+@stable
+@io
+fn stderr() -> Stderr {
+    Stderr { fd: 2 }
+}
+
+impl Read for Stdin {
+    @io
+    fn read(&mut self, buf: &mut [u8]) -> Result<usize, IoError> {
+        let n = unsafe {
+            intrinsic_read(self.fd, buf.as_mut_ptr(), len(buf))
+        };
+        
+        if n < 0 {
+            err(IoError::Other)
+        } else {
+            ok(n as usize)
+        }
+    }
+}
+
+impl Write for Stdout {
+    @io
+    fn write(&mut self, buf: &[u8]) -> Result<usize, IoError> {
+        let n = unsafe {
+            intrinsic_write(self.fd, buf.as_ptr(), len(buf))
+        };
+        
+        if n < 0 {
+            err(IoError::Other)
+        } else {
+            ok(n as usize)
+        }
+    }
+    
+    @io
+    fn flush(&mut self) -> Result<(), IoError> {
+        ok(())
+    }
+}
+
+impl Write for Stderr {
+    @io
+    fn write(&mut self, buf: &[u8]) -> Result<usize, IoError> {
+        let n = unsafe {
+            intrinsic_write(self.fd, buf.as_ptr(), len(buf))
+        };
+        
+        if n < 0 {
+            err(IoError::Other)
+        } else {
+            ok(n as usize)
+        }
+    }
+    
+    @io
+    fn flush(&mut self) -> Result<(), IoError> {
+        ok(())
+    }
+}
+
+/// IO error types
+@stable
+enum IoError {
+    NotFound,
+    PermissionDenied,
+    ConnectionRefused,
+    ConnectionReset,
+    ConnectionAborted,
+    NotConnected,
+    AddrInUse,
+    AddrNotAvailable,
+    BrokenPipe,
+    AlreadyExists,
+    WouldBlock,
+    InvalidInput,
+    InvalidData,
+    TimedOut,
+    WriteZero,
+    Interrupted,
+    UnexpectedEof,
+    Other
+}
+
+// Intrinsic I/O functions
+fn intrinsic_read(fd: i32, buf: *mut u8, count: usize) -> isize;
+fn intrinsic_write(fd: i32, buf: *const u8, count: usize) -> isize;
+
+fn slice_range_mut<T>(s: &mut [T], start: usize, end: usize) -> &mut [T];
