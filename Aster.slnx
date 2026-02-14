@@ -7,10 +7,20 @@
     <Project Path="src/Aster.Compiler.Optimizations/Aster.Compiler.Optimizations.csproj" />
     <Project Path="src/Aster.Compiler.Analysis/Aster.Compiler.Analysis.csproj" />
     <Project Path="src/Aster.Compiler.Codegen/Aster.Compiler.Codegen.csproj" />
+    <Project Path="src/Aster.Formatter/Aster.Formatter.csproj" />
+    <Project Path="src/Aster.Linter/Aster.Linter.csproj" />
+    <Project Path="src/Aster.Workspaces/Aster.Workspaces.csproj" />
+    <Project Path="src/Aster.Lsp/Aster.Lsp.csproj" />
+    <Project Path="src/Aster.Packages/Aster.Packages.csproj" />
+    <Project Path="src/Aster.DocGen/Aster.DocGen.csproj" />
+    <Project Path="src/Aster.Testing/Aster.Testing.csproj" />
+    <Project Path="src/Aster.Templates/Aster.Templates.csproj" />
+    <Project Path="src/Aster.Release/Aster.Release.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Aster.Compiler.Tests/Aster.Compiler.Tests.csproj" />
     <Project Path="tests/Aster.Compiler.PerfTests/Aster.Compiler.PerfTests.csproj" />
     <Project Path="tests/Aster.Compiler.OptimizationTests/Aster.Compiler.OptimizationTests.csproj" />
+    <Project Path="tests/Aster.Tooling.Tests/Aster.Tooling.Tests.csproj" />
   </Folder>
 </Solution>
