@@ -539,11 +539,19 @@ public sealed class AsterParser
             return new LiteralExprNode(false, LiteralKind.Bool, span);
         }
 
-        // Identifier
+        // Identifier or struct initialization
         if (Check(TokenKind.Identifier))
         {
             var name = Current.Value;
+            var nameSpan = Current.Span;
             Advance();
+            
+            // Check for struct initialization: Identifier { ... }
+            if (Check(TokenKind.LeftBrace))
+            {
+                return ParseStructInit(name, nameSpan);
+            }
+            
             return new IdentifierExprNode(name, span);
         }
 
@@ -695,6 +703,35 @@ public sealed class AsterParser
         ReportError("E0101", "Expected pattern");
         Advance();
         return new PatternNode("_", Array.Empty<PatternNode>(), true, null, span);
+    }
+
+    private StructInitExprNode ParseStructInit(string structName, Span nameSpan)
+    {
+        var startSpan = nameSpan;
+        Expect(TokenKind.LeftBrace, "Expected '{'");
+        
+        var fields = new List<FieldInitNode>();
+        
+        while (!Check(TokenKind.RightBrace) && !IsAtEnd)
+        {
+            var fieldSpan = Current.Span;
+            var fieldName = ExpectIdentifier("Expected field name");
+            Expect(TokenKind.Colon, "Expected ':' after field name");
+            var fieldValue = ParseExpression();
+            
+            fields.Add(new FieldInitNode(fieldName, fieldValue, MakeSpan(fieldSpan)));
+            
+            if (!Check(TokenKind.RightBrace))
+            {
+                if (Check(TokenKind.Comma))
+                    Advance();
+                else
+                    break; // Allow trailing comma to be optional
+            }
+        }
+        
+        Expect(TokenKind.RightBrace, "Expected '}'");
+        return new StructInitExprNode(structName, fields, MakeSpan(startSpan));
     }
 
     private BlockExprNode ParseBlock()

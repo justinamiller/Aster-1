@@ -279,6 +279,26 @@ public sealed class AssignExprNode : AstNode
     public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitAssignExpr(this);
 }
 
+/// <summary>Struct initialization expression: StructName { field: value, ... }</summary>
+public sealed class StructInitExprNode : AstNode
+{
+    public string StructName { get; }
+    public IReadOnlyList<FieldInitNode> Fields { get; }
+    public StructInitExprNode(string structName, IReadOnlyList<FieldInitNode> fields, Span span)
+        : base(span) { StructName = structName; Fields = fields; }
+    public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitStructInitExpr(this);
+}
+
+/// <summary>Field initialization in struct init: fieldName: value</summary>
+public sealed class FieldInitNode : AstNode
+{
+    public string FieldName { get; }
+    public AstNode Value { get; }
+    public FieldInitNode(string fieldName, AstNode value, Span span)
+        : base(span) { FieldName = fieldName; Value = value; }
+    public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitFieldInit(this);
+}
+
 // ========== Statements ==========
 
 /// <summary>Let statement: let [mut] name [: type] = value</summary>

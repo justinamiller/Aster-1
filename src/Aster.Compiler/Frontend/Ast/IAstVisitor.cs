@@ -30,6 +30,8 @@ public interface IAstVisitor<T>
     T VisitMemberAccessExpr(MemberAccessExprNode node);
     T VisitIndexExpr(IndexExprNode node);
     T VisitAssignExpr(AssignExprNode node);
+    T VisitStructInitExpr(StructInitExprNode node);
+    T VisitFieldInit(FieldInitNode node);
     T VisitLetStmt(LetStmtNode node);
     T VisitReturnStmt(ReturnStmtNode node);
     T VisitForStmt(ForStmtNode node);

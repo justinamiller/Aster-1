@@ -108,8 +108,26 @@ public sealed class NameResolver
         BlockExprNode block => ResolveBlock(block),
         AssignExprNode assign => new HirAssignExpr(ResolveNode(assign.Target)!, ResolveNode(assign.Value)!, assign.Span),
         MemberAccessExprNode ma => new HirMemberAccessExpr(ResolveNode(ma.Object)!, ma.Member, ma.Span),
+        StructInitExprNode structInit => ResolveStructInit(structInit),
         _ => null,
     };
+
+    private HirStructInitExpr ResolveStructInit(StructInitExprNode structInit)
+    {
+        // Verify the struct type exists
+        var symbol = _currentScope.Lookup(structInit.StructName);
+        if (symbol == null || symbol.Kind != SymbolKind.Type)
+        {
+            Diagnostics.ReportError("E0201", $"Unknown type '{structInit.StructName}'", structInit.Span);
+        }
+
+        // Resolve field initializations
+        var hirFields = structInit.Fields.Select(f =>
+            new HirFieldInit(f.FieldName, ResolveNode(f.Value)!, f.Span)
+        ).ToList();
+
+        return new HirStructInitExpr(structInit.StructName, hirFields, structInit.Span);
+    }
 
     private HirFunctionDecl ResolveFunctionDecl(FunctionDeclNode fn)
     {
