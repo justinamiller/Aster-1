@@ -1,0 +1,188 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v10.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v10.0": {
+      "Aster.CLI/1.0.0": {
+        "dependencies": {
+          "Aster.Compiler": "1.0.0",
+          "Aster.DocGen": "1.0.0",
+          "Aster.Formatter": "1.0.0",
+          "Aster.Linter": "1.0.0",
+          "Aster.Lsp": "1.0.0",
+          "Aster.Packages": "1.0.0",
+          "Aster.Release": "1.0.0",
+          "Aster.Templates": "1.0.0",
+          "Aster.Testing": "1.0.0",
+          "Aster.Workspaces": "1.0.0"
+        },
+        "runtime": {
+          "Aster.CLI.dll": {}
+        }
+      },
+      "Aster.Compiler/1.0.0": {
+        "runtime": {
+          "Aster.Compiler.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "Aster.DocGen/1.0.0": {
+        "dependencies": {
+          "Aster.Compiler": "1.0.0"
+        },
+        "runtime": {
+          "Aster.DocGen.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "Aster.Formatter/1.0.0": {
+        "dependencies": {
+          "Aster.Compiler": "1.0.0"
+        },
+        "runtime": {
+          "Aster.Formatter.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "Aster.Linter/1.0.0": {
+        "dependencies": {
+          "Aster.Compiler": "1.0.0"
+        },
+        "runtime": {
+          "Aster.Linter.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "Aster.Lsp/1.0.0": {
+        "dependencies": {
+          "Aster.Compiler": "1.0.0",
+          "Aster.Formatter": "1.0.0",
+          "Aster.Workspaces": "1.0.0"
+        },
+        "runtime": {
+          "Aster.Lsp.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "Aster.Packages/1.0.0": {
+        "dependencies": {
+          "Aster.Workspaces": "1.0.0"
+        },
+        "runtime": {
+          "Aster.Packages.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "Aster.Release/1.0.0": {
+        "runtime": {
+          "Aster.Release.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "Aster.Templates/1.0.0": {
+        "runtime": {
+          "Aster.Templates.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "Aster.Testing/1.0.0": {
+        "dependencies": {
+          "Aster.Compiler": "1.0.0"
+        },
+        "runtime": {
+          "Aster.Testing.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "Aster.Workspaces/1.0.0": {
+        "dependencies": {
+          "Aster.Compiler": "1.0.0"
+        },
+        "runtime": {
+          "Aster.Workspaces.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "Aster.CLI/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Aster.Compiler/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Aster.DocGen/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Aster.Formatter/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Aster.Linter/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Aster.Lsp/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Aster.Packages/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Aster.Release/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Aster.Templates/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Aster.Testing/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Aster.Workspaces/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}

@@ -1,0 +1,73 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v10.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v10.0": {
+      "Aster.Lsp/1.0.0": {
+        "dependencies": {
+          "Aster.Compiler": "1.0.0",
+          "Aster.Formatter": "1.0.0",
+          "Aster.Workspaces": "1.0.0"
+        },
+        "runtime": {
+          "Aster.Lsp.dll": {}
+        }
+      },
+      "Aster.Compiler/1.0.0": {
+        "runtime": {
+          "Aster.Compiler.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "Aster.Formatter/1.0.0": {
+        "dependencies": {
+          "Aster.Compiler": "1.0.0"
+        },
+        "runtime": {
+          "Aster.Formatter.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "Aster.Workspaces/1.0.0": {
+        "dependencies": {
+          "Aster.Compiler": "1.0.0"
+        },
+        "runtime": {
+          "Aster.Workspaces.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "Aster.Lsp/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Aster.Compiler/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Aster.Formatter/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Aster.Workspaces/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}
