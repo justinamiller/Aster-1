@@ -1,0 +1,88 @@
+// Pointer utilities
+// Layer: core (no alloc, no io, no OS)
+
+// Raw pointer operations
+
+impl<T> ptr<T> {
+    // Create a null pointer
+    @stable
+    pub fn null() -> ptr<T> {
+        0 as ptr<T>
+    }
+    
+    // Check if pointer is null
+    @stable
+    pub fn is_null(&self) -> bool {
+        (*self as usize) == 0
+    }
+    
+    // Cast pointer to a different type
+    @stable
+    @unsafe
+    pub fn cast<U>(self) -> ptr<U> {
+        self as ptr<U>
+    }
+    
+    // Offset pointer by count elements
+    @stable
+    @unsafe
+    pub fn offset(self, count: isize) -> ptr<T> {
+        intrinsic_ptr_offset(self, count)
+    }
+    
+    // Add count to pointer
+    @stable
+    @unsafe
+    pub fn add(self, count: usize) -> ptr<T> {
+        self.offset(count as isize)
+    }
+    
+    // Subtract count from pointer
+    @stable
+    @unsafe
+    pub fn sub(self, count: usize) -> ptr<T> {
+        self.offset(-(count as isize))
+    }
+    
+    // Read value from pointer
+    @stable
+    @unsafe
+    pub fn read(&self) -> T {
+        intrinsic_ptr_read(*self)
+    }
+    
+    // Write value to pointer
+    @stable
+    @unsafe
+    pub fn write(&mut self, val: T) {
+        intrinsic_ptr_write(*self, val)
+    }
+}
+
+impl<T> Copy for ptr<T> {}
+
+impl<T> Clone for ptr<T> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<T> Eq for ptr<T> {
+    fn eq(&self, other: &Self) -> bool {
+        (*self as usize) == (*other as usize)
+    }
+}
+
+impl<T> Ord for ptr<T> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        let a = *self as usize;
+        let b = *other as usize;
+        if a < b {
+            Ordering::Less
+        } else if a > b {
+            Ordering::Greater
+        } else {
+            Ordering::Equal
+        }
+    }
+}

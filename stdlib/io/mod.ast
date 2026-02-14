@@ -1,0 +1,181 @@
+// IO module - Input/output operations
+// Layer: io (requires alloc)
+// Stability: @stable
+
+use core::*;
+use alloc::*;
+
+// Read trait
+@stable
+trait Read {
+    @io
+    fn read(&mut self, buf: &mut [u8]) -> Result<usize, IOError>;
+    
+    @io
+    fn read_exact(&mut self, buf: &mut [u8]) -> Result<(), IOError> {
+        let mut total = 0;
+        while total < buf.len() {
+            let n = self.read(&mut buf[total..])?;
+            if n == 0 {
+                return Result::Err(IOError::UnexpectedEof);
+            }
+            total += n;
+        }
+        Result::Ok(())
+    }
+}
+
+// Write trait
+@stable
+trait Write {
+    @io
+    fn write(&mut self, buf: &[u8]) -> Result<usize, IOError>;
+    
+    @io
+    fn write_all(&mut self, buf: &[u8]) -> Result<(), IOError> {
+        let mut total = 0;
+        while total < buf.len() {
+            let n = self.write(&buf[total..])?;
+            if n == 0 {
+                return Result::Err(IOError::WriteZero);
+            }
+            total += n;
+        }
+        Result::Ok(())
+    }
+    
+    @io
+    fn flush(&mut self) -> Result<(), IOError>;
+}
+
+// IO error types
+@stable
+pub enum IOError {
+    NotFound,
+    PermissionDenied,
+    ConnectionRefused,
+    ConnectionReset,
+    ConnectionAborted,
+    NotConnected,
+    AddrInUse,
+    AddrNotAvailable,
+    BrokenPipe,
+    AlreadyExists,
+    WouldBlock,
+    InvalidInput,
+    InvalidData,
+    TimedOut,
+    WriteZero,
+    Interrupted,
+    UnexpectedEof,
+    Other,
+}
+
+// Standard input
+@stable
+pub struct Stdin {
+    // Platform-specific handle
+}
+
+impl Stdin {
+    @stable
+    @io
+    pub fn read_line(&mut self) -> Result<String, IOError> {
+        let mut s = String::new();
+        let mut buf = [0u8; 1];
+        loop {
+            intrinsic_stdin_read(&mut buf)?;
+            if buf[0] == b'\n' {
+                break;
+            }
+            s.push(buf[0] as char);
+        }
+        Result::Ok(s)
+    }
+}
+
+impl Read for Stdin {
+    @io
+    fn read(&mut self, buf: &mut [u8]) -> Result<usize, IOError> {
+        intrinsic_stdin_read(buf)
+    }
+}
+
+// Standard output
+@stable
+pub struct Stdout {
+    // Platform-specific handle
+}
+
+impl Stdout {
+    @stable
+    @io
+    pub fn write_str(&mut self, s: &str) -> Result<(), IOError> {
+        self.write_all(s.as_bytes())
+    }
+}
+
+impl Write for Stdout {
+    @io
+    fn write(&mut self, buf: &[u8]) -> Result<usize, IOError> {
+        intrinsic_stdout_write(buf)
+    }
+    
+    @io
+    fn flush(&mut self) -> Result<(), IOError> {
+        intrinsic_stdout_flush()
+    }
+}
+
+// Standard error
+@stable
+pub struct Stderr {
+    // Platform-specific handle
+}
+
+impl Write for Stderr {
+    @io
+    fn write(&mut self, buf: &[u8]) -> Result<usize, IOError> {
+        intrinsic_stderr_write(buf)
+    }
+    
+    @io
+    fn flush(&mut self) -> Result<(), IOError> {
+        intrinsic_stderr_flush()
+    }
+}
+
+// Get stdin handle
+@stable
+pub fn stdin() -> Stdin {
+    Stdin {}
+}
+
+// Get stdout handle
+@stable
+pub fn stdout() -> Stdout {
+    Stdout {}
+}
+
+// Get stderr handle
+@stable
+pub fn stderr() -> Stderr {
+    Stderr {}
+}
+
+// Print to stdout
+@stable
+@io
+pub fn print(s: &str) {
+    let mut out = stdout();
+    out.write_str(s).unwrap_or(());
+}
+
+// Print to stdout with newline
+@stable
+@io
+pub fn println(s: &str) {
+    let mut out = stdout();
+    out.write_str(s).unwrap_or(());
+    out.write_str("\n").unwrap_or(());
+}

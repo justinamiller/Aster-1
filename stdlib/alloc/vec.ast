@@ -1,0 +1,240 @@
+// Vec - Dynamic array (heap-allocated)
+// Layer: alloc
+
+use core::*;
+
+@stable
+pub struct Vec<T> {
+    ptr: ptr<T>,
+    len: usize,
+    cap: usize,
+}
+
+impl<T> Vec<T> {
+    // Create a new empty vector
+    @stable
+    @alloc
+    pub fn new() -> Vec<T> {
+        Vec {
+            ptr: ptr::null(),
+            len: 0,
+            cap: 0,
+        }
+    }
+    
+    // Create a vector with specified capacity
+    @stable
+    @alloc
+    pub fn with_capacity(capacity: usize) -> Vec<T> {
+        if capacity == 0 {
+            Vec::new()
+        } else {
+            let size = capacity * size_of::<T>();
+            let align = align_of::<T>();
+            let ptr = unsafe { alloc(size, align) as ptr<T> };
+            Vec {
+                ptr,
+                len: 0,
+                cap: capacity,
+            }
+        }
+    }
+    
+    // Get length
+    @stable
+    pub fn len(&self) -> usize {
+        self.len
+    }
+    
+    // Get capacity
+    @stable
+    pub fn capacity(&self) -> usize {
+        self.cap
+    }
+    
+    // Check if empty
+    @stable
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+    
+    // Push element to the end
+    @stable
+    @alloc
+    pub fn push(&mut self, value: T) {
+        if self.len == self.cap {
+            self.grow();
+        }
+        unsafe {
+            self.ptr.add(self.len).write(value);
+        }
+        self.len += 1;
+    }
+    
+    // Pop element from the end
+    @stable
+    pub fn pop(&mut self) -> Option<T> {
+        if self.len == 0 {
+            Option::None
+        } else {
+            self.len -= 1;
+            unsafe {
+                Option::Some(self.ptr.add(self.len).read())
+            }
+        }
+    }
+    
+    // Get element by index
+    @stable
+    pub fn get(&self, index: usize) -> Option<&T> {
+        if index < self.len {
+            unsafe {
+                Option::Some(&*self.ptr.add(index))
+            }
+        } else {
+            Option::None
+        }
+    }
+    
+    // Get mutable element by index
+    @stable
+    pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
+        if index < self.len {
+            unsafe {
+                Option::Some(&mut *self.ptr.add(index))
+            }
+        } else {
+            Option::None
+        }
+    }
+    
+    // Get element by index (unchecked)
+    @stable
+    @unsafe
+    pub fn get_unchecked(&self, index: usize) -> &T {
+        &*self.ptr.add(index)
+    }
+    
+    // Clear all elements
+    @stable
+    pub fn clear(&mut self) {
+        while self.len > 0 {
+            self.pop();
+        }
+    }
+    
+    // Get as slice
+    @stable
+    pub fn as_slice(&self) -> &[T] {
+        unsafe {
+            intrinsic_make_slice(self.ptr, self.len)
+        }
+    }
+    
+    // Reserve additional capacity
+    @stable
+    @alloc
+    pub fn reserve(&mut self, additional: usize) {
+        let needed = self.len + additional;
+        if needed > self.cap {
+            self.grow_to(needed);
+        }
+    }
+    
+    // Grow the vector capacity
+    @alloc
+    fn grow(&mut self) {
+        let new_cap = if self.cap == 0 { 4 } else { self.cap * 2 };
+        self.grow_to(new_cap);
+    }
+    
+    // Grow to specific capacity
+    @alloc
+    fn grow_to(&mut self, new_cap: usize) {
+        let size = size_of::<T>();
+        let align = align_of::<T>();
+        
+        let new_ptr = if self.cap == 0 {
+            unsafe { alloc(new_cap * size, align) as ptr<T> }
+        } else {
+            unsafe {
+                realloc(
+                    self.ptr as ptr<u8>,
+                    self.cap * size,
+                    align,
+                    new_cap * size
+                ) as ptr<T>
+            }
+        };
+        
+        self.ptr = new_ptr;
+        self.cap = new_cap;
+    }
+}
+
+impl<T> Drop for Vec<T> {
+    fn drop(&mut self) {
+        self.clear();
+        if self.cap > 0 {
+            unsafe {
+                dealloc(
+                    self.ptr as ptr<u8>,
+                    self.cap * size_of::<T>(),
+                    align_of::<T>()
+                );
+            }
+        }
+    }
+}
+
+impl<T: Clone> Clone for Vec<T> {
+    @alloc
+    fn clone(&self) -> Vec<T> {
+        let mut new_vec = Vec::with_capacity(self.len);
+        let mut i = 0;
+        while i < self.len {
+            new_vec.push(unsafe { self.ptr.add(i).read() }.clone());
+            i += 1;
+        }
+        new_vec
+    }
+}
+
+impl<T> Default for Vec<T> {
+    fn default() -> Vec<T> {
+        Vec::new()
+    }
+}
+
+impl<T> IntoIterator for Vec<T> {
+    type Item = T;
+    type IntoIter = VecIntoIter<T>;
+    
+    fn into_iter(self) -> VecIntoIter<T> {
+        VecIntoIter {
+            vec: self,
+            index: 0,
+        }
+    }
+}
+
+// Iterator for Vec ownership transfer
+@stable
+pub struct VecIntoIter<T> {
+    vec: Vec<T>,
+    index: usize,
+}
+
+impl<T> Iterator for VecIntoIter<T> {
+    type Item = T;
+    
+    fn next(&mut self) -> Option<T> {
+        if self.index < self.vec.len {
+            let val = unsafe { self.vec.ptr.add(self.index).read() };
+            self.index += 1;
+            Option::Some(val)
+        } else {
+            Option::None
+        }
+    }
+}

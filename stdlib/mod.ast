@@ -1,0 +1,41 @@
+// Aster Standard Library - Root module
+// Exports all stdlib modules
+
+// Core module (always available, no prefix needed)
+pub use core;
+
+// Additional modules (require explicit import)
+pub mod alloc;
+pub mod sync;
+pub mod io;
+pub mod fs;
+pub mod net;
+pub mod time;
+pub mod fmt;
+pub mod math;
+pub mod testing;
+pub mod env;
+pub mod process;
+
+// Prelude - commonly used items
+pub mod prelude {
+    // Core types
+    pub use core::{Option, Result, bool, char};
+    pub use core::{i8, i16, i32, i64, i128, isize};
+    pub use core::{u8, u16, u32, u64, u128, usize};
+    pub use core::{f32, f64};
+    pub use core::{str, ptr, slice};
+    
+    // Core traits
+    pub use core::{Copy, Clone, Drop};
+    pub use core::{Eq, Ord, Ordering};
+    pub use core::{Default, Debug, Display};
+    pub use core::{Iterator, IntoIterator};
+    
+    // Common collections (requires alloc)
+    pub use alloc::{Vec, String};
+    
+    // Common functions
+    pub use core::{panic, assert};
+    pub use io::{print, println};
+}

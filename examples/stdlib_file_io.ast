@@ -1,0 +1,33 @@
+// Example: File I/O operations
+// Demonstrates fs and io modules
+
+use stdlib::prelude::*;
+use stdlib::fs;
+use stdlib::io::{Read, Write};
+
+fn main() {
+    // Write to a file
+    let content = "Hello from Aster!\nThis is a test file.\n";
+    match fs::write_str("test.txt", content) {
+        Result::Ok(_) => println("File written successfully"),
+        Result::Err(e) => println("Failed to write file"),
+    }
+    
+    // Read from a file
+    match fs::read_to_string("test.txt") {
+        Result::Ok(text) => {
+            println("File contents:");
+            println(&text);
+        },
+        Result::Err(e) => println("Failed to read file"),
+    }
+    
+    // Check if file exists
+    let path = fs::Path::new("test.txt");
+    if path.exists() {
+        println("File exists!");
+        if path.is_file() {
+            println("It's a file");
+        }
+    }
+}

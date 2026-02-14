@@ -1,0 +1,150 @@
+// String - Owned UTF-8 string (heap-allocated)
+// Layer: alloc
+
+use core::*;
+
+@stable
+pub struct String {
+    vec: Vec<u8>,
+}
+
+impl String {
+    // Create a new empty string
+    @stable
+    @alloc
+    pub fn new() -> String {
+        String {
+            vec: Vec::new(),
+        }
+    }
+    
+    // Create a string with specified capacity
+    @stable
+    @alloc
+    pub fn with_capacity(capacity: usize) -> String {
+        String {
+            vec: Vec::with_capacity(capacity),
+        }
+    }
+    
+    // Create from string slice
+    @stable
+    @alloc
+    pub fn from(s: &str) -> String {
+        let mut string = String::with_capacity(s.len());
+        let bytes = s.as_bytes();
+        let mut i = 0;
+        while i < bytes.len() {
+            string.vec.push(bytes[i]);
+            i += 1;
+        }
+        string
+    }
+    
+    // Get length in bytes
+    @stable
+    pub fn len(&self) -> usize {
+        self.vec.len()
+    }
+    
+    // Check if empty
+    @stable
+    pub fn is_empty(&self) -> bool {
+        self.vec.is_empty()
+    }
+    
+    // Get capacity
+    @stable
+    pub fn capacity(&self) -> usize {
+        self.vec.capacity()
+    }
+    
+    // Get as string slice
+    @stable
+    pub fn as_str(&self) -> &str {
+        unsafe {
+            intrinsic_make_str(self.vec.as_slice().as_ptr(), self.vec.len())
+        }
+    }
+    
+    // Push a character
+    @stable
+    @alloc
+    pub fn push(&mut self, ch: char) {
+        // Convert char to UTF-8 bytes
+        let code = ch as u32;
+        if code < 0x80 {
+            self.vec.push(code as u8);
+        } else if code < 0x800 {
+            self.vec.push((0xC0 | (code >> 6)) as u8);
+            self.vec.push((0x80 | (code & 0x3F)) as u8);
+        } else if code < 0x10000 {
+            self.vec.push((0xE0 | (code >> 12)) as u8);
+            self.vec.push((0x80 | ((code >> 6) & 0x3F)) as u8);
+            self.vec.push((0x80 | (code & 0x3F)) as u8);
+        } else {
+            self.vec.push((0xF0 | (code >> 18)) as u8);
+            self.vec.push((0x80 | ((code >> 12) & 0x3F)) as u8);
+            self.vec.push((0x80 | ((code >> 6) & 0x3F)) as u8);
+            self.vec.push((0x80 | (code & 0x3F)) as u8);
+        }
+    }
+    
+    // Push a string slice
+    @stable
+    @alloc
+    pub fn push_str(&mut self, s: &str) {
+        let bytes = s.as_bytes();
+        let mut i = 0;
+        while i < bytes.len() {
+            self.vec.push(bytes[i]);
+            i += 1;
+        }
+    }
+    
+    // Clear the string
+    @stable
+    pub fn clear(&mut self) {
+        self.vec.clear();
+    }
+    
+    // Reserve additional capacity
+    @stable
+    @alloc
+    pub fn reserve(&mut self, additional: usize) {
+        self.vec.reserve(additional);
+    }
+}
+
+impl Clone for String {
+    @alloc
+    fn clone(&self) -> String {
+        String {
+            vec: self.vec.clone(),
+        }
+    }
+}
+
+impl Default for String {
+    fn default() -> String {
+        String::new()
+    }
+}
+
+impl Drop for String {
+    fn drop(&mut self) {
+        // Vec handles its own drop
+    }
+}
+
+impl Eq for String {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_str().eq(&other.as_str())
+    }
+}
+
+impl Ord for String {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.as_str().cmp(&other.as_str())
+    }
+}

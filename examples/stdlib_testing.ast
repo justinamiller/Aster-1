@@ -1,0 +1,63 @@
+// Example: Test framework
+// Demonstrates testing module
+
+use stdlib::prelude::*;
+use stdlib::testing;
+
+fn test_vec_push_pop() -> testing::TestResult {
+    let mut vec = Vec::new();
+    vec.push(1);
+    vec.push(2);
+    vec.push(3);
+    
+    testing::assert_eq(&vec.len(), &3, "length should be 3")?;
+    
+    let val = vec.pop().unwrap();
+    testing::assert_eq(&val, &3, "popped value should be 3")?;
+    testing::assert_eq(&vec.len(), &2, "length should be 2 after pop")?;
+    
+    testing::TestResult::Pass
+}
+
+fn test_string_operations() -> testing::TestResult {
+    let mut s = String::from("Hello");
+    s.push(' ');
+    s.push_str("World");
+    
+    testing::assert_eq(&s.len(), &11, "string length should be 11")?;
+    testing::assert_true(s.as_str().starts_with("Hello"), "should start with Hello")?;
+    
+    testing::TestResult::Pass
+}
+
+fn test_option_some() -> testing::TestResult {
+    let opt = Option::Some(42);
+    testing::assert_true(opt.is_some(), "should be Some")?;
+    testing::assert_false(opt.is_none(), "should not be None")?;
+    testing::assert_eq(&opt.unwrap(), &42, "value should be 42")?;
+    
+    testing::TestResult::Pass
+}
+
+fn test_option_none() -> testing::TestResult {
+    let opt: Option<i32> = Option::None;
+    testing::assert_false(opt.is_some(), "should not be Some")?;
+    testing::assert_true(opt.is_none(), "should be None")?;
+    
+    testing::TestResult::Pass
+}
+
+fn main() {
+    let mut runner = testing::TestRunner::new();
+    
+    runner.add(testing::TestCase::new("vec_push_pop", test_vec_push_pop));
+    runner.add(testing::TestCase::new("string_operations", test_string_operations));
+    runner.add(testing::TestCase::new("option_some", test_option_some));
+    runner.add(testing::TestCase::new("option_none", test_option_none));
+    
+    let success = runner.run_all();
+    
+    if !success {
+        stdlib::process::exit(1);
+    }
+}

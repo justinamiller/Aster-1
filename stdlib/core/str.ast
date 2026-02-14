@@ -1,0 +1,212 @@
+// String slice utilities (UTF-8)
+// Layer: core (no alloc, no io, no OS)
+
+impl str {
+    // Get length in bytes
+    @stable
+    pub fn len(&self) -> usize {
+        intrinsic_str_len(self)
+    }
+    
+    // Check if string is empty
+    @stable
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+    
+    // Get byte slice
+    @stable
+    pub fn as_bytes(&self) -> &[u8] {
+        unsafe {
+            intrinsic_make_slice(self.as_ptr(), self.len())
+        }
+    }
+    
+    // Get pointer to first byte
+    @stable
+    pub fn as_ptr(&self) -> ptr<u8> {
+        intrinsic_str_ptr(self)
+    }
+    
+    // Check if string is valid UTF-8
+    @stable
+    pub fn is_valid_utf8(&self) -> bool {
+        // UTF-8 validation logic
+        let bytes = self.as_bytes();
+        let mut i = 0;
+        while i < bytes.len() {
+            let b = bytes[i];
+            if b < 0x80 {
+                i += 1;
+            } else if b < 0xE0 {
+                if i + 1 >= bytes.len() { return false; }
+                i += 2;
+            } else if b < 0xF0 {
+                if i + 2 >= bytes.len() { return false; }
+                i += 3;
+            } else if b < 0xF8 {
+                if i + 3 >= bytes.len() { return false; }
+                i += 4;
+            } else {
+                return false;
+            }
+        }
+        true
+    }
+    
+    // Get character count (expensive, O(n))
+    @stable
+    pub fn char_count(&self) -> usize {
+        let mut count = 0;
+        let bytes = self.as_bytes();
+        let mut i = 0;
+        while i < bytes.len() {
+            let b = bytes[i];
+            if b < 0x80 {
+                i += 1;
+            } else if b < 0xE0 {
+                i += 2;
+            } else if b < 0xF0 {
+                i += 3;
+            } else {
+                i += 4;
+            }
+            count += 1;
+        }
+        count
+    }
+    
+    // Check if string starts with prefix
+    @stable
+    pub fn starts_with(&self, prefix: &str) -> bool {
+        let self_bytes = self.as_bytes();
+        let prefix_bytes = prefix.as_bytes();
+        
+        if prefix_bytes.len() > self_bytes.len() {
+            return false;
+        }
+        
+        let mut i = 0;
+        while i < prefix_bytes.len() {
+            if self_bytes[i] != prefix_bytes[i] {
+                return false;
+            }
+            i += 1;
+        }
+        true
+    }
+    
+    // Check if string ends with suffix
+    @stable
+    pub fn ends_with(&self, suffix: &str) -> bool {
+        let self_bytes = self.as_bytes();
+        let suffix_bytes = suffix.as_bytes();
+        
+        if suffix_bytes.len() > self_bytes.len() {
+            return false;
+        }
+        
+        let offset = self_bytes.len() - suffix_bytes.len();
+        let mut i = 0;
+        while i < suffix_bytes.len() {
+            if self_bytes[offset + i] != suffix_bytes[i] {
+                return false;
+            }
+            i += 1;
+        }
+        true
+    }
+    
+    // Find substring
+    @stable
+    pub fn find(&self, needle: &str) -> Option<usize> {
+        let self_bytes = self.as_bytes();
+        let needle_bytes = needle.as_bytes();
+        
+        if needle_bytes.len() > self_bytes.len() {
+            return Option::None;
+        }
+        
+        let mut i = 0;
+        while i <= self_bytes.len() - needle_bytes.len() {
+            let mut j = 0;
+            let mut found = true;
+            while j < needle_bytes.len() {
+                if self_bytes[i + j] != needle_bytes[j] {
+                    found = false;
+                    break;
+                }
+                j += 1;
+            }
+            if found {
+                return Option::Some(i);
+            }
+            i += 1;
+        }
+        Option::None
+    }
+    
+    // Get substring by byte range
+    @stable
+    pub fn substring(&self, start: usize, end: usize) -> &str {
+        assert(start <= end, "substring start must be <= end");
+        assert(end <= self.len(), "substring end out of bounds");
+        unsafe {
+            intrinsic_make_str(self.as_ptr().add(start), end - start)
+        }
+    }
+}
+
+impl Clone for str {
+    fn clone(&self) -> &str {
+        self
+    }
+}
+
+impl Copy for str {}
+
+impl Eq for str {
+    fn eq(&self, other: &Self) -> bool {
+        let self_bytes = self.as_bytes();
+        let other_bytes = other.as_bytes();
+        
+        if self_bytes.len() != other_bytes.len() {
+            return false;
+        }
+        
+        let mut i = 0;
+        while i < self_bytes.len() {
+            if self_bytes[i] != other_bytes[i] {
+                return false;
+            }
+            i += 1;
+        }
+        true
+    }
+}
+
+impl Ord for str {
+    fn cmp(&self, other: &Self) -> Ordering {
+        let self_bytes = self.as_bytes();
+        let other_bytes = other.as_bytes();
+        let min_len = min(self_bytes.len(), other_bytes.len());
+        
+        let mut i = 0;
+        while i < min_len {
+            if self_bytes[i] < other_bytes[i] {
+                return Ordering::Less;
+            } else if self_bytes[i] > other_bytes[i] {
+                return Ordering::Greater;
+            }
+            i += 1;
+        }
+        
+        if self_bytes.len() < other_bytes.len() {
+            Ordering::Less
+        } else if self_bytes.len() > other_bytes.len() {
+            Ordering::Greater
+        } else {
+            Ordering::Equal
+        }
+    }
+}

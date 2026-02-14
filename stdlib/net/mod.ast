@@ -1,0 +1,107 @@
+// Network module - TCP/UDP sockets
+// Layer: net (requires io, alloc)
+// Stability: @experimental
+
+use core::*;
+use io::*;
+
+// TCP listener
+@experimental
+pub struct TcpListener {
+    fd: i32,
+}
+
+impl TcpListener {
+    @experimental
+    @io
+    pub fn bind(addr: &str) -> Result<TcpListener, IOError> {
+        let fd = intrinsic_tcp_listen(addr)?;
+        Result::Ok(TcpListener { fd })
+    }
+    
+    @experimental
+    @io
+    pub fn accept(&mut self) -> Result<TcpStream, IOError> {
+        let fd = intrinsic_tcp_accept(self.fd)?;
+        Result::Ok(TcpStream { fd })
+    }
+}
+
+impl Drop for TcpListener {
+    fn drop(&mut self) {
+        intrinsic_socket_close(self.fd);
+    }
+}
+
+// TCP stream
+@experimental
+pub struct TcpStream {
+    fd: i32,
+}
+
+impl TcpStream {
+    @experimental
+    @io
+    pub fn connect(addr: &str) -> Result<TcpStream, IOError> {
+        let fd = intrinsic_tcp_connect(addr)?;
+        Result::Ok(TcpStream { fd })
+    }
+}
+
+impl Read for TcpStream {
+    @io
+    fn read(&mut self, buf: &mut [u8]) -> Result<usize, IOError> {
+        intrinsic_socket_read(self.fd, buf)
+    }
+}
+
+impl Write for TcpStream {
+    @io
+    fn write(&mut self, buf: &[u8]) -> Result<usize, IOError> {
+        intrinsic_socket_write(self.fd, buf)
+    }
+    
+    @io
+    fn flush(&mut self) -> Result<(), IOError> {
+        Result::Ok(())
+    }
+}
+
+impl Drop for TcpStream {
+    fn drop(&mut self) {
+        intrinsic_socket_close(self.fd);
+    }
+}
+
+// UDP socket
+@experimental
+pub struct UdpSocket {
+    fd: i32,
+}
+
+impl UdpSocket {
+    @experimental
+    @io
+    pub fn bind(addr: &str) -> Result<UdpSocket, IOError> {
+        let fd = intrinsic_udp_bind(addr)?;
+        Result::Ok(UdpSocket { fd })
+    }
+    
+    @experimental
+    @io
+    pub fn send_to(&mut self, buf: &[u8], addr: &str) -> Result<usize, IOError> {
+        intrinsic_udp_send_to(self.fd, buf, addr)
+    }
+    
+    @experimental
+    @io
+    pub fn recv_from(&mut self, buf: &mut [u8]) -> Result<(usize, String), IOError> {
+        intrinsic_udp_recv_from(self.fd, buf)
+    }
+}
+
+impl Drop for UdpSocket {
+    fn drop(&mut self) {
+        intrinsic_socket_close(self.fd);
+    }
+}

@@ -1,0 +1,130 @@
+// Testing module - Test framework
+// Layer: testing (requires alloc, io)
+// Stability: @stable
+
+use core::*;
+use alloc::*;
+use io::*;
+
+// Test result
+@stable
+pub enum TestResult {
+    Pass,
+    Fail(String),
+}
+
+// Test function type
+@stable
+pub type TestFn = fn() -> TestResult;
+
+// Test case
+@stable
+pub struct TestCase {
+    name: String,
+    func: TestFn,
+}
+
+impl TestCase {
+    @stable
+    @alloc
+    pub fn new(name: &str, func: TestFn) -> TestCase {
+        TestCase {
+            name: String::from(name),
+            func,
+        }
+    }
+    
+    @stable
+    @io
+    pub fn run(&self) -> TestResult {
+        println(&format!("Running test: {}", self.name));
+        (self.func)()
+    }
+}
+
+// Test runner
+@stable
+pub struct TestRunner {
+    tests: Vec<TestCase>,
+}
+
+impl TestRunner {
+    @stable
+    @alloc
+    pub fn new() -> TestRunner {
+        TestRunner {
+            tests: Vec::new(),
+        }
+    }
+    
+    @stable
+    @alloc
+    pub fn add(&mut self, test: TestCase) {
+        self.tests.push(test);
+    }
+    
+    @stable
+    @io
+    pub fn run_all(&mut self) -> bool {
+        let mut passed = 0;
+        let mut failed = 0;
+        
+        let total = self.tests.len();
+        let mut i = 0;
+        while i < total {
+            let result = self.tests.get(i).unwrap().run();
+            match result {
+                TestResult::Pass => {
+                    passed += 1;
+                    println("  ✓ PASS");
+                },
+                TestResult::Fail(msg) => {
+                    failed += 1;
+                    println(&format!("  ✗ FAIL: {}", msg));
+                },
+            }
+            i += 1;
+        }
+        
+        println(&format!("\nResults: {} passed, {} failed, {} total", passed, failed, total));
+        failed == 0
+    }
+}
+
+// Assert macros/functions
+
+@stable
+pub fn assert_eq<T: Eq + Debug>(left: &T, right: &T, msg: &str) -> TestResult {
+    if left.eq(right) {
+        TestResult::Pass
+    } else {
+        TestResult::Fail(String::from(msg))
+    }
+}
+
+@stable
+pub fn assert_ne<T: Eq + Debug>(left: &T, right: &T, msg: &str) -> TestResult {
+    if !left.eq(right) {
+        TestResult::Pass
+    } else {
+        TestResult::Fail(String::from(msg))
+    }
+}
+
+@stable
+pub fn assert_true(condition: bool, msg: &str) -> TestResult {
+    if condition {
+        TestResult::Pass
+    } else {
+        TestResult::Fail(String::from(msg))
+    }
+}
+
+@stable
+pub fn assert_false(condition: bool, msg: &str) -> TestResult {
+    if !condition {
+        TestResult::Pass
+    } else {
+        TestResult::Fail(String::from(msg))
+    }
+}

@@ -1,0 +1,153 @@
+// Formatting module
+// Layer: fmt (requires alloc)
+// Stability: @stable
+
+use core::*;
+use alloc::*;
+
+// Formatter type
+@stable
+pub struct Formatter {
+    buf: String,
+}
+
+impl Formatter {
+    @stable
+    @alloc
+    pub fn new() -> Formatter {
+        Formatter {
+            buf: String::new(),
+        }
+    }
+    
+    @stable
+    @alloc
+    pub fn write_str(&mut self, s: &str) -> Result<(), Error> {
+        self.buf.push_str(s);
+        Result::Ok(())
+    }
+    
+    @stable
+    @alloc
+    pub fn write_char(&mut self, c: char) -> Result<(), Error> {
+        self.buf.push(c);
+        Result::Ok(())
+    }
+    
+    @stable
+    pub fn as_str(&self) -> &str {
+        self.buf.as_str()
+    }
+}
+
+// Formatting error
+@stable
+pub struct Error {}
+
+// Format a value to string
+@stable
+@alloc
+pub fn format<T: Display>(value: &T) -> String {
+    let mut f = Formatter::new();
+    value.fmt(&mut f).unwrap_or(());
+    String::from(f.as_str())
+}
+
+// Format implementations for primitives
+
+impl Display for bool {
+    fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
+        if *self {
+            f.write_str("true")
+        } else {
+            f.write_str("false")
+        }
+    }
+}
+
+impl Display for i32 {
+    fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
+        // Simple integer to string conversion
+        if *self == 0 {
+            return f.write_char('0');
+        }
+        
+        let mut n = *self;
+        let negative = n < 0;
+        if negative {
+            n = -n;
+            f.write_char('-')?;
+        }
+        
+        let mut digits = Vec::new();
+        while n > 0 {
+            digits.push((n % 10) as u8 + b'0');
+            n /= 10;
+        }
+        
+        let mut i = digits.len();
+        while i > 0 {
+            i -= 1;
+            f.write_char(digits[i] as char)?;
+        }
+        
+        Result::Ok(())
+    }
+}
+
+impl Display for u32 {
+    fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
+        if *self == 0 {
+            return f.write_char('0');
+        }
+        
+        let mut n = *self;
+        let mut digits = Vec::new();
+        while n > 0 {
+            digits.push((n % 10) as u8 + b'0');
+            n /= 10;
+        }
+        
+        let mut i = digits.len();
+        while i > 0 {
+            i -= 1;
+            f.write_char(digits[i] as char)?;
+        }
+        
+        Result::Ok(())
+    }
+}
+
+impl Display for str {
+    fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
+        f.write_str(self)
+    }
+}
+
+impl Display for String {
+    fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
+        f.write_str(self.as_str())
+    }
+}
+
+// Debug trait implementations
+
+impl Debug for bool {
+    fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
+        Display::fmt(self, f)
+    }
+}
+
+impl Debug for i32 {
+    fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
+        Display::fmt(self, f)
+    }
+}
+
+impl Debug for str {
+    fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
+        f.write_char('"')?;
+        f.write_str(self)?;
+        f.write_char('"')
+    }
+}

@@ -1,0 +1,40 @@
+// Alloc module - Heap allocation and collections
+// Layer: alloc (requires heap, no io, no OS)
+// Stability: @stable
+
+// Core allocation functions
+
+// Allocate memory on the heap
+@stable
+@alloc
+@unsafe
+pub fn alloc(size: usize, align: usize) -> ptr<u8> {
+    intrinsic_alloc(size, align)
+}
+
+// Deallocate memory from the heap
+@stable
+@unsafe
+pub fn dealloc(ptr: ptr<u8>, size: usize, align: usize) {
+    intrinsic_dealloc(ptr, size, align)
+}
+
+// Reallocate memory
+@stable
+@alloc
+@unsafe
+pub fn realloc(ptr: ptr<u8>, old_size: usize, align: usize, new_size: usize) -> ptr<u8> {
+    intrinsic_realloc(ptr, old_size, align, new_size)
+}
+
+// Allocate zeroed memory
+@stable
+@alloc
+@unsafe
+pub fn alloc_zeroed(size: usize, align: usize) -> ptr<u8> {
+    let ptr = alloc(size, align);
+    if !ptr.is_null() {
+        memset(ptr, 0, size);
+    }
+    ptr
+}

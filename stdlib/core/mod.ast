@@ -1,0 +1,124 @@
+// Core module - Essential primitives and traits
+// Layer: core (no alloc, no io, no OS)
+// Stability: @stable
+
+// Re-export primitives
+pub use primitives::*;
+
+// Re-export traits
+pub use traits::*;
+
+// Re-export Option and Result
+pub use option::Option;
+pub use result::Result;
+
+// Core utility functions
+
+// Swap two values
+@stable
+pub fn swap<T>(a: &mut T, b: &mut T) {
+    let temp = *a;
+    *a = *b;
+    *b = temp;
+}
+
+// Replace a value with a new one, returning the old value
+@stable
+pub fn replace<T>(dest: &mut T, src: T) -> T {
+    let mut temp = src;
+    swap(dest, &mut temp);
+    temp
+}
+
+// Memory manipulation functions (no allocation)
+
+// Copy memory from src to dst
+@stable
+@unsafe
+pub fn memcpy(dst: *mut u8, src: *const u8, count: usize) {
+    // Implemented by compiler intrinsic
+    intrinsic_memcpy(dst, src, count)
+}
+
+// Set memory to a value
+@stable
+@unsafe
+pub fn memset(dst: *mut u8, val: u8, count: usize) {
+    // Implemented by compiler intrinsic
+    intrinsic_memset(dst, val, count)
+}
+
+// Compare memory
+@stable
+@unsafe
+pub fn memcmp(a: *const u8, b: *const u8, count: usize) -> i32 {
+    // Implemented by compiler intrinsic
+    intrinsic_memcmp(a, b, count)
+}
+
+// Move memory (may overlap)
+@stable
+@unsafe
+pub fn memmove(dst: *mut u8, src: *const u8, count: usize) {
+    // Implemented by compiler intrinsic
+    intrinsic_memmove(dst, src, count)
+}
+
+// Panic function (terminates the program)
+@stable
+pub fn panic(msg: &str) -> ! {
+    // Implemented by compiler/runtime
+    intrinsic_panic(msg)
+}
+
+// Assert a condition, panic if false
+@stable
+pub fn assert(condition: bool, msg: &str) {
+    if !condition {
+        panic(msg)
+    }
+}
+
+// Unreachable code marker
+@stable
+pub fn unreachable() -> ! {
+    panic("entered unreachable code")
+}
+
+// Size of a type in bytes
+@stable
+pub fn size_of<T>() -> usize {
+    // Implemented by compiler intrinsic
+    intrinsic_size_of::<T>()
+}
+
+// Alignment of a type in bytes
+@stable
+pub fn align_of<T>() -> usize {
+    // Implemented by compiler intrinsic
+    intrinsic_align_of::<T>()
+}
+
+// Minimum of two values
+@stable
+pub fn min<T: Ord>(a: T, b: T) -> T {
+    if a.lt(&b) { a } else { b }
+}
+
+// Maximum of two values
+@stable
+pub fn max<T: Ord>(a: T, b: T) -> T {
+    if a.gt(&b) { a } else { b }
+}
+
+// Clamp a value between min and max
+@stable
+pub fn clamp<T: Ord>(val: T, min_val: T, max_val: T) -> T {
+    if val.lt(&min_val) {
+        min_val
+    } else if val.gt(&max_val) {
+        max_val
+    } else {
+        val
+    }
+}

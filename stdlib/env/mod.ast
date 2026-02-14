@@ -1,0 +1,69 @@
+// Environment module - Environment variables and command-line args
+// Layer: env (requires alloc, io)
+// Stability: @stable
+
+use core::*;
+use alloc::*;
+
+// Get environment variable
+@stable
+@io
+pub fn var(key: &str) -> Option<String> {
+    intrinsic_env_var(key)
+}
+
+// Set environment variable
+@stable
+@io
+pub fn set_var(key: &str, value: &str) {
+    intrinsic_env_set_var(key, value);
+}
+
+// Remove environment variable
+@stable
+@io
+pub fn remove_var(key: &str) {
+    intrinsic_env_remove_var(key);
+}
+
+// Get all environment variables
+@stable
+@io
+@alloc
+pub fn vars() -> Vec<(String, String)> {
+    intrinsic_env_vars()
+}
+
+// Get command-line arguments
+@stable
+@alloc
+pub fn args() -> Vec<String> {
+    intrinsic_args()
+}
+
+// Get current working directory
+@stable
+@io
+pub fn current_dir() -> Result<String, IOError> {
+    intrinsic_current_dir()
+}
+
+// Set current working directory
+@stable
+@io
+pub fn set_current_dir(path: &str) -> Result<(), IOError> {
+    intrinsic_set_current_dir(path)
+}
+
+// Get home directory
+@stable
+@io
+pub fn home_dir() -> Option<String> {
+    intrinsic_home_dir()
+}
+
+// Get temporary directory
+@stable
+pub fn temp_dir() -> String {
+    intrinsic_temp_dir()
+}
