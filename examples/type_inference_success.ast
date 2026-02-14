@@ -1,0 +1,17 @@
+// Test: Type inference with generics
+// Expected: SUCCESS
+
+fn identity(x: i32) -> i32 {
+    x
+}
+
+fn add(a: i32, b: i32) -> i32 {
+    a + b
+}
+
+fn main() {
+    let x = 42;
+    let y = identity(x);
+    let z = add(x, y);
+    print("Success")
+}

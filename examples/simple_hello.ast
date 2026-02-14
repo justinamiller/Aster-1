@@ -1,0 +1,5 @@
+// Simple hello world program
+
+fn main() {
+    print("Hello from Aster!")
+}
