@@ -12,6 +12,10 @@
     <Project Path="src/Aster.Workspaces/Aster.Workspaces.csproj" />
     <Project Path="src/Aster.Lsp/Aster.Lsp.csproj" />
     <Project Path="src/Aster.Packages/Aster.Packages.csproj" />
+    <Project Path="src/Aster.DocGen/Aster.DocGen.csproj" />
+    <Project Path="src/Aster.Testing/Aster.Testing.csproj" />
+    <Project Path="src/Aster.Templates/Aster.Templates.csproj" />
+    <Project Path="src/Aster.Release/Aster.Release.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Aster.Compiler.Tests/Aster.Compiler.Tests.csproj" />
