@@ -1,4 +1,7 @@
 using Aster.Compiler.Driver;
+using Aster.Compiler.Telemetry;
+using Aster.Compiler.Observability;
+using Aster.Cli.Diagnostics;
 using Aster.Formatter;
 using Aster.Linter;
 using Aster.Packages;
@@ -10,12 +13,22 @@ namespace Aster.CLI;
 
 /// <summary>
 /// Command-line interface for the Aster compiler.
-/// Supports: build, run, check, emit-llvm, fmt, lint, init, add, doc, test, lsp
+/// Supports: build, run, check, emit-llvm, fmt, lint, init, add, doc, test, lsp, explain, crash-report
 /// </summary>
 public static class Program
 {
+    private static string _lastPhase = "startup";
+    private static readonly List<string> _recentDiagnostics = new();
+
     public static int Main(string[] args)
     {
+        // Install global crash handler
+        CrashReporter.InstallGlobalHandler(
+            "0.2.0",
+            () => string.Join(" ", args),
+            () => _lastPhase,
+            () => _recentDiagnostics);
+
         if (args.Length == 0)
         {
             PrintUsage();
@@ -36,6 +49,8 @@ public static class Program
             "doc" => Doc(args.Skip(1).ToArray()),
             "test" => Test(args.Skip(1).ToArray()),
             "lsp" => Lsp(),
+            "explain" => Explain(args.Skip(1).ToArray()),
+            "crash-report" => CrashReport(args.Skip(1).ToArray()),
             "--help" or "-h" => PrintUsage(),
             "--version" or "-v" => PrintVersion(),
             _ => UnknownCommand(command),
@@ -171,21 +186,28 @@ public static class Program
         Console.WriteLine("Usage: aster <command> [options] <file>");
         Console.WriteLine();
         Console.WriteLine("Commands:");
-        Console.WriteLine("  build       Compile source to LLVM IR");
-        Console.WriteLine("  check       Type-check without compiling");
-        Console.WriteLine("  emit-llvm   Emit LLVM IR to stdout");
-        Console.WriteLine("  run         Compile and prepare for execution");
-        Console.WriteLine("  fmt         Format source files");
-        Console.WriteLine("  lint        Lint source files");
-        Console.WriteLine("  init        Initialize a new package");
-        Console.WriteLine("  add         Add a dependency");
-        Console.WriteLine("  doc         Generate documentation");
-        Console.WriteLine("  test        Run tests");
-        Console.WriteLine("  lsp         Start language server");
+        Console.WriteLine("  build           Compile source to LLVM IR");
+        Console.WriteLine("  check           Type-check without compiling");
+        Console.WriteLine("  emit-llvm       Emit LLVM IR to stdout");
+        Console.WriteLine("  run             Compile and prepare for execution");
+        Console.WriteLine("  fmt             Format source files");
+        Console.WriteLine("  lint            Lint source files");
+        Console.WriteLine("  init            Initialize a new package");
+        Console.WriteLine("  add             Add a dependency");
+        Console.WriteLine("  doc             Generate documentation");
+        Console.WriteLine("  test            Run tests");
+        Console.WriteLine("  lsp             Start language server");
+        Console.WriteLine("  explain <code>  Explain a diagnostic code");
+        Console.WriteLine("  crash-report    Display a crash report");
         Console.WriteLine();
         Console.WriteLine("Options:");
-        Console.WriteLine("  --help, -h     Show this help message");
-        Console.WriteLine("  --version, -v  Show version");
+        Console.WriteLine("  --help, -h      Show this help message");
+        Console.WriteLine("  --version, -v   Show version");
+        Console.WriteLine("  --format=human|json  Diagnostic output format");
+        Console.WriteLine("  --color=auto|always|never  Enable/disable colored output");
+        Console.WriteLine("  --time          Show compilation phase timings");
+        Console.WriteLine("  --metrics       Show detailed compilation metrics");
+        Console.WriteLine("  --trace=<phase> Enable tracing for a compiler phase");
         return 0;
     }
 
@@ -354,6 +376,56 @@ public static class Program
     {
         var server = new LspServer(Console.OpenStandardInput(), Console.OpenStandardOutput());
         server.RunAsync().GetAwaiter().GetResult();
+        return 0;
+    }
+
+    private static int Explain(string[] args)
+    {
+        if (args.Length == 0)
+        {
+            Console.Error.WriteLine("error: no diagnostic code specified");
+            Console.Error.WriteLine("usage: aster explain <code>");
+            Console.Error.WriteLine("example: aster explain E3124");
+            return 1;
+        }
+
+        var code = args[0].ToUpperInvariant();
+        var explanation = DiagnosticExplainer.GetExplanation(code);
+
+        if (explanation == null)
+        {
+            Console.Error.WriteLine($"error: no explanation found for code '{code}'");
+            Console.Error.WriteLine();
+            Console.Error.WriteLine("Common error codes:");
+            Console.Error.WriteLine("  E3124  Cannot unify types");
+            Console.Error.WriteLine("  E3000  Type mismatch");
+            Console.Error.WriteLine("  E6000  Use of moved value");
+            Console.Error.WriteLine("  E8001  Non-exhaustive match");
+            return 1;
+        }
+
+        Console.WriteLine(DiagnosticExplainer.Format(explanation));
+        return 0;
+    }
+
+    private static int CrashReport(string[] args)
+    {
+        if (args.Length == 0)
+        {
+            Console.Error.WriteLine("error: no crash report file specified");
+            Console.Error.WriteLine("usage: aster crash-report <file>");
+            return 1;
+        }
+
+        var filePath = args[0];
+        if (!File.Exists(filePath))
+        {
+            Console.Error.WriteLine($"error: crash report file not found: {filePath}");
+            return 1;
+        }
+
+        var content = File.ReadAllText(filePath);
+        Console.WriteLine(content);
         return 0;
     }
 }

@@ -77,6 +77,7 @@ public static class CompilerTrace
             var writer = _writer ?? Console.Out;
             var indent = new string(' ', _indentLevel * 2);
             writer.WriteLine($"[{category}] {indent}{message}");
+            writer.Flush(); // Ensure output is written immediately
         }
     }
 
