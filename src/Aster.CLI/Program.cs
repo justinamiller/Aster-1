@@ -494,7 +494,7 @@ public static class Program
         }
 
         var code = args[0];
-        var explanation = DiagnosticExplainer.Explain(code);
+        var explanation = DiagnosticExplainer.GetExplanation(code);
 
         if (explanation == null)
         {
@@ -502,7 +502,7 @@ public static class Program
             return 1;
         }
 
-        Console.WriteLine(explanation);
+        Console.WriteLine(DiagnosticExplainer.Format(explanation));
         return 0;
     }
 
@@ -521,8 +521,8 @@ public static class Program
             return 1;
         }
 
-        var report = CrashReporter.LoadReport(reportPath);
-        Console.WriteLine(report.Format());
+        var report = File.ReadAllText(reportPath);
+        Console.WriteLine(report);
         return 0;
     }
 }
