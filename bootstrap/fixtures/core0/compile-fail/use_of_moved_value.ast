@@ -1,0 +1,14 @@
+// Test fixture: use_of_moved_value.ast
+// Category: compile-fail
+// Tests: Move semantics error detection
+// Expected error: E0400 - use of moved value
+
+fn consume(s: String) {
+    print(s);
+}
+
+fn main() {
+    let s = String::from("hello");
+    consume(s);  // s is moved here
+    print(s);    // error[E0400]: use of moved value `s`
+}

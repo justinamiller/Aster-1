@@ -1,0 +1,11 @@
+// Test fixture: no_traits_in_core0.ast
+// Category: compile-fail
+// Tests: Core-0 feature gate - traits not allowed
+// Expected error: E9000 - feature not available in Core-0
+
+trait Display {  // error[E9000]: Feature 'traits' is not available in Aster Core-0
+    fn fmt(&self) -> String;
+}
+
+fn main() {
+}

@@ -1,0 +1,12 @@
+// Test fixture: type_mismatch.ast
+// Category: compile-fail
+// Tests: Type mismatch detection
+// Expected error: E0301 - type mismatch
+
+fn add_numbers(a: i32, b: i32) -> i32 {
+    a + b
+}
+
+fn main() {
+    let result = add_numbers("hello", "world");  // error[E0303]: type mismatch
+}

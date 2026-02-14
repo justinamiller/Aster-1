@@ -1,0 +1,8 @@
+// Test fixture: undefined_variable.ast
+// Category: compile-fail
+// Tests: Undefined variable error detection
+// Expected error: E0001 - undefined variable
+
+fn main() {
+    print(x);  // error[E0001]: undefined variable `x`
+}

@@ -1,0 +1,16 @@
+// Test fixture: vec_operations.ast
+// Category: compile-pass
+// Tests: Vec usage (Core-0)
+
+fn main() {
+    let mut numbers = Vec::new();
+    numbers.push(1);
+    numbers.push(2);
+    numbers.push(3);
+    
+    let len = numbers.len();
+    print(len);  // Expected: 3
+    
+    let first = numbers[0];
+    print(first);  // Expected: 1
+}

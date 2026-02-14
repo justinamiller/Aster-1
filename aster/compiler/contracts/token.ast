@@ -1,0 +1,119 @@
+// Token - Lexical token representation
+// Part of Aster Stage 1 (Core-0 implementation)
+//
+// This module implements the Token type for the Aster compiler.
+// A Token represents a single lexical unit from source code.
+//
+// Language Subset: Core-0
+// - Uses only: structs, enums, basic types, functions
+// - No traits, no async, no macros
+
+// Import dependencies
+// (In a real implementation, these would be proper module imports)
+// use crate::contracts::span::Span;
+// use crate::contracts::token_kind::TokenKind;
+
+/// Represents a single lexical token.
+/// Immutable value type storing kind, span, and the actual text value.
+struct Token {
+    kind: TokenKind,
+    span: Span,
+    value: String
+}
+
+/// Create a new token with the given kind, span, and value.
+fn new_token(kind: TokenKind, span: Span, value: String) -> Token {
+    Token {
+        kind: kind,
+        span: span,
+        value: value
+    }
+}
+
+/// Check if a token is of the given kind.
+fn token_is(token: &Token, kind: TokenKind) -> bool {
+    // In Core-0, we compare enums manually
+    token_kind_equals(token.kind, kind)
+}
+
+/// Helper to compare two TokenKinds for equality.
+/// (Core-0 doesn't have trait-based equality)
+fn token_kind_equals(a: TokenKind, b: TokenKind) -> bool {
+    // Simplified: in real implementation, would need exhaustive comparison
+    // For now, we assume enum values can be compared directly
+    // This is a Core-0 limitation - no PartialEq trait
+    
+    // Convert to discriminant values for comparison
+    let a_disc = token_kind_to_discriminant(a);
+    let b_disc = token_kind_to_discriminant(b);
+    a_disc == b_disc
+}
+
+/// Convert TokenKind to numeric discriminant.
+/// (Helper for equality comparison in Core-0)
+fn token_kind_to_discriminant(kind: TokenKind) -> i32 {
+    match kind {
+        TokenKind::Identifier => 0,
+        TokenKind::IntegerLiteral => 1,
+        TokenKind::FloatLiteral => 2,
+        TokenKind::StringLiteral => 3,
+        TokenKind::CharLiteral => 4,
+        TokenKind::Fn => 5,
+        TokenKind::Let => 6,
+        TokenKind::Mut => 7,
+        // ... (all other variants would be listed here)
+        TokenKind::Eof => 90,
+        TokenKind::Error => 91,
+        _ => -1  // Unknown
+    }
+}
+
+/// Check if a token is a keyword.
+fn token_is_keyword(token: &Token) -> bool {
+    is_keyword(token.kind)
+}
+
+/// Convert a token to a string representation.
+/// Format: "Kind(value) at span"
+fn token_to_string(token: &Token) -> String {
+    let mut result = String::new();
+    result.push_str(&token_kind_to_string(token.kind));
+    result.push_str("(");
+    result.push_str(&token.value);
+    result.push_str(") at ");
+    result.push_str(&span_to_string(&token.span));
+    result
+}
+
+/// Create an EOF token at the given position.
+fn make_eof_token(file: String, position: i32) -> Token {
+    let span = new_span(file, 0, 0, position, 0);
+    new_token(TokenKind::Eof, span, String::new())
+}
+
+/// Create an error token with a message.
+fn make_error_token(span: Span, message: String) -> Token {
+    new_token(TokenKind::Error, span, message)
+}
+
+/// Get the text value of a token.
+fn token_value(token: &Token) -> String {
+    token.value.clone()
+}
+
+/// Get the span of a token.
+fn token_span(token: &Token) -> Span {
+    // In Core-0, we need to copy struct fields manually
+    Span {
+        file: token.span.file.clone(),
+        line: token.span.line,
+        column: token.span.column,
+        start: token.span.start,
+        length: token.span.length
+    }
+}
+
+/// Get the kind of a token.
+fn token_kind(token: &Token) -> TokenKind {
+    token.kind
+}

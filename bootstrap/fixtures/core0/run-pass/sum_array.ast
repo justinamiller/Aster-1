@@ -1,0 +1,26 @@
+// Test fixture: sum_array.ast
+// Category: run-pass
+// Tests: Array/Vec iteration
+// Expected stdout: "15"
+
+fn sum_vec(numbers: &Vec<i32>) -> i32 {
+    let mut total = 0;
+    let mut i = 0;
+    while i < numbers.len() {
+        total = total + numbers[i];
+        i = i + 1;
+    }
+    total
+}
+
+fn main() {
+    let mut nums = Vec::new();
+    nums.push(1);
+    nums.push(2);
+    nums.push(3);
+    nums.push(4);
+    nums.push(5);
+    
+    let result = sum_vec(&nums);
+    print(result);  // 15
+}

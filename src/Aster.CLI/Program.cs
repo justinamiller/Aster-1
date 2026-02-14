@@ -12,12 +12,13 @@ using Aster.Compiler.Fuzzing;
 using Aster.Compiler.Fuzzing.Harnesses;
 using Aster.Compiler.Differential;
 using Aster.Compiler.Reducers;
+using System.Text.Json;
 
 namespace Aster.CLI;
 
 /// <summary>
 /// Command-line interface for the Aster compiler.
-/// Supports: build, run, check, emit-llvm, fmt, lint, init, add, doc, test, lsp, fuzz, differential, reduce, explain, crash-report
+/// Supports: build, run, check, emit-llvm, emit-tokens, fmt, lint, init, add, doc, test, lsp, fuzz, differential, reduce, explain, crash-report
 /// </summary>
 public static class Program
 {
@@ -45,6 +46,7 @@ public static class Program
             "build" => Build(args.Skip(1).ToArray()),
             "check" => Check(args.Skip(1).ToArray()),
             "emit-llvm" => EmitLlvm(args.Skip(1).ToArray()),
+            "emit-tokens" => EmitTokens(args.Skip(1).ToArray()),
             "run" => Run(args.Skip(1).ToArray()),
             "fmt" => Fmt(args.Skip(1).ToArray()),
             "lint" => Lint(args.Skip(1).ToArray()),
@@ -153,6 +155,56 @@ public static class Program
         return 0;
     }
 
+    private static int EmitTokens(string[] args)
+    {
+        if (args.Length == 0)
+        {
+            Console.Error.WriteLine("error: no input file specified");
+            return 1;
+        }
+
+        var filePath = args[0];
+        if (!File.Exists(filePath))
+        {
+            Console.Error.WriteLine($"error: file not found: {filePath}");
+            return 1;
+        }
+
+        var source = File.ReadAllText(filePath);
+        var driver = new CompilationDriver();
+        var tokens = driver.EmitTokens(source, filePath);
+
+        if (tokens == null)
+        {
+            Console.Error.Write(driver.FormatDiagnostics());
+            return 1;
+        }
+
+        // Serialize tokens to JSON
+        var tokenData = tokens.Select(t => new
+        {
+            kind = t.Kind.ToString(),
+            value = t.Value,
+            span = new
+            {
+                file = t.Span.File,
+                line = t.Span.Line,
+                column = t.Span.Column,
+                start = t.Span.Start,
+                length = t.Span.Length
+            }
+        }).ToList();
+
+        var options = new JsonSerializerOptions
+        {
+            WriteIndented = true
+        };
+
+        var json = JsonSerializer.Serialize(tokenData, options);
+        Console.Write(json);
+        return 0;
+    }
+
     private static int Run(string[] args)
     {
         if (args.Length == 0)
@@ -193,22 +245,23 @@ public static class Program
         Console.WriteLine("Usage: aster <command> [options] <file>");
         Console.WriteLine();
         Console.WriteLine("Commands:");
-        Console.WriteLine("  build       Compile source to LLVM IR");
-        Console.WriteLine("  check       Type-check without compiling");
-        Console.WriteLine("  emit-llvm   Emit LLVM IR to stdout");
-        Console.WriteLine("  run         Compile and prepare for execution");
-        Console.WriteLine("  fmt         Format source files");
-        Console.WriteLine("  lint        Lint source files");
-        Console.WriteLine("  init        Initialize a new package");
-        Console.WriteLine("  add         Add a dependency");
-        Console.WriteLine("  doc         Generate documentation");
-        Console.WriteLine("  test        Run tests");
-        Console.WriteLine("  lsp         Start language server");
-        Console.WriteLine("  fuzz        Run fuzzing harness");
-        Console.WriteLine("  differential Run differential testing");
-        Console.WriteLine("  reduce      Reduce/minimize a test case");
-        Console.WriteLine("  explain     Explain a diagnostic code");
-        Console.WriteLine("  crash-report View crash report details");
+        Console.WriteLine("  build         Compile source to LLVM IR");
+        Console.WriteLine("  check         Type-check without compiling");
+        Console.WriteLine("  emit-llvm     Emit LLVM IR to stdout");
+        Console.WriteLine("  emit-tokens   Emit token stream as JSON (for bootstrap)");
+        Console.WriteLine("  run           Compile and prepare for execution");
+        Console.WriteLine("  fmt           Format source files");
+        Console.WriteLine("  lint          Lint source files");
+        Console.WriteLine("  init          Initialize a new package");
+        Console.WriteLine("  add           Add a dependency");
+        Console.WriteLine("  doc           Generate documentation");
+        Console.WriteLine("  test          Run tests");
+        Console.WriteLine("  lsp           Start language server");
+        Console.WriteLine("  fuzz          Run fuzzing harness");
+        Console.WriteLine("  differential  Run differential testing");
+        Console.WriteLine("  reduce        Reduce/minimize a test case");
+        Console.WriteLine("  explain       Explain a diagnostic code");
+        Console.WriteLine("  crash-report  View crash report details");
         Console.WriteLine();
         Console.WriteLine("  Options:");
         Console.WriteLine("  --help, -h     Show this help message");
