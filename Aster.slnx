@@ -11,6 +11,7 @@
     <Project Path="src/Aster.Linter/Aster.Linter.csproj" />
     <Project Path="src/Aster.Workspaces/Aster.Workspaces.csproj" />
     <Project Path="src/Aster.Lsp/Aster.Lsp.csproj" />
+    <Project Path="src/Aster.Packages/Aster.Packages.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Aster.Compiler.Tests/Aster.Compiler.Tests.csproj" />
