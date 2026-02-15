@@ -29,6 +29,8 @@ public sealed class AsterLexer : ILexer
         ["else"] = TokenKind.Else,
         ["for"] = TokenKind.For,
         ["while"] = TokenKind.While,
+        ["loop"] = TokenKind.Loop,
+        ["do"] = TokenKind.Do,
         ["return"] = TokenKind.Return,
         ["break"] = TokenKind.Break,
         ["continue"] = TokenKind.Continue,

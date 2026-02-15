@@ -31,10 +31,14 @@ Source → Lexer → Parser → AST → Name Resolution → HIR → Type Check �
 - **LLVM** — Text IR emission with runtime ABI declarations
 
 ### Standard Library
-- **12 Layered Modules** — Complete stdlib implementation (see `/aster/stdlib/`)
+- **13 Layered Modules** — Complete stdlib implementation (see `/aster/stdlib/`)
 - **Effect System** — All APIs annotated with @alloc, @io, @unsafe effects
 - **Stability Tiers** — @stable, @experimental, @unstable annotations
 - **Zero-cost Abstractions** — No runtime overhead for unused features
+- **Collections** — HashMap, HashSet, LinkedList, Vec, String
+- **Loop Constructs** — while, for, loop, do-while with break/continue
+- **Array Literals** — Native syntax for arrays: `[1, 2, 3]`
+- **Range Expressions** — Iteration support: `0..10`, `0..=10`
 
 ## Quick Start
 
@@ -66,8 +70,9 @@ fn main() {
 
 The Aster Standard Library provides:
 
-- **core** — Primitives (Option, Result, traits, no alloc/io)
+- **core** — Primitives (Option, Result, Range, traits, no alloc/io)
 - **alloc** — Heap allocation (Vec, String, Box)
+- **collections** — Data structures (HashMap, HashSet, LinkedList)
 - **sync** — Concurrency (Mutex, RwLock, Atomics)
 - **io** — I/O operations (Read, Write traits)
 - **fs** — Filesystem (Path, File)
@@ -97,8 +102,11 @@ dotnet test tests/Aster.Compiler.PerfTests          # Incremental compilation te
 
 See [examples/](/examples/) directory for sample programs:
 
-- Basic examples: `simple_hello.ast`, `type_inference_success.ast`
-- Stdlib examples: `stdlib_hello.ast`, `stdlib_collections.ast`, `stdlib_complete.ast`
+- **Basic examples:** `simple_hello.ast`, `type_inference_success.ast`
+- **Stdlib examples:** `stdlib_hello.ast`, `stdlib_collections.ast`, `stdlib_complete.ast`
+- **Loop examples:** `loop_examples.ast` — while, for, loop, do-while
+- **Collections examples:** `collections_examples.ast` — HashMap, HashSet, LinkedList
+- **Array examples:** `array_examples.ast` — Array literals and operations
 
 ## Documentation
 

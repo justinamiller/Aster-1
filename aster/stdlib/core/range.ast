@@ -1,0 +1,125 @@
+// Range Types - Range iteration support
+// Part of Aster Standard Library - Core Module
+//
+// Provides range types for iteration (e.g., 0..10, 0..=10)
+//
+// Stability: @stable
+// Effects: none (pure, no alloc, no IO)
+// Dependencies: core/traits.ast (Iterator, IntoIterator traits)
+
+/// Exclusive range type (start..end)
+/// Represents values from start (inclusive) to end (exclusive)
+@stable
+struct Range<T> {
+    start: T,
+    end: T
+}
+
+/// Inclusive range type (start..=end)
+/// Represents values from start to end (both inclusive)
+@stable
+struct RangeInclusive<T> {
+    start: T,
+    end: T
+}
+
+/// Creates a new exclusive range
+@stable
+fn range<T>(start: T, end: T) -> Range<T> {
+    Range { start: start, end: end }
+}
+
+/// Creates a new inclusive range
+@stable
+fn range_inclusive<T>(start: T, end: T) -> RangeInclusive<T> {
+    RangeInclusive { start: start, end: end }
+}
+
+/// Returns true if the range contains the value
+@stable
+fn range_contains<T>(r: &Range<T>, value: &T) -> bool
+    where T: Ord
+{
+    *value >= r.start && *value < r.end
+}
+
+/// Returns true if the inclusive range contains the value
+@stable
+fn range_inclusive_contains<T>(r: &RangeInclusive<T>, value: &T) -> bool
+    where T: Ord
+{
+    *value >= r.start && *value <= r.end
+}
+
+/// Range iterator for usize
+/// Implements Iterator trait (defined in core/traits.ast)
+@stable
+struct RangeIter {
+    current: usize,
+    end: usize
+}
+
+impl Iterator for RangeIter {
+    type Item = usize;
+    
+    fn next(&mut self) -> Option<usize> {
+        if self.current < self.end {
+            let value = self.current;
+            self.current = self.current + 1;
+            Option::Some(value)
+        } else {
+            Option::None
+        }
+    }
+}
+
+impl IntoIterator for Range<usize> {
+    type Item = usize;
+    type IntoIter = RangeIter;
+    
+    fn into_iter(self) -> RangeIter {
+        RangeIter {
+            current: self.start,
+            end: self.end
+        }
+    }
+}
+
+/// Inclusive range iterator for usize
+@stable
+struct RangeInclusiveIter {
+    current: usize,
+    end: usize,
+    done: bool
+}
+
+impl Iterator for RangeInclusiveIter {
+    type Item = usize;
+    
+    fn next(&mut self) -> Option<usize> {
+        if !self.done && self.current <= self.end {
+            let value = self.current;
+            if self.current == self.end {
+                self.done = true;
+            } else {
+                self.current = self.current + 1;
+            }
+            Option::Some(value)
+        } else {
+            Option::None
+        }
+    }
+}
+
+impl IntoIterator for RangeInclusive<usize> {
+    type Item = usize;
+    type IntoIter = RangeInclusiveIter;
+    
+    fn into_iter(self) -> RangeInclusiveIter {
+        RangeInclusiveIter {
+            current: self.start,
+            end: self.end,
+            done: false
+        }
+    }
+}

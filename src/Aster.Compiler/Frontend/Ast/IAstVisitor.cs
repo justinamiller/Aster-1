@@ -27,6 +27,7 @@ public interface IAstVisitor<T>
     T VisitBinaryExpr(BinaryExprNode node);
     T VisitUnaryExpr(UnaryExprNode node);
     T VisitLiteralExpr(LiteralExprNode node);
+    T VisitArrayLiteralExpr(ArrayLiteralExprNode node);
     T VisitIdentifierExpr(IdentifierExprNode node);
     T VisitPathExpr(PathExprNode node);
     T VisitMemberAccessExpr(MemberAccessExprNode node);
@@ -38,6 +39,8 @@ public interface IAstVisitor<T>
     T VisitReturnStmt(ReturnStmtNode node);
     T VisitForStmt(ForStmtNode node);
     T VisitWhileStmt(WhileStmtNode node);
+    T VisitLoopStmt(LoopStmtNode node);
+    T VisitDoWhileStmt(DoWhileStmtNode node);
     T VisitBreakStmt(BreakStmtNode node);
     T VisitContinueStmt(ContinueStmtNode node);
     T VisitExpressionStmt(ExpressionStmtNode node);

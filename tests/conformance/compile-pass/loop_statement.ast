@@ -1,0 +1,11 @@
+// Test: Loop statement (infinite loop with break)
+fn main() {
+    let mut count = 0;
+    
+    loop {
+        count = count + 1;
+        if count >= 5 {
+            break;
+        }
+    }
+}

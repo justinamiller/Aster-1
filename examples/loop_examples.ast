@@ -1,0 +1,73 @@
+// Example: Loop constructs in Aster
+// Demonstrates while, for, loop, and do-while loops
+
+use std::fmt::*;
+
+fn main() {
+    println("=== Loop Examples ===");
+    
+    // While loop
+    println("\n1. While loop:");
+    let mut count: i32 = 0;
+    while count < 5 {
+        print("  count = ");
+        println(string_as_str(&format_i32(count)));
+        count = count + 1;
+    }
+    
+    // For loop with range
+    println("\n2. For loop with range:");
+    for i in 0..5 {
+        print("  i = ");
+        println(string_as_str(&format_u32(i as u32)));
+    }
+    
+    // Infinite loop with break
+    println("\n3. Loop with break:");
+    let mut n: i32 = 0;
+    loop {
+        print("  n = ");
+        println(string_as_str(&format_i32(n)));
+        n = n + 1;
+        if n >= 3 {
+            break;
+        }
+    }
+    
+    // Do-while loop
+    println("\n4. Do-while loop:");
+    let mut x: i32 = 0;
+    do {
+        print("  x = ");
+        println(string_as_str(&format_i32(x)));
+        x = x + 1;
+    } while x < 3;
+    
+    // Nested loops
+    println("\n5. Nested loops:");
+    let mut i: i32 = 0;
+    while i < 3 {
+        let mut j: i32 = 0;
+        while j < 3 {
+            print("  (");
+            print(string_as_str(&format_i32(i)));
+            print(", ");
+            print(string_as_str(&format_i32(j)));
+            println(")");
+            j = j + 1;
+        }
+        i = i + 1;
+    }
+    
+    // Loop with continue
+    println("\n6. Loop with continue:");
+    let mut k: i32 = 0;
+    while k < 5 {
+        k = k + 1;
+        if k == 3 {
+            continue;
+        }
+        print("  k = ");
+        println(string_as_str(&format_i32(k)));
+    }
+}

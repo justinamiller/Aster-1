@@ -1,0 +1,65 @@
+// Example: Array literals in Aster
+// Demonstrates array literal syntax and operations
+
+use std::alloc::*;
+use std::fmt::*;
+
+fn main() {
+    println("=== Array Examples ===");
+    
+    // Array literal - converted to Vec
+    println("\n1. Array literals:");
+    let numbers = [1, 2, 3, 4, 5];
+    print("Array: ");
+    println("[1, 2, 3, 4, 5]");
+    
+    // Empty array
+    let empty: Vec<i32> = [];
+    print("Empty array size: ");
+    println(string_as_str(&format_u32(vec_len(&empty) as u32)));
+    
+    // Array with different types
+    let floats = [1.5, 2.7, 3.14, 4.2];
+    println("\nFloat array created");
+    
+    // Using arrays with Vec operations
+    println("\n2. Array operations:");
+    let mut values = [10, 20, 30];
+    
+    print("Initial size: ");
+    println(string_as_str(&format_u32(vec_len(&values) as u32)));
+    
+    // Add more elements
+    push(&mut values, 40);
+    push(&mut values, 50);
+    
+    print("After push size: ");
+    println(string_as_str(&format_u32(vec_len(&values) as u32)));
+    
+    // Access elements
+    println("\n3. Accessing elements:");
+    let mut i: usize = 0;
+    while i < vec_len(&values) {
+        let value = vec_get(&values, i);
+        print("  values[");
+        print(string_as_str(&format_u32(i as u32)));
+        print("] = ");
+        println(string_as_str(&format_i32(*value)));
+        i = i + 1;
+    }
+    
+    // Multi-dimensional arrays (nested)
+    println("\n4. Nested arrays:");
+    let matrix = [
+        [1, 2, 3],
+        [4, 5, 6],
+        [7, 8, 9]
+    ];
+    println("3x3 matrix created");
+    
+    // String array
+    println("\n5. String array:");
+    let names = ["Alice", "Bob", "Charlie"];
+    print("Names array size: ");
+    println(string_as_str(&format_u32(vec_len(&names) as u32)));
+}

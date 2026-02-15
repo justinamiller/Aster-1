@@ -253,6 +253,15 @@ public sealed class LiteralExprNode : AstNode
     public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitLiteralExpr(this);
 }
 
+/// <summary>Array literal expression: [elem1, elem2, ...]</summary>
+public sealed class ArrayLiteralExprNode : AstNode
+{
+    public IReadOnlyList<AstNode> Elements { get; }
+    public ArrayLiteralExprNode(IReadOnlyList<AstNode> elements, Span span)
+        : base(span) { Elements = elements; }
+    public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitArrayLiteralExpr(this);
+}
+
 /// <summary>Identifier expression referencing a name.</summary>
 public sealed class IdentifierExprNode : AstNode
 {
@@ -357,6 +366,25 @@ public sealed class WhileStmtNode : AstNode
     public WhileStmtNode(AstNode condition, BlockExprNode body, Span span)
         : base(span) { Condition = condition; Body = body; }
     public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitWhileStmt(this);
+}
+
+/// <summary>Loop statement (infinite loop): loop { body }</summary>
+public sealed class LoopStmtNode : AstNode
+{
+    public BlockExprNode Body { get; }
+    public LoopStmtNode(BlockExprNode body, Span span)
+        : base(span) { Body = body; }
+    public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitLoopStmt(this);
+}
+
+/// <summary>Do-while statement: do { body } while cond;</summary>
+public sealed class DoWhileStmtNode : AstNode
+{
+    public BlockExprNode Body { get; }
+    public AstNode Condition { get; }
+    public DoWhileStmtNode(BlockExprNode body, AstNode condition, Span span)
+        : base(span) { Body = body; Condition = condition; }
+    public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitDoWhileStmt(this);
 }
 
 /// <summary>Break statement.</summary>
