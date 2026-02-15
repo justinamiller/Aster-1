@@ -152,6 +152,178 @@ fn write_file(path: String, content: String) -> bool {
     true
 }
 
+// ========== Emit Functions for CLI Commands ==========
+
+/// Emit tokens as JSON
+/// This is used by the `emit-tokens` command
+fn emit_tokens(source: String, file_name: String) -> String {
+    // 1. Lex the source
+    let mut lexer = new_lexer(source, file_name);
+    let tokens = tokenize(lexer);
+    
+    // 2. Convert to JSON
+    let json = serialize_tokens_json(tokens);
+    
+    json
+}
+
+/// Emit AST as JSON
+/// This is used by the `emit-ast-json` command
+fn emit_ast(source: String, file_name: String) -> String {
+    // 1. Lex
+    let mut lexer = new_lexer(source, file_name);
+    let tokens = tokenize(lexer);
+    
+    // 2. Parse
+    let mut parser = new_parser(tokens);
+    let program = parse_program(parser);
+    
+    // 3. Convert to JSON
+    let json = serialize_ast_json(program);
+    
+    json
+}
+
+/// Emit symbol table/HIR as JSON
+/// This is used by the `emit-symbols-json` command
+fn emit_symbols(source: String, file_name: String) -> String {
+    // 1. Lex
+    let mut lexer = new_lexer(source, file_name);
+    let tokens = tokenize(lexer);
+    
+    // 2. Parse
+    let mut parser = new_parser(tokens);
+    let program = parse_program(parser);
+    
+    // 3. Build symbol table
+    let mut symbol_table = new_symbol_table();
+    populate_symbol_table(symbol_table, program);
+    
+    // 4. Convert to JSON
+    let json = serialize_symbols_json(symbol_table);
+    
+    json
+}
+
+// ========== JSON Serialization Functions ==========
+
+/// Serialize tokens to JSON
+fn serialize_tokens_json(tokens: Vec<Token>) -> String {
+    // TODO: Implement proper JSON serialization
+    // For now, return a simple JSON array
+    let mut json = "[";
+    let mut i = 0;
+    while i < tokens.len() {
+        if i > 0 {
+            json = json + ",";
+        }
+        json = json + serialize_token_json(tokens[i]);
+        i = i + 1;
+    }
+    json = json + "]";
+    json
+}
+
+/// Serialize a single token to JSON
+fn serialize_token_json(token: Token) -> String {
+    // TODO: Implement proper JSON formatting with escaping
+    let kind_str = token_kind_name(token.kind);
+    let value_str = json_escape(token.value);
+    
+    "{" +
+    "\"kind\":\"" + kind_str + "\"," +
+    "\"value\":\"" + value_str + "\"," +
+    "\"line\":" + i32_to_string(token.span.line) + "," +
+    "\"column\":" + i32_to_string(token.span.column) +
+    "}"
+}
+
+/// Serialize AST to JSON
+fn serialize_ast_json(program: ProgramNode) -> String {
+    // TODO: Implement full AST JSON serialization
+    // This is a complex task requiring recursive serialization
+    
+    let mut json = "{";
+    json = json + "\"type\":\"Program\",";
+    json = json + "\"declarations\":[";
+    
+    // Serialize declarations
+    let mut i = 0;
+    while i < program.declarations.len() {
+        if i > 0 {
+            json = json + ",";
+        }
+        json = json + serialize_item_json(program.declarations[i]);
+        i = i + 1;
+    }
+    
+    json = json + "]";
+    json = json + "}";
+    json
+}
+
+/// Serialize a top-level item to JSON
+fn serialize_item_json(item: Item) -> String {
+    // TODO: Pattern match on item type and serialize appropriately
+    // For now, return a placeholder
+    match item {
+        Item::Function(func) => serialize_function_json(func),
+        Item::Struct(struct_item) => serialize_struct_json(struct_item),
+        Item::Enum(enum_item) => serialize_enum_json(enum_item)
+    }
+}
+
+/// Serialize a function to JSON
+fn serialize_function_json(func: FunctionItem) -> String {
+    // TODO: Full serialization
+    "{\"type\":\"Function\",\"name\":\"" + func.name + "\"}"
+}
+
+/// Serialize a struct to JSON
+fn serialize_struct_json(struct_item: StructItem) -> String {
+    // TODO: Full serialization
+    "{\"type\":\"Struct\",\"name\":\"" + struct_item.name + "\"}"
+}
+
+/// Serialize an enum to JSON
+fn serialize_enum_json(enum_item: EnumItem) -> String {
+    // TODO: Full serialization
+    "{\"type\":\"Enum\",\"name\":\"" + enum_item.name + "\"}"
+}
+
+/// Serialize symbol table to JSON
+fn serialize_symbols_json(symbols: SymbolTable) -> String {
+    // TODO: Implement symbol table JSON serialization
+    "{\"functions\":[],\"structs\":[],\"enums\":[]}"
+}
+
+// ========== Helper Functions ==========
+
+/// Get human-readable name for token kind
+fn token_kind_name(kind: TokenKind) -> String {
+    // TODO: Implement proper token kind to string conversion
+    "Unknown"
+}
+
+/// Escape a string for JSON
+fn json_escape(s: String) -> String {
+    // TODO: Implement proper JSON string escaping
+    // For now, return as-is (unsafe!)
+    s
+}
+
+/// Convert i32 to string
+fn i32_to_string(n: i32) -> String {
+    // TODO: Implement number to string conversion
+    "0"
+}
+
+/// Populate symbol table from program AST
+fn populate_symbol_table(table: &mut SymbolTable, program: ProgramNode) {
+    // TODO: Implement symbol table population
+    // Walk the AST and add symbols
+}
+
 // Example usage
 fn example_compile() -> CompileResult {
     let source = "fn main() { let x = 42; }";
