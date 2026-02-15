@@ -62,6 +62,8 @@ This document tracks the implementation status of features across all bootstrap 
 | Main Entry Point | ❌ Not Started | Required for compilation |
 | Emit Tokens | ❌ Not Started | Required for differential testing |
 | Emit AST | ❌ Not Started | Required for differential testing |
+| **Differential Testing** | ✅ Complete | [bootstrap/scripts/](bootstrap/scripts/) |
+| **Golden Files** | ✅ Generated | 28 files: tokens, AST, symbols |
 
 **Remaining Work for Stage 1**:
 1. Complete lexer (1-2 weeks)
@@ -152,11 +154,20 @@ This document tracks the implementation status of features across all bootstrap 
 | Test Type | Stage 0 | Stage 1 | Stage 2 | Stage 3 | Evidence |
 |-----------|---------|---------|---------|---------|----------|
 | Unit Tests | ✅ 119 tests | ⚙️ Planned | ⚙️ Planned | ⚙️ Planned | [tests/](tests/) |
-| Differential Tests | ⚙️ Infrastructure | ⚙️ Planned | ⚙️ Planned | ⚙️ Planned | [bootstrap/fixtures/](bootstrap/fixtures/) |
+| Differential Tests | ✅ Infrastructure | ✅ Ready | ⚙️ Planned | ⚙️ Planned | [bootstrap/scripts/](bootstrap/scripts/) |
+| Golden Files | ✅ 28 files | ✅ Generated | ⚙️ Planned | ⚙️ Planned | [bootstrap/goldens/](bootstrap/goldens/) |
 | Integration Tests | ✅ | ⚙️ Planned | ⚙️ Planned | ⚙️ Planned | [.github/workflows/](github/workflows/) |
 | Optimization Tests | ✅ 7 tests | ❌ | ⚙️ Planned | ⚙️ Planned | [tests/Aster.Compiler.OptimizationTests/](tests/Aster.Compiler.OptimizationTests/) |
 | Fuzzing | ✅ Framework | ❌ | ⚙️ Planned | ⚙️ Planned | [src/Aster.Compiler.Fuzzing/](src/Aster.Compiler.Fuzzing/) |
 | Self-Compilation | N/A | ⚙️ Planned | ⚙️ Planned | ⚙️ Planned | Stage 1+ can compile itself |
+
+**Differential Testing Infrastructure** (✅ Complete):
+- `diff-test-tokens.sh` — Compares token streams
+- `diff-test-ast.sh` — Compares AST outputs  
+- `diff-test-symbols.sh` — Compares symbol tables/HIR
+- `generate-goldens.sh` — Generates reference outputs from aster0
+- 12 Core-0 fixtures: 5 compile-pass, 3 run-pass, 4 compile-fail
+- 28 golden files: tokens, AST, and symbols for all valid fixtures
 
 ## CI/CD Status
 
@@ -165,12 +176,12 @@ This document tracks the implementation status of features across all bootstrap 
 | Build | ✅ Passing | [ci.yml](.github/workflows/ci.yml) |
 | Test | ✅ 119/119 | [ci.yml](.github/workflows/ci.yml) |
 | Bootstrap | ✅ Stage 0 | [bootstrap.yml](.github/workflows/bootstrap.yml) |
-| Differential | ⚙️ Ready | [diff-tests.yml](.github/workflows/diff-tests.yml) |
+| Differential Testing | ✅ Integrated | [ci.yml](.github/workflows/ci.yml) - `differential-testing` job |
 | Fuzzing (Smoke) | ✅ Passing | [fuzz-smoke.yml](.github/workflows/fuzz-smoke.yml) |
 | Fuzzing (Nightly) | ✅ Scheduled | [fuzz-nightly.yml](.github/workflows/fuzz-nightly.yml) |
 | Release | ✅ Ready | [release.yml](.github/workflows/release.yml) |
-| LLVM IR Verification | ⚙️ Planned | Needs implementation |
-| Example Execution | ⚙️ Planned | Needs implementation |
+| LLVM IR Verification | ✅ Implemented | [ci.yml](.github/workflows/ci.yml) |
+| Example Execution | ✅ Implemented | [ci.yml](.github/workflows/ci.yml) - hello.ast runs in CI |
 
 ## Runtime ABI
 
