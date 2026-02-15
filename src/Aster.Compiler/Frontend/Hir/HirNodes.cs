@@ -112,6 +112,13 @@ public sealed class HirIdentifierExpr : HirNode
     { Name = name; ResolvedSymbol = resolvedSymbol; }
 }
 
+/// <summary>HIR path expression for namespaced names.</summary>
+public sealed class HirPathExpr : HirNode
+{
+    public IReadOnlyList<string> Segments { get; }
+    public HirPathExpr(IReadOnlyList<string> segments, Span span) : base(span) { Segments = segments; }
+}
+
 /// <summary>HIR literal expression.</summary>
 public sealed class HirLiteralExpr : HirNode
 {
@@ -208,4 +215,22 @@ public sealed class HirMemberAccessExpr : HirNode
     public HirNode Object { get; }
     public string Member { get; }
     public HirMemberAccessExpr(HirNode obj, string member, Span span) : base(span) { Object = obj; Member = member; }
+}
+
+/// <summary>HIR struct initialization.</summary>
+public sealed class HirStructInitExpr : HirNode
+{
+    public string StructName { get; }
+    public IReadOnlyList<HirFieldInit> Fields { get; }
+    public HirStructInitExpr(string structName, IReadOnlyList<HirFieldInit> fields, Span span)
+        : base(span) { StructName = structName; Fields = fields; }
+}
+
+/// <summary>HIR field initialization.</summary>
+public sealed class HirFieldInit : HirNode
+{
+    public string FieldName { get; }
+    public HirNode Value { get; }
+    public HirFieldInit(string fieldName, HirNode value, Span span)
+        : base(span) { FieldName = fieldName; Value = value; }
 }

@@ -1,0 +1,739 @@
+[
+  {
+    "kind": "Fn",
+    "value": "fn",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 5,
+      "column": 1,
+      "start": 106,
+      "length": 2
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "main",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 5,
+      "column": 4,
+      "start": 109,
+      "length": 4
+    }
+  },
+  {
+    "kind": "LeftParen",
+    "value": "(",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 5,
+      "column": 8,
+      "start": 113,
+      "length": 1
+    }
+  },
+  {
+    "kind": "RightParen",
+    "value": ")",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 5,
+      "column": 9,
+      "start": 114,
+      "length": 1
+    }
+  },
+  {
+    "kind": "LeftBrace",
+    "value": "{",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 5,
+      "column": 11,
+      "start": 116,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Let",
+    "value": "let",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 7,
+      "column": 5,
+      "start": 137,
+      "length": 3
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "x",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 7,
+      "column": 9,
+      "start": 141,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Equals",
+    "value": "=",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 7,
+      "column": 11,
+      "start": 143,
+      "length": 1
+    }
+  },
+  {
+    "kind": "IntegerLiteral",
+    "value": "10",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 7,
+      "column": 13,
+      "start": 145,
+      "length": 2
+    }
+  },
+  {
+    "kind": "Semicolon",
+    "value": ";",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 7,
+      "column": 15,
+      "start": 147,
+      "length": 1
+    }
+  },
+  {
+    "kind": "If",
+    "value": "if",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 8,
+      "column": 5,
+      "start": 153,
+      "length": 2
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "x",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 8,
+      "column": 8,
+      "start": 156,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Greater",
+    "value": "\u003E",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 8,
+      "column": 10,
+      "start": 158,
+      "length": 1
+    }
+  },
+  {
+    "kind": "IntegerLiteral",
+    "value": "5",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 8,
+      "column": 12,
+      "start": 160,
+      "length": 1
+    }
+  },
+  {
+    "kind": "LeftBrace",
+    "value": "{",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 8,
+      "column": 14,
+      "start": 162,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "print",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 9,
+      "column": 9,
+      "start": 172,
+      "length": 5
+    }
+  },
+  {
+    "kind": "LeftParen",
+    "value": "(",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 9,
+      "column": 14,
+      "start": 177,
+      "length": 1
+    }
+  },
+  {
+    "kind": "StringLiteral",
+    "value": "x is greater than 5",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 9,
+      "column": 15,
+      "start": 178,
+      "length": 21
+    }
+  },
+  {
+    "kind": "RightParen",
+    "value": ")",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 9,
+      "column": 36,
+      "start": 199,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Semicolon",
+    "value": ";",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 9,
+      "column": 37,
+      "start": 200,
+      "length": 1
+    }
+  },
+  {
+    "kind": "RightBrace",
+    "value": "}",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 10,
+      "column": 5,
+      "start": 206,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Else",
+    "value": "else",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 10,
+      "column": 7,
+      "start": 208,
+      "length": 4
+    }
+  },
+  {
+    "kind": "LeftBrace",
+    "value": "{",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 10,
+      "column": 12,
+      "start": 213,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "print",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 11,
+      "column": 9,
+      "start": 223,
+      "length": 5
+    }
+  },
+  {
+    "kind": "LeftParen",
+    "value": "(",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 11,
+      "column": 14,
+      "start": 228,
+      "length": 1
+    }
+  },
+  {
+    "kind": "StringLiteral",
+    "value": "x is not greater than 5",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 11,
+      "column": 15,
+      "start": 229,
+      "length": 25
+    }
+  },
+  {
+    "kind": "RightParen",
+    "value": ")",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 11,
+      "column": 40,
+      "start": 254,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Semicolon",
+    "value": ";",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 11,
+      "column": 41,
+      "start": 255,
+      "length": 1
+    }
+  },
+  {
+    "kind": "RightBrace",
+    "value": "}",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 12,
+      "column": 5,
+      "start": 261,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Let",
+    "value": "let",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 15,
+      "column": 5,
+      "start": 290,
+      "length": 3
+    }
+  },
+  {
+    "kind": "Mut",
+    "value": "mut",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 15,
+      "column": 9,
+      "start": 294,
+      "length": 3
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "count",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 15,
+      "column": 13,
+      "start": 298,
+      "length": 5
+    }
+  },
+  {
+    "kind": "Equals",
+    "value": "=",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 15,
+      "column": 19,
+      "start": 304,
+      "length": 1
+    }
+  },
+  {
+    "kind": "IntegerLiteral",
+    "value": "0",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 15,
+      "column": 21,
+      "start": 306,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Semicolon",
+    "value": ";",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 15,
+      "column": 22,
+      "start": 307,
+      "length": 1
+    }
+  },
+  {
+    "kind": "While",
+    "value": "while",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 16,
+      "column": 5,
+      "start": 313,
+      "length": 5
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "count",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 16,
+      "column": 11,
+      "start": 319,
+      "length": 5
+    }
+  },
+  {
+    "kind": "Less",
+    "value": "\u003C",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 16,
+      "column": 17,
+      "start": 325,
+      "length": 1
+    }
+  },
+  {
+    "kind": "IntegerLiteral",
+    "value": "3",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 16,
+      "column": 19,
+      "start": 327,
+      "length": 1
+    }
+  },
+  {
+    "kind": "LeftBrace",
+    "value": "{",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 16,
+      "column": 21,
+      "start": 329,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "print",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 17,
+      "column": 9,
+      "start": 339,
+      "length": 5
+    }
+  },
+  {
+    "kind": "LeftParen",
+    "value": "(",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 17,
+      "column": 14,
+      "start": 344,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "count",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 17,
+      "column": 15,
+      "start": 345,
+      "length": 5
+    }
+  },
+  {
+    "kind": "RightParen",
+    "value": ")",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 17,
+      "column": 20,
+      "start": 350,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Semicolon",
+    "value": ";",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 17,
+      "column": 21,
+      "start": 351,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "count",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 18,
+      "column": 9,
+      "start": 361,
+      "length": 5
+    }
+  },
+  {
+    "kind": "Equals",
+    "value": "=",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 18,
+      "column": 15,
+      "start": 367,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "count",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 18,
+      "column": 17,
+      "start": 369,
+      "length": 5
+    }
+  },
+  {
+    "kind": "Plus",
+    "value": "\u002B",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 18,
+      "column": 23,
+      "start": 375,
+      "length": 1
+    }
+  },
+  {
+    "kind": "IntegerLiteral",
+    "value": "1",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 18,
+      "column": 25,
+      "start": 377,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Semicolon",
+    "value": ";",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 18,
+      "column": 26,
+      "start": 378,
+      "length": 1
+    }
+  },
+  {
+    "kind": "RightBrace",
+    "value": "}",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 19,
+      "column": 5,
+      "start": 384,
+      "length": 1
+    }
+  },
+  {
+    "kind": "For",
+    "value": "for",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 22,
+      "column": 5,
+      "start": 424,
+      "length": 3
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "i",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 22,
+      "column": 9,
+      "start": 428,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "in",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 22,
+      "column": 11,
+      "start": 430,
+      "length": 2
+    }
+  },
+  {
+    "kind": "IntegerLiteral",
+    "value": "0",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 22,
+      "column": 14,
+      "start": 433,
+      "length": 1
+    }
+  },
+  {
+    "kind": "DotDot",
+    "value": "..",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 22,
+      "column": 15,
+      "start": 434,
+      "length": 2
+    }
+  },
+  {
+    "kind": "IntegerLiteral",
+    "value": "5",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 22,
+      "column": 17,
+      "start": 436,
+      "length": 1
+    }
+  },
+  {
+    "kind": "LeftBrace",
+    "value": "{",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 22,
+      "column": 19,
+      "start": 438,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "print",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 23,
+      "column": 9,
+      "start": 448,
+      "length": 5
+    }
+  },
+  {
+    "kind": "LeftParen",
+    "value": "(",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 23,
+      "column": 14,
+      "start": 453,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "i",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 23,
+      "column": 15,
+      "start": 454,
+      "length": 1
+    }
+  },
+  {
+    "kind": "RightParen",
+    "value": ")",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 23,
+      "column": 16,
+      "start": 455,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Semicolon",
+    "value": ";",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 23,
+      "column": 17,
+      "start": 456,
+      "length": 1
+    }
+  },
+  {
+    "kind": "RightBrace",
+    "value": "}",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 24,
+      "column": 5,
+      "start": 462,
+      "length": 1
+    }
+  },
+  {
+    "kind": "RightBrace",
+    "value": "}",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 25,
+      "column": 1,
+      "start": 464,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Eof",
+    "value": "",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+      "line": 26,
+      "column": 1,
+      "start": 466,
+      "length": 0
+    }
+  }
+]

@@ -1,0 +1,750 @@
+[
+  {
+    "kind": "Fn",
+    "value": "fn",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 5,
+      "column": 1,
+      "start": 119,
+      "length": 2
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "add",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 5,
+      "column": 4,
+      "start": 122,
+      "length": 3
+    }
+  },
+  {
+    "kind": "LeftParen",
+    "value": "(",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 5,
+      "column": 7,
+      "start": 125,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "a",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 5,
+      "column": 8,
+      "start": 126,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Colon",
+    "value": ":",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 5,
+      "column": 9,
+      "start": 127,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "i32",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 5,
+      "column": 11,
+      "start": 129,
+      "length": 3
+    }
+  },
+  {
+    "kind": "Comma",
+    "value": ",",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 5,
+      "column": 14,
+      "start": 132,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "b",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 5,
+      "column": 16,
+      "start": 134,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Colon",
+    "value": ":",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 5,
+      "column": 17,
+      "start": 135,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "i32",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 5,
+      "column": 19,
+      "start": 137,
+      "length": 3
+    }
+  },
+  {
+    "kind": "RightParen",
+    "value": ")",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 5,
+      "column": 22,
+      "start": 140,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Arrow",
+    "value": "-\u003E",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 5,
+      "column": 24,
+      "start": 142,
+      "length": 2
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "i32",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 5,
+      "column": 27,
+      "start": 145,
+      "length": 3
+    }
+  },
+  {
+    "kind": "LeftBrace",
+    "value": "{",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 5,
+      "column": 31,
+      "start": 149,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "a",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 6,
+      "column": 5,
+      "start": 155,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Plus",
+    "value": "\u002B",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 6,
+      "column": 7,
+      "start": 157,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "b",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 6,
+      "column": 9,
+      "start": 159,
+      "length": 1
+    }
+  },
+  {
+    "kind": "RightBrace",
+    "value": "}",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 7,
+      "column": 1,
+      "start": 161,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Fn",
+    "value": "fn",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 9,
+      "column": 1,
+      "start": 164,
+      "length": 2
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "multiply",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 9,
+      "column": 4,
+      "start": 167,
+      "length": 8
+    }
+  },
+  {
+    "kind": "LeftParen",
+    "value": "(",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 9,
+      "column": 12,
+      "start": 175,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "a",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 9,
+      "column": 13,
+      "start": 176,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Colon",
+    "value": ":",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 9,
+      "column": 14,
+      "start": 177,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "i32",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 9,
+      "column": 16,
+      "start": 179,
+      "length": 3
+    }
+  },
+  {
+    "kind": "Comma",
+    "value": ",",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 9,
+      "column": 19,
+      "start": 182,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "b",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 9,
+      "column": 21,
+      "start": 184,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Colon",
+    "value": ":",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 9,
+      "column": 22,
+      "start": 185,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "i32",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 9,
+      "column": 24,
+      "start": 187,
+      "length": 3
+    }
+  },
+  {
+    "kind": "RightParen",
+    "value": ")",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 9,
+      "column": 27,
+      "start": 190,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Arrow",
+    "value": "-\u003E",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 9,
+      "column": 29,
+      "start": 192,
+      "length": 2
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "i32",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 9,
+      "column": 32,
+      "start": 195,
+      "length": 3
+    }
+  },
+  {
+    "kind": "LeftBrace",
+    "value": "{",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 9,
+      "column": 36,
+      "start": 199,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "a",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 10,
+      "column": 5,
+      "start": 205,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Star",
+    "value": "*",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 10,
+      "column": 7,
+      "start": 207,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "b",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 10,
+      "column": 9,
+      "start": 209,
+      "length": 1
+    }
+  },
+  {
+    "kind": "RightBrace",
+    "value": "}",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 11,
+      "column": 1,
+      "start": 211,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Fn",
+    "value": "fn",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 13,
+      "column": 1,
+      "start": 214,
+      "length": 2
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "main",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 13,
+      "column": 4,
+      "start": 217,
+      "length": 4
+    }
+  },
+  {
+    "kind": "LeftParen",
+    "value": "(",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 13,
+      "column": 8,
+      "start": 221,
+      "length": 1
+    }
+  },
+  {
+    "kind": "RightParen",
+    "value": ")",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 13,
+      "column": 9,
+      "start": 222,
+      "length": 1
+    }
+  },
+  {
+    "kind": "LeftBrace",
+    "value": "{",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 13,
+      "column": 11,
+      "start": 224,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Let",
+    "value": "let",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 14,
+      "column": 5,
+      "start": 230,
+      "length": 3
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "x",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 14,
+      "column": 9,
+      "start": 234,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Equals",
+    "value": "=",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 14,
+      "column": 11,
+      "start": 236,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "add",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 14,
+      "column": 13,
+      "start": 238,
+      "length": 3
+    }
+  },
+  {
+    "kind": "LeftParen",
+    "value": "(",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 14,
+      "column": 16,
+      "start": 241,
+      "length": 1
+    }
+  },
+  {
+    "kind": "IntegerLiteral",
+    "value": "5",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 14,
+      "column": 17,
+      "start": 242,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Comma",
+    "value": ",",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 14,
+      "column": 18,
+      "start": 243,
+      "length": 1
+    }
+  },
+  {
+    "kind": "IntegerLiteral",
+    "value": "3",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 14,
+      "column": 20,
+      "start": 245,
+      "length": 1
+    }
+  },
+  {
+    "kind": "RightParen",
+    "value": ")",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 14,
+      "column": 21,
+      "start": 246,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Semicolon",
+    "value": ";",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 14,
+      "column": 22,
+      "start": 247,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Let",
+    "value": "let",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 15,
+      "column": 5,
+      "start": 253,
+      "length": 3
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "y",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 15,
+      "column": 9,
+      "start": 257,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Equals",
+    "value": "=",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 15,
+      "column": 11,
+      "start": 259,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "multiply",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 15,
+      "column": 13,
+      "start": 261,
+      "length": 8
+    }
+  },
+  {
+    "kind": "LeftParen",
+    "value": "(",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 15,
+      "column": 21,
+      "start": 269,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "x",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 15,
+      "column": 22,
+      "start": 270,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Comma",
+    "value": ",",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 15,
+      "column": 23,
+      "start": 271,
+      "length": 1
+    }
+  },
+  {
+    "kind": "IntegerLiteral",
+    "value": "2",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 15,
+      "column": 25,
+      "start": 273,
+      "length": 1
+    }
+  },
+  {
+    "kind": "RightParen",
+    "value": ")",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 15,
+      "column": 26,
+      "start": 274,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Semicolon",
+    "value": ";",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 15,
+      "column": 27,
+      "start": 275,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "print",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 16,
+      "column": 5,
+      "start": 281,
+      "length": 5
+    }
+  },
+  {
+    "kind": "LeftParen",
+    "value": "(",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 16,
+      "column": 10,
+      "start": 286,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "y",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 16,
+      "column": 11,
+      "start": 287,
+      "length": 1
+    }
+  },
+  {
+    "kind": "RightParen",
+    "value": ")",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 16,
+      "column": 12,
+      "start": 288,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Semicolon",
+    "value": ";",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 16,
+      "column": 13,
+      "start": 289,
+      "length": 1
+    }
+  },
+  {
+    "kind": "RightBrace",
+    "value": "}",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 17,
+      "column": 1,
+      "start": 308,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Eof",
+    "value": "",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+      "line": 18,
+      "column": 1,
+      "start": 310,
+      "length": 0
+    }
+  }
+]

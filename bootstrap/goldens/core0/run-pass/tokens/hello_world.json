@@ -1,0 +1,134 @@
+[
+  {
+    "kind": "Fn",
+    "value": "fn",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/run-pass/hello_world.ast",
+      "line": 6,
+      "column": 1,
+      "start": 128,
+      "length": 2
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "main",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/run-pass/hello_world.ast",
+      "line": 6,
+      "column": 4,
+      "start": 131,
+      "length": 4
+    }
+  },
+  {
+    "kind": "LeftParen",
+    "value": "(",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/run-pass/hello_world.ast",
+      "line": 6,
+      "column": 8,
+      "start": 135,
+      "length": 1
+    }
+  },
+  {
+    "kind": "RightParen",
+    "value": ")",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/run-pass/hello_world.ast",
+      "line": 6,
+      "column": 9,
+      "start": 136,
+      "length": 1
+    }
+  },
+  {
+    "kind": "LeftBrace",
+    "value": "{",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/run-pass/hello_world.ast",
+      "line": 6,
+      "column": 11,
+      "start": 138,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "print",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/run-pass/hello_world.ast",
+      "line": 7,
+      "column": 5,
+      "start": 144,
+      "length": 5
+    }
+  },
+  {
+    "kind": "LeftParen",
+    "value": "(",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/run-pass/hello_world.ast",
+      "line": 7,
+      "column": 10,
+      "start": 149,
+      "length": 1
+    }
+  },
+  {
+    "kind": "StringLiteral",
+    "value": "Hello, World!",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/run-pass/hello_world.ast",
+      "line": 7,
+      "column": 11,
+      "start": 150,
+      "length": 15
+    }
+  },
+  {
+    "kind": "RightParen",
+    "value": ")",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/run-pass/hello_world.ast",
+      "line": 7,
+      "column": 26,
+      "start": 165,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Semicolon",
+    "value": ";",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/run-pass/hello_world.ast",
+      "line": 7,
+      "column": 27,
+      "start": 166,
+      "length": 1
+    }
+  },
+  {
+    "kind": "RightBrace",
+    "value": "}",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/run-pass/hello_world.ast",
+      "line": 8,
+      "column": 1,
+      "start": 168,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Eof",
+    "value": "",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/run-pass/hello_world.ast",
+      "line": 9,
+      "column": 1,
+      "start": 170,
+      "length": 0
+    }
+  }
+]

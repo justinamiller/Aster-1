@@ -1,0 +1,717 @@
+[
+  {
+    "kind": "Fn",
+    "value": "fn",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 5,
+      "column": 1,
+      "start": 92,
+      "length": 2
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "main",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 5,
+      "column": 4,
+      "start": 95,
+      "length": 4
+    }
+  },
+  {
+    "kind": "LeftParen",
+    "value": "(",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 5,
+      "column": 8,
+      "start": 99,
+      "length": 1
+    }
+  },
+  {
+    "kind": "RightParen",
+    "value": ")",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 5,
+      "column": 9,
+      "start": 100,
+      "length": 1
+    }
+  },
+  {
+    "kind": "LeftBrace",
+    "value": "{",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 5,
+      "column": 11,
+      "start": 102,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Let",
+    "value": "let",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 6,
+      "column": 5,
+      "start": 108,
+      "length": 3
+    }
+  },
+  {
+    "kind": "Mut",
+    "value": "mut",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 6,
+      "column": 9,
+      "start": 112,
+      "length": 3
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "numbers",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 6,
+      "column": 13,
+      "start": 116,
+      "length": 7
+    }
+  },
+  {
+    "kind": "Equals",
+    "value": "=",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 6,
+      "column": 21,
+      "start": 124,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "Vec",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 6,
+      "column": 23,
+      "start": 126,
+      "length": 3
+    }
+  },
+  {
+    "kind": "ColonColon",
+    "value": "::",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 6,
+      "column": 26,
+      "start": 129,
+      "length": 2
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "new",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 6,
+      "column": 28,
+      "start": 131,
+      "length": 3
+    }
+  },
+  {
+    "kind": "LeftParen",
+    "value": "(",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 6,
+      "column": 31,
+      "start": 134,
+      "length": 1
+    }
+  },
+  {
+    "kind": "RightParen",
+    "value": ")",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 6,
+      "column": 32,
+      "start": 135,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Semicolon",
+    "value": ";",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 6,
+      "column": 33,
+      "start": 136,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "numbers",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 7,
+      "column": 5,
+      "start": 142,
+      "length": 7
+    }
+  },
+  {
+    "kind": "Dot",
+    "value": ".",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 7,
+      "column": 12,
+      "start": 149,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "push",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 7,
+      "column": 13,
+      "start": 150,
+      "length": 4
+    }
+  },
+  {
+    "kind": "LeftParen",
+    "value": "(",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 7,
+      "column": 17,
+      "start": 154,
+      "length": 1
+    }
+  },
+  {
+    "kind": "IntegerLiteral",
+    "value": "1",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 7,
+      "column": 18,
+      "start": 155,
+      "length": 1
+    }
+  },
+  {
+    "kind": "RightParen",
+    "value": ")",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 7,
+      "column": 19,
+      "start": 156,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Semicolon",
+    "value": ";",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 7,
+      "column": 20,
+      "start": 157,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "numbers",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 8,
+      "column": 5,
+      "start": 163,
+      "length": 7
+    }
+  },
+  {
+    "kind": "Dot",
+    "value": ".",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 8,
+      "column": 12,
+      "start": 170,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "push",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 8,
+      "column": 13,
+      "start": 171,
+      "length": 4
+    }
+  },
+  {
+    "kind": "LeftParen",
+    "value": "(",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 8,
+      "column": 17,
+      "start": 175,
+      "length": 1
+    }
+  },
+  {
+    "kind": "IntegerLiteral",
+    "value": "2",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 8,
+      "column": 18,
+      "start": 176,
+      "length": 1
+    }
+  },
+  {
+    "kind": "RightParen",
+    "value": ")",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 8,
+      "column": 19,
+      "start": 177,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Semicolon",
+    "value": ";",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 8,
+      "column": 20,
+      "start": 178,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "numbers",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 9,
+      "column": 5,
+      "start": 184,
+      "length": 7
+    }
+  },
+  {
+    "kind": "Dot",
+    "value": ".",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 9,
+      "column": 12,
+      "start": 191,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "push",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 9,
+      "column": 13,
+      "start": 192,
+      "length": 4
+    }
+  },
+  {
+    "kind": "LeftParen",
+    "value": "(",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 9,
+      "column": 17,
+      "start": 196,
+      "length": 1
+    }
+  },
+  {
+    "kind": "IntegerLiteral",
+    "value": "3",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 9,
+      "column": 18,
+      "start": 197,
+      "length": 1
+    }
+  },
+  {
+    "kind": "RightParen",
+    "value": ")",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 9,
+      "column": 19,
+      "start": 198,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Semicolon",
+    "value": ";",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 9,
+      "column": 20,
+      "start": 199,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Let",
+    "value": "let",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 11,
+      "column": 5,
+      "start": 210,
+      "length": 3
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "len",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 11,
+      "column": 9,
+      "start": 214,
+      "length": 3
+    }
+  },
+  {
+    "kind": "Equals",
+    "value": "=",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 11,
+      "column": 13,
+      "start": 218,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "numbers",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 11,
+      "column": 15,
+      "start": 220,
+      "length": 7
+    }
+  },
+  {
+    "kind": "Dot",
+    "value": ".",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 11,
+      "column": 22,
+      "start": 227,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "len",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 11,
+      "column": 23,
+      "start": 228,
+      "length": 3
+    }
+  },
+  {
+    "kind": "LeftParen",
+    "value": "(",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 11,
+      "column": 26,
+      "start": 231,
+      "length": 1
+    }
+  },
+  {
+    "kind": "RightParen",
+    "value": ")",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 11,
+      "column": 27,
+      "start": 232,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Semicolon",
+    "value": ";",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 11,
+      "column": 28,
+      "start": 233,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "print",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 12,
+      "column": 5,
+      "start": 239,
+      "length": 5
+    }
+  },
+  {
+    "kind": "LeftParen",
+    "value": "(",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 12,
+      "column": 10,
+      "start": 244,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "len",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 12,
+      "column": 11,
+      "start": 245,
+      "length": 3
+    }
+  },
+  {
+    "kind": "RightParen",
+    "value": ")",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 12,
+      "column": 14,
+      "start": 248,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Semicolon",
+    "value": ";",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 12,
+      "column": 15,
+      "start": 249,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Let",
+    "value": "let",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 14,
+      "column": 5,
+      "start": 276,
+      "length": 3
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "first",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 14,
+      "column": 9,
+      "start": 280,
+      "length": 5
+    }
+  },
+  {
+    "kind": "Equals",
+    "value": "=",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 14,
+      "column": 15,
+      "start": 286,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "numbers",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 14,
+      "column": 17,
+      "start": 288,
+      "length": 7
+    }
+  },
+  {
+    "kind": "LeftBracket",
+    "value": "[",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 14,
+      "column": 24,
+      "start": 295,
+      "length": 1
+    }
+  },
+  {
+    "kind": "IntegerLiteral",
+    "value": "0",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 14,
+      "column": 25,
+      "start": 296,
+      "length": 1
+    }
+  },
+  {
+    "kind": "RightBracket",
+    "value": "]",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 14,
+      "column": 26,
+      "start": 297,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Semicolon",
+    "value": ";",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 14,
+      "column": 27,
+      "start": 298,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "print",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 15,
+      "column": 5,
+      "start": 304,
+      "length": 5
+    }
+  },
+  {
+    "kind": "LeftParen",
+    "value": "(",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 15,
+      "column": 10,
+      "start": 309,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Identifier",
+    "value": "first",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 15,
+      "column": 11,
+      "start": 310,
+      "length": 5
+    }
+  },
+  {
+    "kind": "RightParen",
+    "value": ")",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 15,
+      "column": 16,
+      "start": 315,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Semicolon",
+    "value": ";",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 15,
+      "column": 17,
+      "start": 316,
+      "length": 1
+    }
+  },
+  {
+    "kind": "RightBrace",
+    "value": "}",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 16,
+      "column": 1,
+      "start": 334,
+      "length": 1
+    }
+  },
+  {
+    "kind": "Eof",
+    "value": "",
+    "span": {
+      "file": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/vec_operations.ast",
+      "line": 17,
+      "column": 1,
+      "start": 336,
+      "length": 0
+    }
+  }
+]
