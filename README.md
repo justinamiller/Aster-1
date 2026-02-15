@@ -115,17 +115,28 @@ Aster is being bootstrapped through multiple stages toward self-hosting:
 | Stage | Status | Description |
 |-------|--------|-------------|
 | **Stage 0** | ✅ Complete | C# compiler (current) — emits LLVM IR |
-| **Stage 1** | 🚧 20% | Minimal Aster compiler (Core-0 subset) |
+| **Stage 1** | 🚧 Parser Complete | Minimal Aster compiler (Core-0 subset) |
 | **Stage 2** | ⚙️ Ready | Expanded Aster compiler (generics, traits) |
 | **Stage 3** | ⚙️ Ready | Full self-hosted compiler |
 
-See [STATUS.md](STATUS.md) for detailed feature tracking and [README_BOOTSTRAP.md](README_BOOTSTRAP.md) for the bootstrap plan.
+**Stage 1 Progress**:
+- ✅ Parser: 100% complete (all 7 phases)
+- ✅ CLI interface: Complete
+- ✅ Driver integration: Complete
+- 🚧 Bootstrap compilation: Next step
+- ⚙️ Type checker: Planned
+- ⚙️ IR generation: Planned
+- ⚙️ Code generation: Planned
+
+See [STATUS.md](STATUS.md) for detailed feature tracking and [docs/NEXT_STEPS_GUIDE.md](docs/NEXT_STEPS_GUIDE.md) for step-by-step bootstrap instructions.
 
 ## Documentation
 
 - **[TOOLCHAIN.md](TOOLCHAIN.md)** — Complete guide for compiling `.ast` → LLVM IR → native executable
 - **[STATUS.md](STATUS.md)** — Feature status across all bootstrap stages
+- **[docs/NEXT_STEPS_GUIDE.md](docs/NEXT_STEPS_GUIDE.md)** — **NEW: Step-by-step guide for bootstrap completion**
 - **[README_BOOTSTRAP.md](README_BOOTSTRAP.md)** — Bootstrap process and roadmap
+- [docs/STAGE1_PARSER_COMPLETE.md](docs/STAGE1_PARSER_COMPLETE.md) — Stage 1 parser implementation summary
 - [Mid-End Architecture](docs/MidEndArchitecture.md) — Incremental compilation, parallel compilation, MIR analysis
 - [Standard Library](aster/stdlib/README.md) — Complete stdlib documentation
 - [Stdlib Summary](STDLIB_IMPLEMENTATION.md) — Implementation details
