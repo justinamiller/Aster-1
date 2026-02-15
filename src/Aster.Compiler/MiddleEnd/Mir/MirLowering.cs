@@ -13,6 +13,7 @@ public sealed class MirLowering
     private MirFunction? _currentFunction;
     private MirBasicBlock? _currentBlock;
     private int _tempCounter;
+    private readonly Dictionary<string, MirOperand> _localVariables = new();
     public DiagnosticBag Diagnostics { get; } = new();
 
     /// <summary>Lower an HIR program to MIR.</summary>
@@ -36,6 +37,7 @@ public sealed class MirLowering
     {
         _currentFunction = new MirFunction(fn.Symbol.Name);
         _tempCounter = 0;
+        _localVariables.Clear(); // Clear local variables for new function
 
         // Add parameters
         for (int i = 0; i < fn.Parameters.Count; i++)
@@ -111,15 +113,24 @@ public sealed class MirLowering
 
     private void LowerLetStmt(HirLetStmt let)
     {
-        var dest = MirOperand.Variable(let.Symbol.Name, MirType.I64);
-
         if (let.Initializer != null)
         {
             var value = LowerExpr(let.Initializer);
             if (value != null)
             {
-                Emit(new MirInstruction(MirOpcode.Assign, dest, new[] { value }));
+                // Instead of creating a new variable and assigning,
+                // just map the variable name to the value operand directly
+                // This works because in SSA form, variables are just names for values
+                _localVariables[let.Symbol.Name] = value;
+                
+                // Don't emit an Assign instruction - in SSA, we just use the value directly
             }
+        }
+        else
+        {
+            // No initializer - create a placeholder (though this is unusual in SSA)
+            var dest = MirOperand.Variable(let.Symbol.Name, MirType.I64);
+            _localVariables[let.Symbol.Name] = dest;
         }
     }
 
@@ -166,7 +177,13 @@ public sealed class MirLowering
                 return LowerLiteral(lit);
 
             case HirIdentifierExpr id:
-                // Try to find the type from function parameters
+                // First check if it's a local variable
+                if (_localVariables.TryGetValue(id.Name, out var localVar))
+                {
+                    return localVar;
+                }
+                
+                // Then try to find the type from function parameters
                 var paramType = MirType.I64; // default
                 if (_currentFunction != null)
                 {
