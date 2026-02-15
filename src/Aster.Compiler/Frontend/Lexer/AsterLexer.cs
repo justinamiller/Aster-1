@@ -40,6 +40,7 @@ public sealed class AsterLexer : ILexer
         ["extern"] = TokenKind.Extern,
         ["unsafe"] = TokenKind.Unsafe,
         ["using"] = TokenKind.Using,
+        ["use"] = TokenKind.Use,
         ["managed"] = TokenKind.Managed,
         ["throws"] = TokenKind.Throws,
         ["struct"] = TokenKind.Struct,

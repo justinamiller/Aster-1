@@ -10,3 +10,6 @@ BenchmarkDotNet.Artifacts/
 
 # Bootstrap build artifacts
 build/
+
+# Generated LLVM IR
+*.ll

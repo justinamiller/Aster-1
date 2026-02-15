@@ -235,6 +235,23 @@ public class LexerTests
 
         Assert.Same(a, b);
     }
+
+    [Fact]
+    public void Tokenize_UseKeyword_ReturnsCorrectKind()
+    {
+        var lexer = new AsterLexer("use std::fmt::*;", "test.ast");
+        var tokens = lexer.Tokenize();
+
+        Assert.Equal(TokenKind.Use, tokens[0].Kind);
+        Assert.Equal(TokenKind.Identifier, tokens[1].Kind);
+        Assert.Equal("std", tokens[1].Value);
+        Assert.Equal(TokenKind.ColonColon, tokens[2].Kind);
+        Assert.Equal(TokenKind.Identifier, tokens[3].Kind);
+        Assert.Equal("fmt", tokens[3].Value);
+        Assert.Equal(TokenKind.ColonColon, tokens[4].Kind);
+        Assert.Equal(TokenKind.Star, tokens[5].Kind);
+        Assert.Equal(TokenKind.Semicolon, tokens[6].Kind);
+    }
 }
 
 // ========== Phase 2: Parser Tests ==========
@@ -467,6 +484,43 @@ public class ParserTests
         // At least one declaration should be recovered
         Assert.True(program.Declarations.Count >= 1);
     }
+
+    [Fact]
+    public void Parse_UseDeclaration_GlobImport()
+    {
+        var program = Parse("use std::fmt::*;");
+
+        Assert.Single(program.Declarations);
+        var useDecl = Assert.IsType<UseDeclNode>(program.Declarations[0]);
+        Assert.Equal(new[] { "std", "fmt" }, useDecl.Path);
+        Assert.True(useDecl.IsGlob);
+    }
+
+    [Fact]
+    public void Parse_UseDeclaration_SpecificImport()
+    {
+        var program = Parse("use std::fmt::println;");
+
+        Assert.Single(program.Declarations);
+        var useDecl = Assert.IsType<UseDeclNode>(program.Declarations[0]);
+        Assert.Equal(new[] { "std", "fmt", "println" }, useDecl.Path);
+        Assert.False(useDecl.IsGlob);
+    }
+
+    [Fact]
+    public void Parse_UseDeclaration_WithFunction()
+    {
+        var program = Parse(@"
+use std::fmt::*;
+
+fn main() {
+    println(""Hello, World!"")
+}
+");
+        Assert.Equal(2, program.Declarations.Count);
+        Assert.IsType<UseDeclNode>(program.Declarations[0]);
+        Assert.IsType<FunctionDeclNode>(program.Declarations[1]);
+    }
 }
 
 // ========== Phase 3: Name Resolution Tests ==========
@@ -533,6 +587,46 @@ public class NameResolutionTests
     public void Resolve_BuiltinPrint_IsResolved()
     {
         var lexer = new AsterLexer("fn main() { print(\"hello\"); }", "test.ast");
+        var tokens = lexer.Tokenize();
+        var parser = new AsterParser(tokens);
+        var ast = parser.ParseProgram();
+        var resolver = new NameResolver();
+        var hir = resolver.Resolve(ast);
+
+        Assert.False(resolver.Diagnostics.HasErrors);
+    }
+
+    [Fact]
+    public void Resolve_UseStdFmt_RegistersPrintln()
+    {
+        var source = @"
+use std::fmt::*;
+
+fn main() {
+    println(""Hello, World!"");
+}
+";
+        var lexer = new AsterLexer(source, "test.ast");
+        var tokens = lexer.Tokenize();
+        var parser = new AsterParser(tokens);
+        var ast = parser.ParseProgram();
+        var resolver = new NameResolver();
+        var hir = resolver.Resolve(ast);
+
+        Assert.False(resolver.Diagnostics.HasErrors);
+    }
+
+    [Fact]
+    public void Resolve_UseSpecificImport_RegistersSymbol()
+    {
+        var source = @"
+use std::fmt::println;
+
+fn main() {
+    println(""Hello"");
+}
+";
+        var lexer = new AsterLexer(source, "test.ast");
         var tokens = lexer.Tokenize();
         var parser = new AsterParser(tokens);
         var ast = parser.ParseProgram();
@@ -906,6 +1000,28 @@ fn main() {
         Assert.Equal(3, span.Length);
         Assert.Equal(13, span.End);
         Assert.Equal("test.ast:1:5", span.ToString());
+    }
+
+    [Fact]
+    public void FullPipeline_StdlibHelloWorld()
+    {
+        var source = @"
+use std::fmt::*;
+
+fn main() {
+    println(""Hello, World!"");
+    println(""Welcome to Aster Standard Library!"");
+}
+";
+        var driver = new CompilationDriver();
+        var ir = driver.Compile(source, "test.ast");
+
+        Assert.NotNull(ir);
+        Assert.False(driver.Diagnostics.HasErrors);
+        Assert.Contains("Hello, World!", ir);
+        Assert.Contains("Welcome to Aster Standard Library!", ir);
+        Assert.Contains("@main", ir);
+        Assert.Contains("@puts", ir);
     }
 }
 

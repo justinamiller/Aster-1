@@ -7,6 +7,7 @@ public interface IAstVisitor<T>
 {
     T VisitProgram(ProgramNode node);
     T VisitModuleDecl(ModuleDeclNode node);
+    T VisitUseDecl(UseDeclNode node);
     T VisitFunctionDecl(FunctionDeclNode node);
     T VisitParameter(ParameterNode node);
     T VisitTypeAnnotation(TypeAnnotationNode node);

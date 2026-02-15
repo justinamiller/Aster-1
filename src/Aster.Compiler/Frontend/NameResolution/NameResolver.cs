@@ -14,6 +14,48 @@ public sealed class NameResolver
     private Scope _currentScope;
     public DiagnosticBag Diagnostics { get; } = new();
 
+    private static readonly Dictionary<string, (string Name, SymbolKind Kind)[]> StdlibExports =
+        new(StringComparer.Ordinal)
+        {
+            ["std::fmt"] = new[] {
+                ("print", SymbolKind.Function),
+                ("println", SymbolKind.Function),
+                ("eprint", SymbolKind.Function),
+                ("eprintln", SymbolKind.Function),
+                ("format", SymbolKind.Function),
+            },
+            ["std::alloc"] = new[] {
+                ("new_vec", SymbolKind.Function),
+                ("push", SymbolKind.Function),
+                ("len", SymbolKind.Function),
+                ("get", SymbolKind.Function),
+                ("new_string", SymbolKind.Function),
+                ("concat", SymbolKind.Function),
+                ("box_new", SymbolKind.Function),
+            },
+            ["std::core"] = new[] {
+                ("Option", SymbolKind.Type),
+                ("Result", SymbolKind.Type),
+            },
+            ["std::io"] = new[] {
+                ("stdin", SymbolKind.Function),
+                ("stdout", SymbolKind.Function),
+                ("stderr", SymbolKind.Function),
+                ("read_line", SymbolKind.Function),
+            },
+            ["std::math"] = new[] {
+                ("abs", SymbolKind.Function),
+                ("min", SymbolKind.Function),
+                ("max", SymbolKind.Function),
+                ("sqrt", SymbolKind.Function),
+            },
+            ["std::env"] = new[] {
+                ("args", SymbolKind.Function),
+                ("var", SymbolKind.Function),
+                ("set_var", SymbolKind.Function),
+            },
+        };
+
     public NameResolver()
     {
         _currentScope = new Scope(ScopeKind.Module);
@@ -86,6 +128,47 @@ public sealed class NameResolver
                     if (!_currentScope.Define(new Symbol(m.Name, SymbolKind.Module)))
                         Diagnostics.ReportError("E0200", $"Duplicate definition of '{m.Name}'", m.Span);
                     break;
+                case UseDeclNode use:
+                    ResolveUseDeclaration(use);
+                    break;
+            }
+        }
+    }
+
+    private void ResolveUseDeclaration(UseDeclNode use)
+    {
+        if (use.IsGlob)
+        {
+            var modulePath = string.Join("::", use.Path);
+            if (StdlibExports.TryGetValue(modulePath, out var exports))
+            {
+                foreach (var (name, kind) in exports)
+                {
+                    _currentScope.Define(new Symbol(name, kind));
+                }
+            }
+        }
+        else if (use.Path.Count >= 2)
+        {
+            var parentPath = string.Join("::", use.Path.Take(use.Path.Count - 1));
+            var symbolName = use.Path[use.Path.Count - 1];
+
+            if (StdlibExports.TryGetValue(parentPath, out var parentExports))
+            {
+                var found = false;
+                foreach (var (name, kind) in parentExports)
+                {
+                    if (name == symbolName)
+                    {
+                        _currentScope.Define(new Symbol(name, kind));
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found)
+                {
+                    Diagnostics.ReportWarning("W0010", $"Symbol '{symbolName}' not found in module '{parentPath}'", use.Span);
+                }
             }
         }
     }
@@ -110,6 +193,7 @@ public sealed class NameResolver
         AssignExprNode assign => new HirAssignExpr(ResolveNode(assign.Target)!, ResolveNode(assign.Value)!, assign.Span),
         MemberAccessExprNode ma => new HirMemberAccessExpr(ResolveNode(ma.Object)!, ma.Member, ma.Span),
         StructInitExprNode structInit => ResolveStructInit(structInit),
+        UseDeclNode => null,
         _ => null,
     };
 
