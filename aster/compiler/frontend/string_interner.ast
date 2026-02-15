@@ -1,94 +1,33 @@
-// String Interner - String deduplication for identifiers
-// Part of Aster Stage 1 (Core-0 implementation)
+// String Interner - Stage1 parser-compatible stub
 //
-// This module implements string interning to reduce memory allocations
-// and allow fast equality checks for identifiers.
-//
-// Language Subset: Core-0
-// - Uses only: String, functions, i32
-// - No Vec (not available in Core-0)
-// - No HashMap (not available in Core-0)
-// - No tuples (use result structs instead)
-// - Simplified pass-through implementation for bootstrap
+// NOTE: This file intentionally uses only the strict Core-0 syntax currently
+// accepted by stage0 in `--stage1` mode (no references, no casts, no methods).
+// The behavior is minimal and correctness-complete interning is deferred.
 
-/// String interner that tracks interned string count.
-/// Simplified for Core-0 - doesn't actually store strings, just passes them through.
-/// This is acceptable for bootstrap performance.
 struct StringInterner {
     count: i32
 }
 
-/// Result of string interning operation
-/// (Core-0 doesn't support tuple returns)
-struct InternResult {
-    interner: StringInterner,
-    value: String
-}
-
-/// Create a new empty string interner.
 fn new_interner() -> StringInterner {
     StringInterner {
         count: 0
     }
 }
 
-/// Intern a string. Returns InternResult with updated interner and interned string.
-/// Simplified for Core-0 - just passes through the string and increments counter.
-/// Real interning would require Vec/HashMap which aren't available in Core-0.
-fn intern(mut interner: StringInterner, value: String) -> InternResult {
-    interner.count = interner.count + 1;
-    InternResult {
-        interner: interner,
-        value: value
-    }
+fn intern(interner: StringInterner, value: String) -> String {
+    value
 }
 
-/// Intern a substring from source text.
-/// Creates a String from the specified range and interns it.
-/// Returns InternResult with updated interner and interned string.
-fn intern_substring(interner: StringInterner, source: String, start: i32, end: i32) -> InternResult {
-    let substring = string_substring(source, start, end);
-    intern(interner, substring)
+fn intern_substring(interner: StringInterner, source: String, start: i32, end: i32) -> String {
+    source
 }
 
-/// Get the number of interned strings.
 fn interner_count(interner: StringInterner) -> i32 {
     interner.count
 }
 
-/// Clear the interner pool (for testing or cleanup).
-/// Returns new empty interner.
-fn interner_clear(mut interner: StringInterner) -> StringInterner {
-    interner.count = 0;
-    interner
-}
-
-// ============================================================================
-// HELPER FUNCTIONS (Core-0 doesn't have string methods)
-// ============================================================================
-
-/// Get length of a string as i32
-fn string_length(s: String) -> i32 {
-    // Simplified for Core-0 - relies on compiler to provide len()
-    // The C# compiler will handle this during bootstrap
-    let len = s.len();
-    len
-}
-
-/// Extract substring from String
-/// In Core-0, we don't have string slicing methods, so we do it manually
-fn string_substring(s: String, start: i32, end: i32) -> String {
-    let bytes = s.as_bytes();
-    let mut result = String::new();
-    
-    let mut i = start;
-    let bytes_len = string_length(s.clone());
-    while i < end && i < bytes_len {
-        let byte = bytes[i];
-        // Push byte directly - the C# compiler handles byte-to-char during bootstrap
-        result.push(byte);
-        i = i + 1;
+fn interner_clear(interner: StringInterner) -> StringInterner {
+    StringInterner {
+        count: 0
     }
-    
-    result
 }

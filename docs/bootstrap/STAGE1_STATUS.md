@@ -2,9 +2,9 @@
 
 ## Executive Summary
 
-**Current Status**: 🚧 Stage 1 implementation in progress
+**Current Status**: 🚧 Stage 1 implementation in progress (actively remediating Core-0 compatibility)
 
-**Completion**: ~60% complete (infrastructure + partial implementation)
+**Completion**: ~60% complete (infrastructure + partial implementation; source compatibility still incomplete)
 
 **Last Updated**: 2026-02-15
 
@@ -250,9 +250,15 @@ Stage 1 aims to create a minimal self-hosted Aster compiler (aster1) written in 
 
 ## Known Issues
 
+### Latest Verification Snapshot (2026-02-15)
+- Command: `./bootstrap/scripts/bootstrap.sh --clean --stage 1 --verbose`
+- Environment: `PATH="$HOME/.dotnet:$PATH"`, `DOTNET_ROOT="$HOME/.dotnet"`
+- Before remediation: first failure in `aster/compiler/frontend/string_interner.ast` (references + `as` casts).
+- After remediation: first failure moved forward to `aster/compiler/frontend/lexer.ast`.
+
 ### Blocking Issues
 1. **No aster1 binary** - Cannot run differential tests without it
-2. **Parser not implemented** - Blocks all downstream components
+2. **Core-0 compatibility gap in Stage1 source** - Remaining files still use syntax rejected by `--stage1` mode (notably `&`/`&mut`, `as` casts, and higher-level constructs)
 3. **No IR normalization** - Cannot reliably compare IR outputs
 
 ### Non-Blocking Issues

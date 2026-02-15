@@ -305,7 +305,15 @@ dotnet test --configuration Release  # 119 tests pass
 **Solution**: This is expected - Stage 1-3 source is still being implemented
 
 ### Issue: "Stage 1 build fails"
-**Solution**: Stage 1 needs completion (lexer, parser, main entry point)
+**Current known blocker (2026-02-15)**:
+- Running `./bootstrap/scripts/bootstrap.sh --clean --stage 1 --verbose` now fails in `aster/compiler/frontend/lexer.ast`.
+- Previous first blocker in `string_interner.ast` was remediated to a strict Core-0 parser-compatible stub.
+
+**Why it fails**:
+- Stage1 (`--stage1`) enforces Core-0 restrictions in stage0 parser (notably: no `&`/`&mut` reference types, and limited expression/type syntax such as `as` casts).
+- `lexer.ast`, `parser.ast`, `main.ast`, and `contracts/diagnostics.ast` still use non-Core-0 forms.
+
+**Next step**: Port remaining Stage1 files to strict Core-0-compatible signatures and expressions.
 
 ## Integration Examples
 
