@@ -179,7 +179,8 @@ fn hashmap_remove<K, V>(map: &mut HashMap<K, V>, key: &K) -> Option<V>
                 return Option::Some(value);
             }
             
-            // Search in the chain (simplified - needs proper ownership handling)
+            // TODO: Search and remove from chain
+            // Current limitation: cannot remove chained entries
             Option::None
         }
         Option::None => Option::None
@@ -214,6 +215,8 @@ fn hashmap_clear<K, V>(map: &mut HashMap<K, V>) {
 fn hashmap_resize<K, V>(map: &mut HashMap<K, V>)
     where K: Hash + Eq
 {
+    // TODO: Proper rehashing implementation needed
+    // This is a placeholder that only updates capacity
     let new_capacity = map.capacity * 2;
     let mut new_map = hashmap_with_capacity(new_capacity);
     
@@ -221,5 +224,7 @@ fn hashmap_resize<K, V>(map: &mut HashMap<K, V>)
     map.capacity = new_capacity;
 }
 
-// Placeholder for hash function (implemented in core/runtime)
+// Placeholder for hash function (implemented in runtime)
+// This function computes a hash value for the given key
+// Implementation provided by the Aster runtime
 fn hash_value<T>(value: &T) -> usize where T: Hash;

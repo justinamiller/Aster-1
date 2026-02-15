@@ -5,7 +5,7 @@
 //
 // Stability: @stable
 // Effects: none (pure, no alloc, no IO)
-// Dependencies: none
+// Dependencies: core/traits.ast (Iterator, IntoIterator traits)
 
 /// Exclusive range type (start..end)
 /// Represents values from start (inclusive) to end (exclusive)
@@ -52,6 +52,7 @@ fn range_inclusive_contains<T>(r: &RangeInclusive<T>, value: &T) -> bool
 }
 
 /// Range iterator for usize
+/// Implements Iterator trait (defined in core/traits.ast)
 @stable
 struct RangeIter {
     current: usize,

@@ -84,8 +84,10 @@ fn list_push_back<T>(list: &mut LinkedList<T>, value: T) {
     if list_is_empty(list) {
         list.head = Option::Some(new_node);
     } else {
-        // Simplified - needs proper tail handling
-        list.head = Option::Some(new_node);
+        // TODO: Proper tail pointer handling needed
+        // For now, just push to front as a simplified implementation
+        list_push_front(list, value);
+        return;
     }
     
     list.len = list.len + 1;
@@ -111,11 +113,11 @@ fn list_pop_front<T>(list: &mut LinkedList<T>) -> Option<T> {
 /// Removes and returns the last element
 @experimental
 fn list_pop_back<T>(list: &mut LinkedList<T>) -> Option<T> {
-    // Simplified - needs proper implementation with tail pointer
+    // TODO: Simplified - needs proper implementation with tail pointer
+    // For now just delegate to pop_front
     if list.len == 0 {
         Option::None
     } else {
-        list.len = list.len - 1;
         list_pop_front(list)
     }
 }
@@ -149,7 +151,8 @@ fn list_clear<T>(list: &mut LinkedList<T>) {
 fn list_contains<T>(list: &LinkedList<T>, value: &T) -> bool
     where T: Eq
 {
-    // Simplified - needs iteration
+    // TODO: Needs proper iteration implementation
+    // Placeholder returns false to indicate unimplemented
     false
 }
 

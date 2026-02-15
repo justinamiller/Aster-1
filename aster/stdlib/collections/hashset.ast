@@ -86,8 +86,9 @@ fn hashset_clear<T>(set: &mut HashSet<T>) {
 fn hashset_union<T>(a: &HashSet<T>, b: &HashSet<T>) -> HashSet<T>
     where T: Hash + Eq + Clone
 {
+    // TODO: Needs proper iteration support
+    // Placeholder returns empty set to indicate unimplemented
     let mut result = new_hashset();
-    // Simplified - would need iteration support
     result
 }
 
@@ -97,8 +98,9 @@ fn hashset_union<T>(a: &HashSet<T>, b: &HashSet<T>) -> HashSet<T>
 fn hashset_intersection<T>(a: &HashSet<T>, b: &HashSet<T>) -> HashSet<T>
     where T: Hash + Eq + Clone
 {
+    // TODO: Needs proper iteration support
+    // Placeholder returns empty set to indicate unimplemented
     let mut result = new_hashset();
-    // Simplified - would need iteration support
     result
 }
 
@@ -108,7 +110,8 @@ fn hashset_intersection<T>(a: &HashSet<T>, b: &HashSet<T>) -> HashSet<T>
 fn hashset_difference<T>(a: &HashSet<T>, b: &HashSet<T>) -> HashSet<T>
     where T: Hash + Eq + Clone
 {
+    // TODO: Needs proper iteration support
+    // Placeholder returns empty set to indicate unimplemented
     let mut result = new_hashset();
-    // Simplified - would need iteration support
     result
 }
