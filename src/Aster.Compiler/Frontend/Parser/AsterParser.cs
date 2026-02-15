@@ -88,11 +88,48 @@ public sealed class AsterParser
         }
         if (Check(TokenKind.Module))
             return ParseModuleDecl(isPublic);
+        if (Check(TokenKind.Use))
+            return ParseUseDeclaration();
         if (Check(TokenKind.Let))
             return ParseLetStmt();
 
         // Try parsing as expression statement
         return ParseExpressionStatement();
+    }
+
+    private UseDeclNode ParseUseDeclaration()
+    {
+        var startSpan = Current.Span;
+        Expect(TokenKind.Use, "Expected 'use'");
+
+        var segments = new List<string>();
+        var name = ExpectIdentifier("Expected module path after 'use'");
+        segments.Add(name);
+
+        var isGlob = false;
+
+        while (Check(TokenKind.ColonColon))
+        {
+            Advance();
+            if (Check(TokenKind.Star))
+            {
+                isGlob = true;
+                Advance();
+                break;
+            }
+            if (!Check(TokenKind.Identifier))
+            {
+                ReportError("E0100", "Expected identifier or '*' after '::'");
+                break;
+            }
+            segments.Add(Current.Value);
+            Advance();
+        }
+
+        if (Check(TokenKind.Semicolon))
+            Advance();
+
+        return new UseDeclNode(segments, isGlob, MakeSpan(startSpan));
     }
 
     private FunctionDeclNode ParseFunctionDecl(bool isPublic)

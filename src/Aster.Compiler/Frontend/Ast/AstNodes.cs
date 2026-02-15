@@ -35,6 +35,15 @@ public sealed class ModuleDeclNode : AstNode
     public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitModuleDecl(this);
 }
 
+/// <summary>Use declaration: use path::to::module::*;</summary>
+public sealed class UseDeclNode : AstNode
+{
+    public IReadOnlyList<string> Path { get; }
+    public bool IsGlob { get; }
+    public UseDeclNode(IReadOnlyList<string> path, bool isGlob, Span span) : base(span) { Path = path; IsGlob = isGlob; }
+    public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitUseDecl(this);
+}
+
 /// <summary>Function declaration: fn name(params) -> ReturnType { body }</summary>
 public sealed class FunctionDeclNode : AstNode
 {

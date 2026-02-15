@@ -34,6 +34,7 @@ public enum TokenKind
     Pub,
     Extern,
     Unsafe,
+    Use,
     Using,
     Managed,
     Throws,
