@@ -1,0 +1,15 @@
+// File copy example
+// Demonstrates file I/O operations
+
+use std::fs::*;
+use std::io::*;
+
+fn main() {
+    let source = "input.txt"
+    let dest = "output.txt"
+    
+    let content = read_file(source)
+    write_file(dest, content)
+    
+    print("File copied successfully")
+}

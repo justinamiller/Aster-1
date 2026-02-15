@@ -173,4 +173,57 @@ public sealed class CompilationDriver
 
         return tokens;
     }
+
+    /// <summary>
+    /// Parse source code and return the AST.
+    /// Used for differential testing (bootstrap stage 1).
+    /// </summary>
+    public object? EmitAst(string source, string fileName)
+    {
+        var lexer = new AsterLexer(source, fileName);
+        var tokens = lexer.Tokenize();
+        _diagnostics.AddRange(lexer.Diagnostics);
+
+        if (_diagnostics.HasErrors)
+            return null;
+
+        var parser = new AsterParser(tokens, _stage1Mode);
+        var ast = parser.ParseProgram();
+        _diagnostics.AddRange(parser.Diagnostics);
+
+        if (_diagnostics.HasErrors)
+            return null;
+
+        return ast;
+    }
+
+    /// <summary>
+    /// Perform name resolution and return the symbol table.
+    /// Used for differential testing (bootstrap stage 1).
+    /// </summary>
+    public object? EmitSymbols(string source, string fileName)
+    {
+        var lexer = new AsterLexer(source, fileName);
+        var tokens = lexer.Tokenize();
+        _diagnostics.AddRange(lexer.Diagnostics);
+
+        if (_diagnostics.HasErrors)
+            return null;
+
+        var parser = new AsterParser(tokens, _stage1Mode);
+        var ast = parser.ParseProgram();
+        _diagnostics.AddRange(parser.Diagnostics);
+
+        if (_diagnostics.HasErrors)
+            return null;
+
+        var resolver = new NameResolver();
+        var hir = resolver.Resolve(ast);
+        _diagnostics.AddRange(resolver.Diagnostics);
+
+        if (_diagnostics.HasErrors)
+            return null;
+
+        return hir;
+    }
 }
