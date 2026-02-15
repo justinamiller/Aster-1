@@ -32,6 +32,7 @@ enum TokenKind {
     Return,
     Break,
     Continue,
+    Loop,
     Async,
     Await,
     Actor,
@@ -91,6 +92,7 @@ enum TokenKind {
     Semicolon,      // ;
     At,             // @
     Hash,           // #
+    Underscore,     // _
 
     // Special
     Eof,

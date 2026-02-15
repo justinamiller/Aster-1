@@ -184,13 +184,7 @@ fn synchronize(parser: &mut Parser) {
 
 /// Parse a complete program
 fn parse_program(parser: &mut Parser) -> ProgramNode {
-    let mut items = Vec::new();
-    
-    // TODO: Implement program parsing
-    // while !is_at_end(parser) {
-    //     let item = parse_declaration(parser);
-    //     items.push(item);
-    // }
+    let mut declarations = Vec::new();
     
     let start_span = if parser.tokens.len() > 0 {
         parser.tokens[0].span.clone()
@@ -198,189 +192,933 @@ fn parse_program(parser: &mut Parser) -> ProgramNode {
         new_span("", 0, 0, 0, 0)
     };
     
+    // Parse declarations until EOF
+    while !is_at_end(parser) {
+        let decl = parse_declaration(parser);
+        declarations.push(decl);
+    }
+    
     ProgramNode {
-        declarations: items,
+        declarations: declarations,
         span: start_span
     }
 }
 
-/// Parse a top-level item (function, struct, or enum)
+/// Parse a top-level declaration (function, struct, or enum)
 fn parse_declaration(parser: &mut Parser) -> Item {
-    // TODO: Implement based on current token
-    // - fn keyword → parse_function
-    // - struct keyword → parse_struct
-    // - enum keyword → parse_enum
+    // Check what kind of declaration this is
+    if check(parser, TokenKind::Fn) {
+        return Item::Function(parse_function(parser));
+    }
     
-    // Placeholder
+    if check(parser, TokenKind::Struct) {
+        return Item::Struct(parse_struct(parser));
+    }
+    
+    if check(parser, TokenKind::Enum) {
+        return Item::Enum(parse_enum(parser));
+    }
+    
+    // If we don't recognize it, synchronize and return a dummy function
+    synchronize(parser);
     Item::Function(FunctionItem {
         id: new_node_id(parser),
-        name: "placeholder",
-        params: Vec::new(),
-        return_type: Type::Unit,
-        body: Expr::Literal(Literal::Int(0))
-    })
-}
-
-/// Parse a function definition
-fn parse_function(parser: &mut Parser) -> FunctionItem {
-    // TODO: Implement function parsing
-    // 1. Expect 'fn' keyword
-    // 2. Parse function name
-    // 3. Parse parameter list
-    // 4. Parse return type
-    // 5. Parse function body
-    
-    FunctionItem {
-        id: new_node_id(parser),
-        name: "todo",
+        name: "error",
         params: Vec::new(),
         return_type: Type::Unit,
         body: Expr::Block(BlockExpr {
             id: new_node_id(parser),
             stmts: Vec::new()
         })
+    })
+}
+
+/// Parse a function definition
+fn parse_function(parser: &mut Parser) -> FunctionItem {
+    // Expect 'fn' keyword
+    expect(parser, TokenKind::Fn, "Expected 'fn' keyword");
+    
+    // Parse function name
+    let name_token = expect(parser, TokenKind::Identifier, "Expected function name");
+    let func_name = name_token.value.clone();
+    
+    // Parse parameter list
+    expect(parser, TokenKind::LeftParen, "Expected '(' after function name");
+    let params = parse_parameter_list(parser);
+    expect(parser, TokenKind::RightParen, "Expected ')' after parameters");
+    
+    // Parse optional return type
+    let return_type = if check(parser, TokenKind::Arrow) {
+        advance(parser);  // consume ->
+        parse_type(parser)
+    } else {
+        Type::Unit
+    };
+    
+    // Parse function body (block)
+    let body = Expr::Block(parse_block(parser));
+    
+    FunctionItem {
+        id: new_node_id(parser),
+        name: func_name,
+        params: params,
+        return_type: return_type,
+        body: body
     }
+}
+
+/// Parse a parameter list for a function
+fn parse_parameter_list(parser: &mut Parser) -> Vec<Param> {
+    let mut params = Vec::new();
+    
+    while !check(parser, TokenKind::RightParen) && !is_at_end(parser) {
+        // Parse parameter name
+        let param_name_token = expect(parser, TokenKind::Identifier, "Expected parameter name");
+        let param_name = param_name_token.value.clone();
+        
+        // Expect colon
+        expect(parser, TokenKind::Colon, "Expected ':' after parameter name");
+        
+        // Parse parameter type
+        let param_type = parse_type(parser);
+        
+        params.push(Param {
+            name: param_name,
+            param_type: param_type
+        });
+        
+        // Check for comma (more parameters)
+        if check(parser, TokenKind::Comma) {
+            advance(parser);
+        } else if !check(parser, TokenKind::RightParen) {
+            // Error: expected comma or closing paren
+            expect(parser, TokenKind::Comma, "Expected ',' between parameters");
+        }
+    }
+    
+    params
 }
 
 /// Parse a struct definition
 fn parse_struct(parser: &mut Parser) -> StructItem {
-    // TODO: Implement struct parsing
-    // 1. Expect 'struct' keyword
-    // 2. Parse struct name
-    // 3. Parse field list
+    // Expect 'struct' keyword
+    expect(parser, TokenKind::Struct, "Expected 'struct' keyword");
+    
+    // Parse struct name
+    let name_token = expect(parser, TokenKind::Identifier, "Expected struct name");
+    let struct_name = name_token.value.clone();
+    
+    // Expect opening brace
+    expect(parser, TokenKind::LeftBrace, "Expected '{' after struct name");
+    
+    // Parse field list
+    let fields = parse_field_list(parser);
+    
+    // Expect closing brace
+    expect(parser, TokenKind::RightBrace, "Expected '}' after struct fields");
     
     StructItem {
         id: new_node_id(parser),
-        name: "todo",
-        fields: Vec::new()
+        name: struct_name,
+        fields: fields
     }
+}
+
+/// Parse a list of struct fields
+fn parse_field_list(parser: &mut Parser) -> Vec<FieldDef> {
+    let mut fields = Vec::new();
+    
+    while !check(parser, TokenKind::RightBrace) && !is_at_end(parser) {
+        // Parse field name
+        let field_name_token = expect(parser, TokenKind::Identifier, "Expected field name");
+        let field_name = field_name_token.value.clone();
+        
+        // Expect colon
+        expect(parser, TokenKind::Colon, "Expected ':' after field name");
+        
+        // Parse field type
+        let field_type = parse_type(parser);
+        
+        fields.push(FieldDef {
+            name: field_name,
+            field_type: field_type
+        });
+        
+        // Check for comma (more fields)
+        if check(parser, TokenKind::Comma) {
+            advance(parser);
+        } else if !check(parser, TokenKind::RightBrace) {
+            // Allow optional trailing comma
+            break;
+        }
+    }
+    
+    fields
 }
 
 /// Parse an enum definition
 fn parse_enum(parser: &mut Parser) -> EnumItem {
-    // TODO: Implement enum parsing
-    // 1. Expect 'enum' keyword
-    // 2. Parse enum name
-    // 3. Parse variant list
+    // Expect 'enum' keyword
+    expect(parser, TokenKind::Enum, "Expected 'enum' keyword");
+    
+    // Parse enum name
+    let name_token = expect(parser, TokenKind::Identifier, "Expected enum name");
+    let enum_name = name_token.value.clone();
+    
+    // Expect opening brace
+    expect(parser, TokenKind::LeftBrace, "Expected '{' after enum name");
+    
+    // Parse variant list
+    let variants = parse_variant_list(parser);
+    
+    // Expect closing brace
+    expect(parser, TokenKind::RightBrace, "Expected '}' after enum variants");
     
     EnumItem {
         id: new_node_id(parser),
-        name: "todo",
-        variants: Vec::new()
+        name: enum_name,
+        variants: variants
     }
 }
 
-/// Parse an expression (Pratt parser)
-fn parse_expr(parser: &mut Parser) -> Expr {
+/// Parse a list of enum variants
+fn parse_variant_list(parser: &mut Parser) -> Vec<VariantDef> {
+    let mut variants = Vec::new();
+    
+    while !check(parser, TokenKind::RightBrace) && !is_at_end(parser) {
+        // Parse variant name
+        let variant_name_token = expect(parser, TokenKind::Identifier, "Expected variant name");
+        let variant_name = variant_name_token.value.clone();
+        
+        // Check if variant has data
+        let has_data: bool;
+        let data_type: Type;
+        
+        if check(parser, TokenKind::LeftParen) {
+            // Tuple-style variant: Some(i32)
+            advance(parser);  // consume (
+            has_data = true;
+            data_type = parse_type(parser);
+            expect(parser, TokenKind::RightParen, "Expected ')' after variant data type");
+        } else if check(parser, TokenKind::LeftBrace) {
+            // Struct-style variant (simplified for Core-0)
+            // For now, we skip the fields
+            advance(parser);  // consume {
+            while !check(parser, TokenKind::RightBrace) && !is_at_end(parser) {
+                advance(parser);  // skip tokens
+            }
+            expect(parser, TokenKind::RightBrace, "Expected '}' after variant fields");
+            has_data = false;
+            data_type = Type::Unit;
+        } else {
+            // Unit variant: None
+            has_data = false;
+            data_type = Type::Unit;
+        }
+        
+        variants.push(VariantDef {
+            name: variant_name,
+            has_data: has_data,
+            data_type: data_type
+        });
+        
+        // Check for comma (more variants)
+        if check(parser, TokenKind::Comma) {
+            advance(parser);
+        } else if !check(parser, TokenKind::RightBrace) {
+            // Allow optional trailing comma
+            break;
+        }
+    }
+    
+    variants
+}
+
+/// Parse an expression (Pratt parser entry point)
+fn parse_expression(parser: &mut Parser) -> Expr {
     parse_expr_bp(parser, 0)
 }
 
 /// Parse expression with binding power (Pratt parsing)
 fn parse_expr_bp(parser: &mut Parser, min_bp: i32) -> Expr {
-    // TODO: Implement Pratt parser for expressions
-    // This handles operator precedence correctly
+    // Parse prefix expression (primary)
+    let mut left = parse_prefix_expr(parser);
     
-    // 1. Parse prefix (literals, variables, unary ops, etc.)
-    // 2. While next operator has higher binding power:
-    //    - Parse infix/postfix operator
-    //    - Recursively parse right-hand side
+    // Parse infix expressions with precedence
+    loop {
+        if is_at_end(parser) {
+            break;
+        }
+        
+        // Get binding power of current operator
+        let op_bp = get_infix_binding_power(parser);
+        if op_bp < min_bp {
+            break;
+        }
+        
+        // Parse infix operator
+        left = parse_infix_expr(parser, left, op_bp);
+    }
     
-    Expr::Literal(Literal::Int(0))
+    left
+}
+
+/// Get binding power for infix operators
+fn get_infix_binding_power(parser: &Parser) -> i32 {
+    let current = peek(parser);
+    
+    // Assignment (lowest precedence)
+    if token_kind_equals(current.kind, TokenKind::Equals) {
+        return 2;
+    }
+    
+    // Logical OR
+    if token_kind_equals(current.kind, TokenKind::PipePipe) {
+        return 4;
+    }
+    
+    // Logical AND
+    if token_kind_equals(current.kind, TokenKind::AmpersandAmpersand) {
+        return 6;
+    }
+    
+    // Equality
+    if token_kind_equals(current.kind, TokenKind::EqualsEquals) {
+        return 8;
+    }
+    if token_kind_equals(current.kind, TokenKind::BangEquals) {
+        return 8;
+    }
+    
+    // Comparison
+    if token_kind_equals(current.kind, TokenKind::Less) {
+        return 10;
+    }
+    if token_kind_equals(current.kind, TokenKind::Greater) {
+        return 10;
+    }
+    if token_kind_equals(current.kind, TokenKind::LessEquals) {
+        return 10;
+    }
+    if token_kind_equals(current.kind, TokenKind::GreaterEquals) {
+        return 10;
+    }
+    
+    // Addition/Subtraction
+    if token_kind_equals(current.kind, TokenKind::Plus) {
+        return 12;
+    }
+    if token_kind_equals(current.kind, TokenKind::Minus) {
+        return 12;
+    }
+    
+    // Multiplication/Division/Modulo
+    if token_kind_equals(current.kind, TokenKind::Star) {
+        return 14;
+    }
+    if token_kind_equals(current.kind, TokenKind::Slash) {
+        return 14;
+    }
+    if token_kind_equals(current.kind, TokenKind::Percent) {
+        return 14;
+    }
+    
+    // Default: no infix operator
+    0
+}
+
+/// Parse prefix expression (unary operators and primary)
+fn parse_prefix_expr(parser: &mut Parser) -> Expr {
+    // Unary minus
+    if check(parser, TokenKind::Minus) {
+        advance(parser);
+        let expr = parse_expr_bp(parser, 16);  // High precedence for unary
+        return Expr::Unary(UnaryExpr {
+            id: new_node_id(parser),
+            op: UnaryOp::Neg,
+            expr: Box::new(expr)
+        });
+    }
+    
+    // Unary not
+    if check(parser, TokenKind::Bang) {
+        advance(parser);
+        let expr = parse_expr_bp(parser, 16);  // High precedence for unary
+        return Expr::Unary(UnaryExpr {
+            id: new_node_id(parser),
+            op: UnaryOp::Not,
+            expr: Box::new(expr)
+        });
+    }
+    
+    // Otherwise parse primary
+    parse_primary(parser)
+}
+
+/// Parse infix expression (binary operators)
+fn parse_infix_expr(parser: &mut Parser, left: Expr, bp: i32) -> Expr {
+    let op_token = advance(parser);
+    
+    // Assignment (special case)
+    if token_kind_equals(op_token.kind, TokenKind::Equals) {
+        let right = parse_expr_bp(parser, bp);
+        // Extract target name from left (should be a Var)
+        let target_name = match left {
+            Expr::Var(name) => name,
+            _ => "error"
+        };
+        return Expr::Assign(AssignExpr {
+            id: new_node_id(parser),
+            target: target_name,
+            value: Box::new(right)
+        });
+    }
+    
+    // Binary operators
+    let right = parse_expr_bp(parser, bp + 1);  // Left-associative
+    
+    let bin_op = token_kind_to_binary_op(op_token.kind);
+    
+    Expr::Binary(BinaryExpr {
+        id: new_node_id(parser),
+        op: bin_op,
+        left: Box::new(left),
+        right: Box::new(right)
+    })
+}
+
+/// Convert token kind to binary operator
+fn token_kind_to_binary_op(kind: TokenKind) -> BinaryOp {
+    // This is a simplified mapping
+    // In real implementation, we'd need proper matching
+    if token_kind_equals(kind, TokenKind::Plus) {
+        return BinaryOp::Add;
+    }
+    if token_kind_equals(kind, TokenKind::Minus) {
+        return BinaryOp::Sub;
+    }
+    if token_kind_equals(kind, TokenKind::Star) {
+        return BinaryOp::Mul;
+    }
+    if token_kind_equals(kind, TokenKind::Slash) {
+        return BinaryOp::Div;
+    }
+    if token_kind_equals(kind, TokenKind::Percent) {
+        return BinaryOp::Mod;
+    }
+    if token_kind_equals(kind, TokenKind::EqualsEquals) {
+        return BinaryOp::Eq;
+    }
+    if token_kind_equals(kind, TokenKind::BangEquals) {
+        return BinaryOp::Ne;
+    }
+    if token_kind_equals(kind, TokenKind::Less) {
+        return BinaryOp::Lt;
+    }
+    if token_kind_equals(kind, TokenKind::LessEquals) {
+        return BinaryOp::Le;
+    }
+    if token_kind_equals(kind, TokenKind::Greater) {
+        return BinaryOp::Gt;
+    }
+    if token_kind_equals(kind, TokenKind::GreaterEquals) {
+        return BinaryOp::Ge;
+    }
+    if token_kind_equals(kind, TokenKind::AmpersandAmpersand) {
+        return BinaryOp::And;
+    }
+    if token_kind_equals(kind, TokenKind::PipePipe) {
+        return BinaryOp::Or;
+    }
+    
+    // Default
+    BinaryOp::Add
 }
 
 /// Parse a primary expression (literal, variable, grouped expr, etc.)
 fn parse_primary(parser: &mut Parser) -> Expr {
-    // TODO: Implement based on current token
-    // - Number → Literal::Int
-    // - String → Literal::String
-    // - Identifier → Var or Call
-    // - ( → grouped expression
-    // - if → If expression
-    // - while → While expression
-    // - match → Match expression
-    // - { → Block expression
+    // Integer literal
+    if check(parser, TokenKind::IntegerLiteral) {
+        let token = advance(parser);
+        // Parse the value (simplified - would need proper parsing)
+        return Expr::Literal(Literal::Int(0));  // TODO: parse actual value
+    }
     
+    // Float literal
+    if check(parser, TokenKind::FloatLiteral) {
+        let token = advance(parser);
+        return Expr::Literal(Literal::Float(0.0));  // TODO: parse actual value
+    }
+    
+    // String literal
+    if check(parser, TokenKind::StringLiteral) {
+        let token = advance(parser);
+        let value = token.value.clone();
+        return Expr::Literal(Literal::String(value));
+    }
+    
+    // Boolean literals
+    if check(parser, TokenKind::True) {
+        advance(parser);
+        return Expr::Literal(Literal::Bool(true));
+    }
+    
+    if check(parser, TokenKind::False) {
+        advance(parser);
+        return Expr::Literal(Literal::Bool(false));
+    }
+    
+    // Identifier (variable or function call)
+    if check(parser, TokenKind::Identifier) {
+        let name_token = advance(parser);
+        let name = name_token.value.clone();
+        
+        // Check for function call
+        if check(parser, TokenKind::LeftParen) {
+            advance(parser);  // consume (
+            let args = parse_argument_list(parser);
+            expect(parser, TokenKind::RightParen, "Expected ')' after function arguments");
+            return Expr::Call(CallExpr {
+                id: new_node_id(parser),
+                func: name,
+                args: args
+            });
+        }
+        
+        // Otherwise it's a variable
+        return Expr::Var(name);
+    }
+    
+    // Grouped expression: (expr)
+    if check(parser, TokenKind::LeftParen) {
+        advance(parser);  // consume (
+        let expr = parse_expression(parser);
+        expect(parser, TokenKind::RightParen, "Expected ')' after expression");
+        return expr;
+    }
+    
+    // Block expression: { ... }
+    if check(parser, TokenKind::LeftBrace) {
+        return Expr::Block(parse_block(parser));
+    }
+    
+    // If expression
+    if check(parser, TokenKind::If) {
+        return Expr::If(parse_if(parser));
+    }
+    
+    // While loop
+    if check(parser, TokenKind::While) {
+        return Expr::While(parse_while(parser));
+    }
+    
+    // Loop
+    if check(parser, TokenKind::Loop) {
+        return Expr::Loop(parse_loop(parser));
+    }
+    
+    // Match expression
+    if check(parser, TokenKind::Match) {
+        return Expr::Match(parse_match(parser));
+    }
+    
+    // Default: return a dummy literal
     Expr::Literal(Literal::Int(0))
+}
+
+/// Parse a function call argument list
+fn parse_argument_list(parser: &mut Parser) -> Vec<Expr> {
+    let mut args = Vec::new();
+    
+    while !check(parser, TokenKind::RightParen) && !is_at_end(parser) {
+        let arg = parse_expression(parser);
+        args.push(arg);
+        
+        // Check for comma (more arguments)
+        if check(parser, TokenKind::Comma) {
+            advance(parser);
+        } else if !check(parser, TokenKind::RightParen) {
+            // Error: expected comma or closing paren
+            expect(parser, TokenKind::Comma, "Expected ',' between arguments");
+        }
+    }
+    
+    args
+}
+
+/// Parse a loop expression
+fn parse_loop(parser: &mut Parser) -> LoopExpr {
+    // Expect 'loop' keyword
+    expect(parser, TokenKind::Loop, "Expected 'loop'");
+    
+    // Parse body
+    let body = Expr::Block(parse_block(parser));
+    
+    LoopExpr {
+        id: new_node_id(parser),
+        body: Box::new(body)
+    }
 }
 
 /// Parse a block expression
 fn parse_block(parser: &mut Parser) -> BlockExpr {
-    // TODO: Implement block parsing
-    // 1. Expect '{'
-    // 2. Parse statements/expressions
-    // 3. Expect '}'
+    // Expect opening brace
+    expect(parser, TokenKind::LeftBrace, "Expected '{'");
+    
+    let mut stmts = Vec::new();
+    
+    // Parse statements/expressions until closing brace
+    while !check(parser, TokenKind::RightBrace) && !is_at_end(parser) {
+        let expr = parse_statement(parser);
+        stmts.push(expr);
+    }
+    
+    // Expect closing brace
+    expect(parser, TokenKind::RightBrace, "Expected '}'");
     
     BlockExpr {
         id: new_node_id(parser),
-        stmts: Vec::new()
+        stmts: stmts
     }
+}
+
+/// Parse a statement (could be let, return, or expression)
+fn parse_statement(parser: &mut Parser) -> Expr {
+    // Check for let statement
+    if check(parser, TokenKind::Let) {
+        return parse_let_statement(parser);
+    }
+    
+    // Check for return statement
+    if check(parser, TokenKind::Return) {
+        return parse_return_statement(parser);
+    }
+    
+    // Check for break
+    if check(parser, TokenKind::Break) {
+        advance(parser);
+        if check(parser, TokenKind::Semicolon) {
+            advance(parser);
+        }
+        return Expr::Break;
+    }
+    
+    // Check for continue
+    if check(parser, TokenKind::Continue) {
+        advance(parser);
+        if check(parser, TokenKind::Semicolon) {
+            advance(parser);
+        }
+        return Expr::Continue;
+    }
+    
+    // Otherwise parse as expression
+    let expr = parse_expression(parser);
+    
+    // Consume optional semicolon
+    if check(parser, TokenKind::Semicolon) {
+        advance(parser);
+    }
+    
+    expr
+}
+
+/// Parse a let statement
+fn parse_let_statement(parser: &mut Parser) -> Expr {
+    // Expect 'let' keyword
+    expect(parser, TokenKind::Let, "Expected 'let'");
+    
+    // Check for mut
+    let is_mutable = if check(parser, TokenKind::Mut) {
+        advance(parser);
+        true
+    } else {
+        false
+    };
+    
+    // Parse variable name
+    let name_token = expect(parser, TokenKind::Identifier, "Expected variable name");
+    let var_name = name_token.value.clone();
+    
+    // Parse optional type annotation
+    let var_type = if check(parser, TokenKind::Colon) {
+        advance(parser);  // consume :
+        parse_type(parser)
+    } else {
+        Type::Unit  // Inferred
+    };
+    
+    // Expect = 
+    expect(parser, TokenKind::Equals, "Expected '=' in let statement");
+    
+    // Parse initializer expression
+    let init_expr = parse_expression(parser);
+    
+    // Consume semicolon
+    if check(parser, TokenKind::Semicolon) {
+        advance(parser);
+    }
+    
+    Expr::Let(LetStmt {
+        id: new_node_id(parser),
+        name: var_name,
+        mutable: is_mutable,
+        value_type: var_type,
+        value: Box::new(init_expr)
+    })
+}
+
+/// Parse a return statement
+fn parse_return_statement(parser: &mut Parser) -> Expr {
+    // Expect 'return' keyword
+    expect(parser, TokenKind::Return, "Expected 'return'");
+    
+    // Parse optional return value
+    let return_value = if check(parser, TokenKind::Semicolon) {
+        Box::new(Expr::Literal(Literal::Int(0)))  // Unit return
+    } else {
+        Box::new(parse_expression(parser))
+    };
+    
+    // Consume semicolon
+    if check(parser, TokenKind::Semicolon) {
+        advance(parser);
+    }
+    
+    Expr::Return(ReturnExpr {
+        id: new_node_id(parser),
+        value: return_value
+    })
 }
 
 /// Parse an if expression
 fn parse_if(parser: &mut Parser) -> IfExpr {
-    // TODO: Implement if parsing
-    // 1. Expect 'if'
-    // 2. Parse condition
-    // 3. Parse then block
-    // 4. Optionally parse else block
+    // Expect 'if' keyword
+    expect(parser, TokenKind::If, "Expected 'if'");
+    
+    // Parse condition
+    let condition = parse_expression(parser);
+    
+    // Parse then block
+    let then_branch = Expr::Block(parse_block(parser));
+    
+    // Parse optional else block
+    let else_branch = if check(parser, TokenKind::Else) {
+        advance(parser);  // consume 'else'
+        
+        // Check if it's 'else if' or just 'else'
+        if check(parser, TokenKind::If) {
+            Expr::If(parse_if(parser))
+        } else {
+            Expr::Block(parse_block(parser))
+        }
+    } else {
+        // No else branch - use empty block
+        Expr::Block(BlockExpr {
+            id: new_node_id(parser),
+            stmts: Vec::new()
+        })
+    };
     
     IfExpr {
         id: new_node_id(parser),
-        condition: Box::new(Expr::Literal(Literal::Bool(true))),
-        then_branch: Box::new(Expr::Block(BlockExpr {
-            id: new_node_id(parser),
-            stmts: Vec::new()
-        })),
-        else_branch: None
+        condition: Box::new(condition),
+        then_branch: Box::new(then_branch),
+        else_branch: Box::new(else_branch)
     }
 }
 
 /// Parse a while loop
 fn parse_while(parser: &mut Parser) -> WhileExpr {
-    // TODO: Implement while parsing
+    // Expect 'while' keyword
+    expect(parser, TokenKind::While, "Expected 'while'");
+    
+    // Parse condition
+    let condition = parse_expression(parser);
+    
+    // Parse body
+    let body = Expr::Block(parse_block(parser));
     
     WhileExpr {
         id: new_node_id(parser),
-        condition: Box::new(Expr::Literal(Literal::Bool(true))),
-        body: Box::new(Expr::Block(BlockExpr {
-            id: new_node_id(parser),
-            stmts: Vec::new()
-        }))
+        condition: Box::new(condition),
+        body: Box::new(body)
     }
 }
 
 /// Parse a match expression
 fn parse_match(parser: &mut Parser) -> MatchExpr {
-    // TODO: Implement match parsing
-    // 1. Expect 'match'
-    // 2. Parse scrutinee
-    // 3. Parse match arms
+    // Expect 'match' keyword
+    expect(parser, TokenKind::Match, "Expected 'match'");
+    
+    // Parse scrutinee
+    let scrutinee = parse_expression(parser);
+    
+    // Expect opening brace
+    expect(parser, TokenKind::LeftBrace, "Expected '{' after match scrutinee");
+    
+    // Parse match arms
+    let arms = parse_match_arms(parser);
+    
+    // Expect closing brace
+    expect(parser, TokenKind::RightBrace, "Expected '}' after match arms");
     
     MatchExpr {
         id: new_node_id(parser),
-        scrutinee: Box::new(Expr::Literal(Literal::Int(0))),
-        arms: Vec::new()
+        scrutinee: Box::new(scrutinee),
+        arms: arms
     }
+}
+
+/// Parse match arms
+fn parse_match_arms(parser: &mut Parser) -> Vec<MatchArm> {
+    let mut arms = Vec::new();
+    
+    while !check(parser, TokenKind::RightBrace) && !is_at_end(parser) {
+        // Parse pattern
+        let pattern = parse_pattern(parser);
+        
+        // Expect =>
+        expect(parser, TokenKind::FatArrow, "Expected '=>' after match pattern");
+        
+        // Parse body expression
+        let body = parse_expression(parser);
+        
+        arms.push(MatchArm {
+            pattern: pattern,
+            body: body
+        });
+        
+        // Check for comma (more arms)
+        if check(parser, TokenKind::Comma) {
+            advance(parser);
+        } else if !check(parser, TokenKind::RightBrace) {
+            // Allow optional trailing comma
+            break;
+        }
+    }
+    
+    arms
 }
 
 /// Parse a pattern
 fn parse_pattern(parser: &mut Parser) -> Pattern {
-    // TODO: Implement pattern parsing
-    // - _ → Wildcard
-    // - Literal → Literal pattern
-    // - Identifier → Var pattern
-    // - Path::Variant(pat) → EnumVariant pattern
+    // Wildcard pattern: _
+    if check(parser, TokenKind::Underscore) {
+        advance(parser);
+        return Pattern::Wildcard;
+    }
     
+    // Boolean literals
+    if check(parser, TokenKind::True) {
+        advance(parser);
+        return Pattern::Literal(Literal::Bool(true));
+    }
+    
+    if check(parser, TokenKind::False) {
+        advance(parser);
+        return Pattern::Literal(Literal::Bool(false));
+    }
+    
+    // Integer literal
+    if check(parser, TokenKind::IntegerLiteral) {
+        let token = advance(parser);
+        return Pattern::Literal(Literal::Int(0));  // TODO: parse actual value
+    }
+    
+    // String literal
+    if check(parser, TokenKind::StringLiteral) {
+        let token = advance(parser);
+        let value = token.value.clone();
+        return Pattern::Literal(Literal::String(value));
+    }
+    
+    // Identifier (could be variable or enum variant)
+    if check(parser, TokenKind::Identifier) {
+        let name_token = advance(parser);
+        let name = name_token.value.clone();
+        
+        // Check for enum variant with data: Some(x)
+        if check(parser, TokenKind::LeftParen) {
+            advance(parser);  // consume (
+            let inner_pattern = parse_pattern(parser);
+            expect(parser, TokenKind::RightParen, "Expected ')' after pattern");
+            return Pattern::EnumVariant(name, Box::new(inner_pattern));
+        }
+        
+        // Check for path: Option::Some
+        if check(parser, TokenKind::ColonColon) {
+            advance(parser);  // consume ::
+            let variant_token = expect(parser, TokenKind::Identifier, "Expected variant name after '::'");
+            let variant_name = variant_token.value.clone();
+            
+            // Check if variant has data
+            if check(parser, TokenKind::LeftParen) {
+                advance(parser);  // consume (
+                let inner_pattern = parse_pattern(parser);
+                expect(parser, TokenKind::RightParen, "Expected ')' after pattern");
+                let full_name = name + "::" + variant_name;
+                return Pattern::EnumVariant(full_name, Box::new(inner_pattern));
+            }
+            
+            // Just the variant name
+            let full_name = name + "::" + variant_name;
+            return Pattern::EnumVariant(full_name, Box::new(Pattern::Wildcard));
+        }
+        
+        // Simple variable pattern
+        return Pattern::Var(name);
+    }
+    
+    // Default: wildcard
     Pattern::Wildcard
 }
 
 /// Parse a type annotation
 fn parse_type(parser: &mut Parser) -> Type {
-    // TODO: Implement type parsing
-    // - Simple name → Named
-    // - Path::Name → Path
-    // - () → Unit
+    // Check for unit type ()
+    if check(parser, TokenKind::LeftParen) {
+        let next = peek_ahead(parser, 1);
+        if token_kind_equals(next.kind, TokenKind::RightParen) {
+            advance(parser);  // consume (
+            advance(parser);  // consume )
+            return Type::Unit;
+        }
+    }
     
+    // Parse identifier (could be simple type or start of path)
+    if check(parser, TokenKind::Identifier) {
+        let name_token = advance(parser);
+        let type_name = name_token.value.clone();
+        
+        // Check for generic type like Vec<i32>
+        if check(parser, TokenKind::Less) {
+            advance(parser);  // consume <
+            let _inner_type = parse_type(parser);
+            expect(parser, TokenKind::Greater, "Expected '>' after generic type parameter");
+            // For Core-0, we simplify and just store the base name
+            return Type::Named(type_name);
+        }
+        
+        // Check for path like Option::Some
+        if check(parser, TokenKind::ColonColon) {
+            let mut path_segments = Vec::new();
+            path_segments.push(type_name);
+            
+            while check(parser, TokenKind::ColonColon) {
+                advance(parser);  // consume ::
+                let segment_token = expect(parser, TokenKind::Identifier, "Expected identifier after '::'");
+                path_segments.push(segment_token.value.clone());
+            }
+            
+            return Type::Path(path_segments);
+        }
+        
+        // Simple named type
+        return Type::Named(type_name);
+    }
+    
+    // Default to Unit if we can't parse
     Type::Unit
 }
 
