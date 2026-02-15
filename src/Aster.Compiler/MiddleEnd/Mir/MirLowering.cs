@@ -56,7 +56,15 @@ public sealed class MirLowering
         // Add return if not already terminated
         if (_currentBlock?.Terminator == null)
         {
-            _currentBlock!.Terminator = new MirReturn(result);
+            // If function returns void, don't return the tail expression value
+            if (_currentFunction.ReturnType.Name == "void")
+            {
+                _currentBlock!.Terminator = new MirReturn(null);
+            }
+            else
+            {
+                _currentBlock!.Terminator = new MirReturn(result);
+            }
         }
 
         return _currentFunction;
@@ -121,6 +129,11 @@ public sealed class MirLowering
         if (ret.Value != null)
         {
             value = LowerExpr(ret.Value);
+            // Coerce the return value type to match the function's return type
+            if (value != null && _currentFunction != null)
+            {
+                value = CoerceType(value, _currentFunction.ReturnType);
+            }
         }
         _currentBlock!.Terminator = new MirReturn(value);
     }
@@ -153,7 +166,17 @@ public sealed class MirLowering
                 return LowerLiteral(lit);
 
             case HirIdentifierExpr id:
-                return MirOperand.Variable(id.Name, MirType.I64);
+                // Try to find the type from function parameters
+                var paramType = MirType.I64; // default
+                if (_currentFunction != null)
+                {
+                    var param = _currentFunction.Parameters.FirstOrDefault(p => p.Name == id.Name);
+                    if (param != null)
+                    {
+                        paramType = param.Type;
+                    }
+                }
+                return MirOperand.Variable(id.Name, paramType);
 
             case HirCallExpr call:
                 return LowerCall(call);
@@ -220,7 +243,26 @@ public sealed class MirLowering
     {
         var left = LowerExpr(bin.Left)!;
         var right = LowerExpr(bin.Right)!;
-        var result = NewTemp(MirType.I64);
+        
+        // Infer result type from operands (use left operand's type)
+        // For comparison operators, result is always bool
+        MirType resultType;
+        switch (bin.Operator)
+        {
+            case BinaryOperator.Eq:
+            case BinaryOperator.Ne:
+            case BinaryOperator.Lt:
+            case BinaryOperator.Le:
+            case BinaryOperator.Gt:
+            case BinaryOperator.Ge:
+                resultType = MirType.Bool;
+                break;
+            default:
+                resultType = left.Type;
+                break;
+        }
+        
+        var result = NewTemp(resultType);
         Emit(new MirInstruction(MirOpcode.BinaryOp, result, new[] { left, right }, bin.Operator));
         return result;
     }
@@ -228,7 +270,8 @@ public sealed class MirLowering
     private MirOperand LowerUnary(HirUnaryExpr un)
     {
         var operand = LowerExpr(un.Operand)!;
-        var result = NewTemp(MirType.I64);
+        // Infer result type from operand
+        var result = NewTemp(operand.Type);
         Emit(new MirInstruction(MirOpcode.UnaryOp, result, new[] { operand }, un.Operator));
         return result;
     }
@@ -295,4 +338,42 @@ public sealed class MirLowering
     private MirOperand NewTemp(MirType type) => MirOperand.Temp($"_t{_tempCounter++}", type);
 
     private void Emit(MirInstruction instruction) => _currentBlock!.AddInstruction(instruction);
+
+    /// <summary>
+    /// Coerce an operand to a target type if it's a constant with a compatible but different type.
+    /// This is primarily for handling integer literals that default to i64 but need to be i32, etc.
+    /// </summary>
+    private MirOperand CoerceType(MirOperand operand, MirType targetType)
+    {
+        // If the operand is already the target type, no coercion needed
+        if (operand.Type.Name == targetType.Name)
+            return operand;
+
+        // Only coerce constants
+        if (operand.Kind != MirOperandKind.Constant)
+            return operand;
+
+        // Coerce integer types
+        if (targetType.Name == "i32" && operand.Type.Name == "i64")
+        {
+            return MirOperand.Constant(operand.Value, MirType.I32);
+        }
+        if (targetType.Name == "i64" && operand.Type.Name == "i32")
+        {
+            return MirOperand.Constant(operand.Value, MirType.I64);
+        }
+
+        // Coerce float types
+        if (targetType.Name == "f32" && operand.Type.Name == "f64")
+        {
+            return MirOperand.Constant(operand.Value, MirType.F32);
+        }
+        if (targetType.Name == "f64" && operand.Type.Name == "f32")
+        {
+            return MirOperand.Constant(operand.Value, MirType.F64);
+        }
+
+        // Default: return original operand
+        return operand;
+    }
 }

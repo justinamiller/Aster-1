@@ -318,10 +318,25 @@ public sealed class TypeChecker
 
     private AsterType CheckBlock(HirBlock block)
     {
+        AsterType? returnType = null;
+        
         foreach (var stmt in block.Statements)
         {
-            CheckNode(stmt);
+            var stmtType = CheckNode(stmt);
+            // If we encounter a return statement, track its type
+            if (stmt is HirReturnStmt ret)
+            {
+                returnType = ret.Value != null ? CheckNode(ret.Value) : PrimitiveType.Void;
+            }
         }
+        
+        // If block has a return statement, use that type
+        if (returnType != null)
+        {
+            return returnType;
+        }
+        
+        // Otherwise, use tail expression type or void
         return block.TailExpression != null ? CheckNode(block.TailExpression) : PrimitiveType.Void;
     }
 
