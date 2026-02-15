@@ -85,11 +85,11 @@ Hello, Stage 1!
 - **Integer arithmetic with proper types (i32, i64)** ✅
 - **Binary and unary operations** ✅
 - **Comparison operators** ✅
+- **Let bindings and local variables** ✅
 
 ### ⚠️ Needs Fixing
 - Multi-file linking (cross-file function calls)
 - Stage 1 compiler source code (needs implementation)
-- Let bindings and local variables type tracking
 
 ## Recommended Next Steps
 
