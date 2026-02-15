@@ -13,6 +13,12 @@ struct NodeId {
     id: u32
 }
 
+/// Complete program (top level)
+struct ProgramNode {
+    declarations: Vec<Item>,
+    span: Span
+}
+
 /// Top-level program item
 enum Item {
     Function(FunctionItem),

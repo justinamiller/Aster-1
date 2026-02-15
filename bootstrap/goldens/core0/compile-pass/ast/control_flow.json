@@ -1,0 +1,22 @@
+{
+  "Declarations": [
+    {
+      "Span": {
+        "File": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+        "Line": 5,
+        "Column": 1,
+        "Start": 106,
+        "Length": 359,
+        "End": 465
+      }
+    }
+  ],
+  "Span": {
+    "File": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/control_flow.ast",
+    "Line": 5,
+    "Column": 1,
+    "Start": 106,
+    "Length": 2,
+    "End": 108
+  }
+}

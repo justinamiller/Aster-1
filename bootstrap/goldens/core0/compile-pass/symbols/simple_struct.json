@@ -1,0 +1,35 @@
+{
+  "Declarations": [
+    {
+      "Span": {
+        "File": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_struct.ast",
+        "Line": 8,
+        "Column": 1,
+        "Start": 220,
+        "Length": 39,
+        "End": 259
+      },
+      "Id": 5
+    },
+    {
+      "Span": {
+        "File": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_struct.ast",
+        "Line": 13,
+        "Column": 1,
+        "Start": 261,
+        "Length": 90,
+        "End": 351
+      },
+      "Id": 23
+    }
+  ],
+  "Span": {
+    "File": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_struct.ast",
+    "Line": 8,
+    "Column": 1,
+    "Start": 220,
+    "Length": 6,
+    "End": 226
+  },
+  "Id": 24
+}

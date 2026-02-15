@@ -1,0 +1,310 @@
+// Main - CLI Entry Point for Aster Stage 1 Compiler
+// Part of Aster Stage 1 (Core-0 implementation)
+//
+// This is the main entry point for the aster1 compiler.
+// It handles command-line arguments and dispatches to the appropriate functions.
+//
+// Language Subset: Core-0
+// - Uses only: structs, enums, Vec, String, functions, while loops
+// - No traits, no async, no closures
+
+// use crate::driver::*;
+// use crate::lexer::*;
+// use crate::parser::*;
+
+/// Command-line arguments
+struct CliArgs {
+    command: Command,
+    input_file: String,
+    output_file: String
+}
+
+/// Available commands
+enum Command {
+    EmitTokens,      // Emit token stream as JSON
+    EmitAstJson,     // Emit AST as JSON
+    EmitSymbolsJson, // Emit symbol table as JSON
+    Build,           // Full compilation
+    Help             // Show help message
+}
+
+/// Parse command-line arguments
+fn parse_args(args: Vec<String>) -> CliArgs {
+    // Default values
+    let mut command = Command::Help;
+    let mut input_file = "";
+    let mut output_file = "";
+    
+    // Simple argument parsing
+    // Expected format: aster1 <command> <input-file> [options]
+    
+    if args.len() < 2 {
+        return CliArgs {
+            command: Command::Help,
+            input_file: "",
+            output_file: ""
+        };
+    }
+    
+    // Parse command (first argument)
+    let cmd_str = args[1].clone();
+    if cmd_str == "emit-tokens" {
+        command = Command::EmitTokens;
+    } else if cmd_str == "emit-ast-json" {
+        command = Command::EmitAstJson;
+    } else if cmd_str == "emit-symbols-json" {
+        command = Command::EmitSymbolsJson;
+    } else if cmd_str == "build" {
+        command = Command::Build;
+    } else if cmd_str == "help" || cmd_str == "--help" || cmd_str == "-h" {
+        command = Command::Help;
+    }
+    
+    // Parse input file (second argument)
+    if args.len() >= 3 {
+        input_file = args[2].clone();
+    }
+    
+    // Parse output file (optional)
+    if args.len() >= 4 {
+        output_file = args[3].clone();
+    } else {
+        // Default output file based on input
+        output_file = input_file + ".out";
+    }
+    
+    CliArgs {
+        command: command,
+        input_file: input_file,
+        output_file: output_file
+    }
+}
+
+/// Print help message
+fn print_help() {
+    println("Aster Stage 1 Compiler");
+    println("");
+    println("Usage: aster1 <command> <input-file> [output-file]");
+    println("");
+    println("Commands:");
+    println("  emit-tokens         Emit token stream as JSON");
+    println("  emit-ast-json       Emit AST as JSON");
+    println("  emit-symbols-json   Emit symbol table/HIR as JSON");
+    println("  build               Compile to LLVM IR");
+    println("  help                Show this message");
+    println("");
+    println("Examples:");
+    println("  aster1 emit-tokens program.ast");
+    println("  aster1 emit-ast-json program.ast");
+    println("  aster1 build program.ast program.ll");
+}
+
+/// Main entry point
+fn main(args: Vec<String>) -> i32 {
+    let cli_args = parse_args(args);
+    
+    // Handle help command
+    match cli_args.command {
+        Command::Help => {
+            print_help();
+            return 0;
+        },
+        _ => {}
+    }
+    
+    // Validate input file
+    if cli_args.input_file == "" {
+        println("Error: No input file specified");
+        print_help();
+        return 1;
+    }
+    
+    // Read source file
+    let source = read_file(cli_args.input_file);
+    if source == "" {
+        println("Error: Could not read input file");
+        return 1;
+    }
+    
+    // Execute command
+    match cli_args.command {
+        Command::EmitTokens => {
+            return emit_tokens_command(cli_args.input_file, source);
+        },
+        Command::EmitAstJson => {
+            return emit_ast_json_command(cli_args.input_file, source);
+        },
+        Command::EmitSymbolsJson => {
+            return emit_symbols_json_command(cli_args.input_file, source);
+        },
+        Command::Build => {
+            return build_command(cli_args.input_file, cli_args.output_file, source);
+        },
+        Command::Help => {
+            // Already handled above
+            return 0;
+        }
+    }
+}
+
+/// Emit tokens command
+fn emit_tokens_command(input_file: String, source: String) -> i32 {
+    // Create lexer
+    let mut lexer = new_lexer(source, input_file);
+    
+    // Tokenize
+    let tokens = tokenize(lexer);
+    
+    // Convert tokens to JSON
+    let json = tokens_to_json(tokens);
+    
+    // Print to stdout
+    println(json);
+    
+    return 0;
+}
+
+/// Emit AST as JSON command
+fn emit_ast_json_command(input_file: String, source: String) -> i32 {
+    // Lex
+    let mut lexer = new_lexer(source, input_file);
+    let tokens = tokenize(lexer);
+    
+    // Parse
+    let mut parser = new_parser(tokens);
+    let program = parse_program(parser);
+    
+    // Convert AST to JSON
+    let json = ast_to_json(program);
+    
+    // Print to stdout
+    println(json);
+    
+    return 0;
+}
+
+/// Emit symbols/HIR as JSON command
+fn emit_symbols_json_command(input_file: String, source: String) -> i32 {
+    // Lex
+    let mut lexer = new_lexer(source, input_file);
+    let tokens = tokenize(lexer);
+    
+    // Parse
+    let mut parser = new_parser(tokens);
+    let program = parse_program(parser);
+    
+    // Build symbol table
+    let symbol_table = build_symbol_table(program);
+    
+    // Convert to JSON
+    let json = symbols_to_json(symbol_table);
+    
+    // Print to stdout
+    println(json);
+    
+    return 0;
+}
+
+/// Build command (full compilation)
+fn build_command(input_file: String, output_file: String, source: String) -> i32 {
+    // Create compile options
+    let options = CompileOptions {
+        input_file: input_file,
+        output_file: output_file,
+        emit_llvm: true,
+        emit_ast: false,
+        stage1_mode: true
+    };
+    
+    // Compile
+    let result = compile(options, source);
+    
+    // Check for errors
+    if !result.success {
+        println("Compilation failed:");
+        let mut i = 0;
+        while i < result.errors.len() {
+            println(result.errors[i]);
+            i = i + 1;
+        }
+        return 1;
+    }
+    
+    // Write output
+    write_file(output_file, result.output);
+    
+    println("Compilation successful");
+    return 0;
+}
+
+// ========== Helper Functions ==========
+
+/// Read a file into a string
+fn read_file(path: String) -> String {
+    // TODO: Actual file I/O
+    // This is a placeholder - would need to call external function
+    ""
+}
+
+/// Write a string to a file
+fn write_file(path: String, contents: String) {
+    // TODO: Actual file I/O
+    // This is a placeholder - would need to call external function
+}
+
+/// Print a string to stdout
+fn println(s: String) {
+    // TODO: Actual I/O
+    // This is a placeholder - would need to call external function
+}
+
+/// Convert tokens to JSON
+fn tokens_to_json(tokens: Vec<Token>) -> String {
+    // TODO: Implement JSON serialization for tokens
+    // For now, return a placeholder
+    let mut json = "[";
+    let mut i = 0;
+    while i < tokens.len() {
+        let token = tokens[i];
+        // Add token to JSON array
+        if i > 0 {
+            json = json + ",";
+        }
+        json = json + token_to_json_object(token);
+        i = i + 1;
+    }
+    json = json + "]";
+    json
+}
+
+/// Convert a single token to JSON object
+fn token_to_json_object(token: Token) -> String {
+    // TODO: Proper JSON formatting
+    "{\"kind\":\"" + token_kind_to_string(token.kind) + "\",\"value\":\"" + token.value + "\"}"
+}
+
+/// Convert AST to JSON
+fn ast_to_json(program: ProgramNode) -> String {
+    // TODO: Implement JSON serialization for AST
+    // For now, return a placeholder
+    "{\"type\":\"Program\",\"declarations\":[]}"
+}
+
+/// Convert symbol table to JSON
+fn symbols_to_json(symbols: SymbolTable) -> String {
+    // TODO: Implement JSON serialization for symbols
+    // For now, return a placeholder
+    "{\"functions\":[],\"structs\":[],\"enums\":[]}"
+}
+
+/// Convert token kind to string
+fn token_kind_to_string(kind: TokenKind) -> String {
+    // TODO: Proper implementation
+    "Unknown"
+}
+
+/// Build symbol table from AST
+fn build_symbol_table(program: ProgramNode) -> SymbolTable {
+    // TODO: Implement symbol table construction
+    new_symbol_table()
+}

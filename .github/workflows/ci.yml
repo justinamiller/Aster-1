@@ -11,13 +11,122 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
+      
       - name: Restore
         run: dotnet restore
+      
       - name: Build
         run: dotnet build --no-restore
+      
       - name: Test
         run: dotnet test --no-build --verbosity normal
+      
+      - name: Compile example to LLVM IR
+        run: dotnet run --project src/Aster.CLI -- build examples/simple_hello.ast --emit-llvm
+      
+      - name: Verify LLVM IR output exists
+        run: |
+          if [ ! -f examples/simple_hello.ll ]; then
+            echo "ERROR: LLVM IR file not generated"
+            exit 1
+          fi
+          echo "✓ LLVM IR file generated successfully"
+      
+      - name: Verify LLVM IR content
+        run: |
+          if ! grep -q "define void @main()" examples/simple_hello.ll; then
+            echo "ERROR: LLVM IR does not contain expected main function"
+            exit 1
+          fi
+          echo "✓ LLVM IR contains valid main function"
+          cat examples/simple_hello.ll
+      
+      - name: Install GCC and LLVM tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc clang llvm
+      
+      - name: Compile runtime library
+        run: |
+          gcc -c runtime/aster_runtime.c -o runtime/aster_runtime.o
+          echo "✓ Runtime library compiled"
+      
+      - name: Compile hello.ast to LLVM IR
+        run: |
+          dotnet run --project src/Aster.CLI -- build examples/hello.ast --emit-llvm
+          echo "✓ hello.ast compiled to LLVM IR"
+      
+      - name: Link and build native executable
+        run: |
+          clang examples/hello.ll runtime/aster_runtime.o -o examples/hello
+          echo "✓ Native executable created"
+      
+      - name: Run hello example
+        run: |
+          OUTPUT=$(./examples/hello)
+          echo "Output: $OUTPUT"
+          if [ "$OUTPUT" != "Hello, Aster" ]; then
+            echo "ERROR: Unexpected output"
+            exit 1
+          fi
+          echo "✓ hello.ast executed successfully with correct output"
+  
+  differential-testing:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      
+      - name: Restore
+        run: dotnet restore
+      
+      - name: Build Stage 0
+        run: ./bootstrap/scripts/bootstrap.sh
+      
+      - name: Verify golden files exist
+        run: |
+          echo "Checking golden files..."
+          ./bootstrap/scripts/diff-test-tokens.sh
+      
+      - name: Test emit-ast-json command
+        run: |
+          echo "Testing emit-ast-json on fixtures..."
+          for fixture in bootstrap/fixtures/core0/compile-pass/*.ast; do
+            echo "Testing: $fixture"
+            dotnet build/bootstrap/stage0/Aster.CLI.dll emit-ast-json "$fixture" > /tmp/ast-output.json
+            if [ ! -s /tmp/ast-output.json ]; then
+              echo "ERROR: Empty AST output for $fixture"
+              exit 1
+            fi
+            echo "✓ AST generated for $(basename $fixture)"
+          done
+      
+      - name: Test emit-symbols-json command
+        run: |
+          echo "Testing emit-symbols-json on fixtures..."
+          for fixture in bootstrap/fixtures/core0/compile-pass/*.ast; do
+            echo "Testing: $fixture"
+            dotnet build/bootstrap/stage0/Aster.CLI.dll emit-symbols-json "$fixture" > /tmp/symbols-output.json
+            if [ ! -s /tmp/symbols-output.json ]; then
+              echo "ERROR: Empty symbols output for $fixture"
+              exit 1
+            fi
+            echo "✓ Symbols generated for $(basename $fixture)"
+          done
+      
+      - name: Upload golden files
+        uses: actions/upload-artifact@v4
+        with:
+          name: bootstrap-golden-files
+          path: bootstrap/goldens/
+
+

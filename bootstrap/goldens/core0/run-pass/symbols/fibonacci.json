@@ -1,0 +1,35 @@
+{
+  "Declarations": [
+    {
+      "Span": {
+        "File": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/run-pass/fibonacci.ast",
+        "Line": 6,
+        "Column": 1,
+        "Start": 145,
+        "Length": 120,
+        "End": 265
+      },
+      "Id": 23
+    },
+    {
+      "Span": {
+        "File": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/run-pass/fibonacci.ast",
+        "Line": 14,
+        "Column": 1,
+        "Start": 267,
+        "Length": 105,
+        "End": 372
+      },
+      "Id": 44
+    }
+  ],
+  "Span": {
+    "File": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/run-pass/fibonacci.ast",
+    "Line": 6,
+    "Column": 1,
+    "Start": 145,
+    "Length": 2,
+    "End": 147
+  },
+  "Id": 45
+}

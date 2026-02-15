@@ -47,6 +47,8 @@ public static class Program
             "check" => Check(args.Skip(1).ToArray()),
             "emit-llvm" => EmitLlvm(args.Skip(1).ToArray()),
             "emit-tokens" => EmitTokens(args.Skip(1).ToArray()),
+            "emit-ast-json" => EmitAstJson(args.Skip(1).ToArray()),
+            "emit-symbols-json" => EmitSymbolsJson(args.Skip(1).ToArray()),
             "run" => Run(args.Skip(1).ToArray()),
             "fmt" => Fmt(args.Skip(1).ToArray()),
             "lint" => Lint(args.Skip(1).ToArray()),
@@ -250,6 +252,78 @@ public static class Program
         return 0;
     }
 
+    private static int EmitAstJson(string[] args)
+    {
+        if (args.Length == 0)
+        {
+            Console.Error.WriteLine("error: no input file specified");
+            return 1;
+        }
+
+        var filePath = args[0];
+        if (!File.Exists(filePath))
+        {
+            Console.Error.WriteLine($"error: file not found: {filePath}");
+            return 1;
+        }
+
+        var source = File.ReadAllText(filePath);
+        var driver = new CompilationDriver();
+        var ast = driver.EmitAst(source, filePath);
+
+        if (ast == null)
+        {
+            Console.Error.Write(driver.FormatDiagnostics());
+            return 1;
+        }
+
+        var options = new JsonSerializerOptions
+        {
+            WriteIndented = true,
+            IncludeFields = true
+        };
+
+        var json = JsonSerializer.Serialize(ast, options);
+        Console.Write(json);
+        return 0;
+    }
+
+    private static int EmitSymbolsJson(string[] args)
+    {
+        if (args.Length == 0)
+        {
+            Console.Error.WriteLine("error: no input file specified");
+            return 1;
+        }
+
+        var filePath = args[0];
+        if (!File.Exists(filePath))
+        {
+            Console.Error.WriteLine($"error: file not found: {filePath}");
+            return 1;
+        }
+
+        var source = File.ReadAllText(filePath);
+        var driver = new CompilationDriver();
+        var symbols = driver.EmitSymbols(source, filePath);
+
+        if (symbols == null)
+        {
+            Console.Error.Write(driver.FormatDiagnostics());
+            return 1;
+        }
+
+        var options = new JsonSerializerOptions
+        {
+            WriteIndented = true,
+            IncludeFields = true
+        };
+
+        var json = JsonSerializer.Serialize(symbols, options);
+        Console.Write(json);
+        return 0;
+    }
+
     private static int Run(string[] args)
     {
         if (args.Length == 0)
@@ -293,7 +367,9 @@ public static class Program
         Console.WriteLine("  build         Compile source to LLVM IR");
         Console.WriteLine("  check         Type-check without compiling");
         Console.WriteLine("  emit-llvm     Emit LLVM IR to stdout");
-        Console.WriteLine("  emit-tokens   Emit token stream as JSON (for bootstrap)");
+        Console.WriteLine("  emit-tokens   Emit token stream as JSON (for differential testing)");
+        Console.WriteLine("  emit-ast-json Emit AST as JSON (for differential testing)");
+        Console.WriteLine("  emit-symbols-json Emit symbol table as JSON (for differential testing)");
         Console.WriteLine("  run           Compile and prepare for execution");
         Console.WriteLine("  fmt           Format source files");
         Console.WriteLine("  lint          Lint source files");

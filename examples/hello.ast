@@ -1,0 +1,7 @@
+// Minimal hello world for runtime testing
+// This is a simpler version than simple_hello.ast
+// Designed to work with the minimal runtime ABI
+
+fn main() {
+    print("Hello, Aster")
+}
