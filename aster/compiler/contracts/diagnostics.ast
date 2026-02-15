@@ -1,0 +1,157 @@
+// Diagnostics - Error and warning reporting
+// Part of Aster Stage 1 (Core-0 implementation)
+//
+// This module implements diagnostic reporting for the Aster compiler.
+// Diagnostics represent errors, warnings, and notes with source location information.
+//
+// Language Subset: Core-0
+// - Uses only: structs, enums, Vec, String, functions
+// - No traits, no async, no macros
+
+/// Diagnostic severity levels
+enum DiagnosticLevel {
+    Error,
+    Warning,
+    Note,
+    Help
+}
+
+/// A diagnostic message with source location and context
+struct Diagnostic {
+    level: DiagnosticLevel,
+    code: String,
+    message: String,
+    span: Span,
+    notes: Vec<DiagnosticNote>
+}
+
+/// A supplementary note attached to a diagnostic
+struct DiagnosticNote {
+    message: String,
+    span: Span
+}
+
+/// Create a new error diagnostic
+fn error(code: String, message: String, span: Span) -> Diagnostic {
+    Diagnostic {
+        level: DiagnosticLevel::Error,
+        code: code,
+        message: message,
+        span: span,
+        notes: Vec::new()
+    }
+}
+
+/// Create a new warning diagnostic
+fn warning(code: String, message: String, span: Span) -> Diagnostic {
+    Diagnostic {
+        level: DiagnosticLevel::Warning,
+        code: code,
+        message: message,
+        span: span,
+        notes: Vec::new()
+    }
+}
+
+/// Create a new note diagnostic
+fn note(message: String, span: Span) -> Diagnostic {
+    let empty = "";
+    Diagnostic {
+        level: DiagnosticLevel::Note,
+        code: empty,
+        message: message,
+        span: span,
+        notes: Vec::new()
+    }
+}
+
+/// Add a note to a diagnostic
+fn add_note(diagnostic: &mut Diagnostic, message: String, span: Span) {
+    let note = DiagnosticNote {
+        message: message,
+        span: span
+    };
+    diagnostic.notes.push(note);
+}
+
+/// Format a diagnostic for display
+fn format_diagnostic(diagnostic: Diagnostic) -> String {
+    let mut result = String::new();
+    
+    // Format: level[code]: message
+    let level_str = match diagnostic.level {
+        DiagnosticLevel::Error => "error",
+        DiagnosticLevel::Warning => "warning",
+        DiagnosticLevel::Note => "note",
+        DiagnosticLevel::Help => "help"
+    };
+    
+    // Simplified formatting for Core-0
+    // Full implementation would build a formatted string with colors and context
+    result
+}
+
+/// Check if a diagnostic is an error
+fn is_error(diagnostic: Diagnostic) -> bool {
+    match diagnostic.level {
+        DiagnosticLevel::Error => true,
+        _ => false
+    }
+}
+
+/// Check if a diagnostic is a warning
+fn is_warning(diagnostic: Diagnostic) -> bool {
+    match diagnostic.level {
+        DiagnosticLevel::Warning => true,
+        _ => false
+    }
+}
+
+/// Diagnostic collection for accumulating errors and warnings
+struct DiagnosticBag {
+    diagnostics: Vec<Diagnostic>,
+    error_count: i32,
+    warning_count: i32
+}
+
+/// Create a new empty diagnostic bag
+fn new_diagnostic_bag() -> DiagnosticBag {
+    DiagnosticBag {
+        diagnostics: Vec::new(),
+        error_count: 0,
+        warning_count: 0
+    }
+}
+
+/// Add a diagnostic to the bag
+fn add_diagnostic(bag: &mut DiagnosticBag, diagnostic: Diagnostic) {
+    if is_error(diagnostic) {
+        bag.error_count = bag.error_count + 1;
+    }
+    if is_warning(diagnostic) {
+        bag.warning_count = bag.warning_count + 1;
+    }
+    bag.diagnostics.push(diagnostic);
+}
+
+/// Check if the bag has any errors
+fn has_errors(bag: DiagnosticBag) -> bool {
+    bag.error_count > 0
+}
+
+/// Get the error count
+fn error_count(bag: DiagnosticBag) -> i32 {
+    bag.error_count
+}
+
+/// Get the warning count
+fn warning_count(bag: DiagnosticBag) -> i32 {
+    bag.warning_count
+}
+
+/// Clear all diagnostics from the bag
+fn clear_diagnostics(bag: &mut DiagnosticBag) {
+    bag.diagnostics = Vec::new();
+    bag.error_count = 0;
+    bag.warning_count = 0;
+}
