@@ -11,6 +11,8 @@ jobs:
   bootstrap-linux:
     name: Bootstrap Stage1 (Linux)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     
     steps:
       - name: Checkout code
@@ -53,6 +55,8 @@ jobs:
   bootstrap-windows:
     name: Bootstrap Stage1 (Windows)
     runs-on: windows-latest
+    permissions:
+      contents: read
     
     steps:
       - name: Checkout code
@@ -96,6 +100,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: [bootstrap-linux]
     if: false  # Disabled until aster1 binary available
+    permissions:
+      contents: read
     
     steps:
       - name: Checkout code
