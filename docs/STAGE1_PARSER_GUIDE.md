@@ -70,134 +70,164 @@ Tokens → Parser → AST
 
 ---
 
-### Phase 2: Declaration Parsing (Week 1-2)
+### Phase 2: Declaration Parsing ✅ COMPLETE (Week 1-2)
 
 **Goal**: Parse top-level declarations (functions, structs, enums)
 
-#### 2.1 Function Declarations
+**Status**: ✅ Complete (2026-02-15)
 
-Parse function syntax:
-```rust
-fn function_name(param1: Type1, param2: Type2) -> ReturnType {
-    // body
-}
-```
+#### 2.1 Function Declarations ✅
 
-**Implementation**:
-- [ ] `parse_function()` function
-  - [ ] Parse `fn` keyword
-  - [ ] Parse function name (identifier)
-  - [ ] Parse parameter list `(param: Type, ...)`
-  - [ ] Parse return type `-> Type` (optional, defaults to `()`)
-  - [ ] Parse function body (block expression)
-- [ ] Helper: `parse_parameter()` for function parameters
-- [ ] Helper: `parse_parameter_list()` for parameter list
+**Implementation**: COMPLETE
+- [x] `parse_function()` function
+  - [x] Parse `fn` keyword
+  - [x] Parse function name (identifier)
+  - [x] Parse parameter list `(param: Type, ...)`
+  - [x] Parse return type `-> Type` (optional, defaults to `()`)
+  - [x] Parse function body (block expression)
+- [x] Helper: `parse_parameter_list()` for parameter list
 
-**Testing**:
-```rust
-// Test fixtures
-fn simple() {}
-fn with_params(x: i32, y: i32) {}
-fn with_return() -> i32 { 0 }
-fn complete(x: i32) -> bool { true }
-```
+#### 2.2 Struct Declarations ✅
 
-#### 2.2 Struct Declarations
+**Implementation**: COMPLETE
+- [x] `parse_struct()` function
+  - [x] Parse `struct` keyword
+  - [x] Parse struct name
+  - [x] Parse `{`
+  - [x] Parse field list
+  - [x] Parse `}`
+- [x] Helper: `parse_field_list()` for multiple fields
 
-Parse struct syntax:
-```rust
-struct StructName {
-    field1: Type1,
-    field2: Type2
-}
-```
+#### 2.3 Enum Declarations ✅
 
-**Implementation**:
-- [ ] `parse_struct()` function
-  - [ ] Parse `struct` keyword
-  - [ ] Parse struct name
-  - [ ] Parse `{`
-  - [ ] Parse field list
-  - [ ] Parse `}`
-- [ ] Helper: `parse_field()` for struct fields
-- [ ] Helper: `parse_field_list()` for multiple fields
+**Implementation**: COMPLETE
+- [x] `parse_enum()` function
+  - [x] Parse `enum` keyword
+  - [x] Parse enum name
+  - [x] Parse `{`
+  - [x] Parse variant list
+  - [x] Parse `}`
+- [x] Helper: `parse_variant_list()` for multiple variants
 
-**Testing**:
-```rust
-struct Empty {}
-struct Point { x: i32, y: i32 }
-struct Token { kind: TokenKind, text: String }
-```
+#### 2.4 Top-Level Program ✅
 
-#### 2.3 Enum Declarations
-
-Parse enum syntax:
-```rust
-enum EnumName {
-    Variant1,
-    Variant2(Type),
-    Variant3 { field: Type }
-}
-```
-
-**Implementation**:
-- [ ] `parse_enum()` function
-  - [ ] Parse `enum` keyword
-  - [ ] Parse enum name
-  - [ ] Parse `{`
-  - [ ] Parse variant list
-  - [ ] Parse `}`
-- [ ] Helper: `parse_variant()` for enum variants
-- [ ] Helper: `parse_variant_list()` for multiple variants
-
-**Testing**:
-```rust
-enum Simple { A, B, C }
-enum WithData { Some(i32), None }
-enum TokenKind { Identifier, Number, String }
-```
-
-#### 2.4 Top-Level Program
-
-**Implementation**:
-- [ ] `parse_program()` function
-  - [ ] Loop until EOF
-  - [ ] Call `parse_declaration()`
-  - [ ] Collect all declarations
-  - [ ] Handle errors with synchronization
-- [ ] `parse_declaration()` dispatcher
-  - [ ] Check current token
-  - [ ] Route to appropriate parser
-
-**Testing**:
-```rust
-// Complete program
-fn main() {
-    print("Hello")
-}
-
-struct Point { x: i32, y: i32 }
-
-enum Color { Red, Green, Blue }
-```
+**Implementation**: COMPLETE
+- [x] `parse_program()` function
+  - [x] Loop until EOF
+  - [x] Call `parse_declaration()`
+  - [x] Collect all declarations
+  - [x] Handle errors with synchronization
+- [x] `parse_declaration()` dispatcher
+  - [x] Check current token
+  - [x] Route to appropriate parser
 
 **Files Modified**:
-- `src/aster1/parser.ast`
-
-**Validation**:
-- Parse all Core-0 declaration fixtures
-- Verify AST structure matches expectations
-- Check error messages for invalid syntax
+- `src/aster1/parser.ast` ✅
+- `src/aster1/ast.ast` ✅ (Added ProgramNode)
 
 ---
 
-### Phase 3: Type Parsing (Week 2)
+### Phase 3: Type Parsing ✅ COMPLETE (Week 2)
 
 **Goal**: Parse type annotations
 
+**Status**: ✅ Complete (2026-02-15)
+
 #### Supported Types in Core-0
-- Primitive: `i32`, `i64`, `bool`, `String`
-- Named: `Vec`, `Option`, custom types
+- Primitive: `i32`, `i64`, `bool`, `String` ✅
+- Named: `Vec`, `Option`, custom types ✅
+- Unit: `()` ✅
+- Paths: `Option::Some` ✅
+- Generics: `Vec<T>` ✅ (simplified)
+
+**Implementation**: COMPLETE
+- [x] `parse_type()` function
+  - [x] Handle `()` for unit type
+  - [x] Handle identifiers for named types
+  - [x] Handle generic types `Vec<T>` (limited support)
+  - [x] Handle path types `Option::Some`
+
+**Files Modified**:
+- `src/aster1/parser.ast` ✅
+
+---
+
+### Phase 4: Expression Parsing ✅ COMPLETE (Week 2-3)
+
+**Goal**: Implement Pratt parser for expressions
+
+**Status**: ✅ Complete (2026-02-15)
+
+#### 4.1 Primary Expressions ✅
+
+**Implementation**: COMPLETE
+- [x] `parse_primary()` function
+  - [x] Literals: integers, booleans, strings, floats
+  - [x] Identifiers: variables
+  - [x] Function calls
+  - [x] Grouped: `( expr )`
+  - [x] Block: `{ ... }`
+  - [x] If: `if cond { ... }`
+  - [x] While: `while cond { ... }`
+  - [x] Loop: `loop { ... }`
+  - [x] Match: `match expr { ... }`
+
+#### 4.2 Binary Operators ✅
+
+**Implementation**: COMPLETE
+- [x] `parse_expression()` — Entry point
+- [x] `parse_expr_bp(min_bp)` — Pratt parser with binding power
+- [x] Operator precedence table:
+  - Assignment: `=` (bp: 2)
+  - Logical OR: `||` (bp: 4)
+  - Logical AND: `&&` (bp: 6)
+  - Equality: `==`, `!=` (bp: 8)
+  - Comparison: `<`, `>`, `<=`, `>=` (bp: 10)
+  - Addition: `+`, `-` (bp: 12)
+  - Multiplication: `*`, `/`, `%` (bp: 14)
+  - Unary: `!`, `-` (bp: 16)
+- [x] `parse_prefix_expr()` — Unary operators
+- [x] `parse_infix_expr()` — Binary operators
+- [x] `token_kind_to_binary_op()` — Operator mapping
+
+#### 4.3 Control Flow ✅
+
+**If Expressions**: COMPLETE
+- [x] `parse_if()` function
+  - [x] Parse `if` keyword
+  - [x] Parse condition
+  - [x] Parse then-branch (block)
+  - [x] Parse optional `else` branch
+  - [x] Handle `else if` chains
+
+**While Loops**: COMPLETE
+- [x] `parse_while()` function
+  - [x] Parse `while` keyword
+  - [x] Parse condition
+  - [x] Parse body (block)
+
+**Loop Loops**: COMPLETE
+- [x] `parse_loop()` function
+  - [x] Parse `loop` keyword
+  - [x] Parse body (block)
+
+#### 4.4 Function Calls ✅
+
+**Implementation**: COMPLETE
+- [x] Function call parsing in `parse_primary()`
+  - [x] Parse function name
+  - [x] Parse `(`
+  - [x] Parse argument list
+  - [x] Parse `)`
+- [x] Helper: `parse_argument_list()`
+
+**Files Modified**:
+- `src/aster1/parser.ast` ✅
+- `aster/compiler/contracts/token_kind.ast` ✅ (Added Loop, Underscore)
+
+---
+
+### Phase 5: Statement Parsing 🚧 PARTIAL (Week 3)
 - Unit: `()`
 
 **Implementation**:
@@ -319,7 +349,85 @@ vec.push(item)
 
 ---
 
-### Phase 5: Statement Parsing (Week 3)
+### Phase 5: Statement Parsing 🚧 PARTIAL (Week 3)
+
+**Goal**: Parse statements and blocks
+
+**Status**: 🚧 Partially Complete (2026-02-15)
+
+#### 5.1 Let Statements ✅
+
+**Implementation**: COMPLETE
+- [x] `parse_let_statement()` function
+  - [x] Parse `let` keyword
+  - [x] Parse pattern (identifier for now)
+  - [x] Parse optional `mut` modifier
+  - [x] Parse optional type annotation `: Type`
+  - [x] Parse `=`
+  - [x] Parse initializer expression
+  - [x] Parse `;`
+
+#### 5.2 Expression Statements ✅
+
+**Implementation**: COMPLETE
+- [x] `parse_statement()` function
+  - [x] Parse expression
+  - [x] Parse optional `;`
+  - [x] Dispatch to let/return/break/continue
+
+#### 5.3 Block Expressions ✅
+
+**Implementation**: COMPLETE
+- [x] `parse_block()` function
+  - [x] Parse `{`
+  - [x] Parse statements in sequence
+  - [x] Last expression is the value (no semicolon)
+  - [x] Parse `}`
+
+#### 5.4 Return/Break/Continue ✅
+
+**Implementation**: COMPLETE
+- [x] `parse_return_statement()` function
+- [x] Break parsing in `parse_statement()`
+- [x] Continue parsing in `parse_statement()`
+
+**Files Modified**:
+- `src/aster1/parser.ast` ✅
+
+---
+
+### Phase 6: Pattern Matching ✅ COMPLETE (Week 3)
+
+**Goal**: Parse match expressions and patterns
+
+**Status**: ✅ Complete (2026-02-15)
+
+#### 6.1 Match Expressions ✅
+
+**Implementation**: COMPLETE
+- [x] `parse_match()` function
+  - [x] Parse `match` keyword
+  - [x] Parse scrutinee expression
+  - [x] Parse `{`
+  - [x] Parse match arms
+  - [x] Parse `}`
+- [x] Helper: `parse_match_arms()`
+
+#### 6.2 Patterns ✅
+
+**Implementation**: COMPLETE
+- [x] `parse_pattern()` function
+  - [x] Literal patterns: `0`, `true`, `"hello"`
+  - [x] Variable patterns: `x`, `_`
+  - [x] Enum patterns: `Some(x)`, `None`
+  - [x] Path patterns: `Option::Some(x)`
+
+**Files Modified**:
+- `src/aster1/parser.ast` ✅
+
+---
+
+### Phase 7: Integration (Week 4)
 
 **Goal**: Parse statements and blocks
 

@@ -53,8 +53,8 @@ This document tracks the implementation status of features across all bootstrap 
 | Lexer | 🚧 80% | [lexer.ast](src/aster1/lexer.ast) |
 | Token Definitions | ✅ Complete | [Documented in lexer](src/aster1/lexer.ast) |
 | Parser Infrastructure | ✅ Complete | [parser.ast](src/aster1/parser.ast) - 18 helper functions |
-| Parser Implementation | 🚧 15% | [parser.ast](src/aster1/parser.ast) - Phase 1 done |
-| AST | 🚧 Partial | [ast.ast](src/aster1/ast.ast) |
+| Parser Implementation | ✅ 70% | [parser.ast](src/aster1/parser.ast) - Phases 1-6 done |
+| AST | ✅ Complete | [ast.ast](src/aster1/ast.ast) - All nodes defined |
 | Symbol Table | 🚧 Partial | [symbols.ast](src/aster1/symbols.ast) |
 | Type Checker | 🚧 Skeleton | [typecheck.ast](src/aster1/typecheck.ast) |
 | IR Builder | 🚧 Skeleton | [ir.ast](src/aster1/ir.ast) |
@@ -67,23 +67,30 @@ This document tracks the implementation status of features across all bootstrap 
 | **Golden Files** | ✅ Generated | 28 files: tokens, AST, symbols |
 | **Parser Guide** | ✅ Complete | [docs/STAGE1_PARSER_GUIDE.md](docs/STAGE1_PARSER_GUIDE.md) |
 
-**Parser Progress** (Phase 1 of 7 Complete):
+**Parser Progress** (6 of 7 Phases Complete):
 - ✅ Phase 1: Helper functions (peek, advance, check, expect, synchronize)
-- ⚙️ Phase 2: Declaration parsing (functions, structs, enums)  
-- ⚙️ Phase 3: Type parsing
-- ⚙️ Phase 4: Expression parsing (Pratt parser)
-- ⚙️ Phase 5: Statement parsing
-- ⚙️ Phase 6: Pattern matching
+- ✅ Phase 2: Declaration parsing (functions, structs, enums)  
+- ✅ Phase 3: Type parsing (primitives, named, generics, paths)
+- ✅ Phase 4: Expression parsing (Pratt parser, operators, literals, calls)
+- ✅ Phase 5: Statement parsing (let, return, break, continue, blocks)
+- ✅ Phase 6: Pattern matching (literals, vars, enums, wildcards)
 - ⚙️ Phase 7: Integration and testing
 
+**Parser Features Implemented**:
+- 30+ parsing functions (~900 lines)
+- Full declaration support (fn, struct, enum)
+- Complete expression grammar with Pratt parsing
+- Pattern matching for match expressions
+- Control flow (if/else, while, loop, match)
+- Operator precedence (12 levels)
+
 **Remaining Work for Stage 1**:
-1. Complete parser phases 2-7 (2-3 weeks)
-2. Complete lexer (1 week)
-3. Complete AST nodes (1 week)
-4. Implement symbol table (1 week)
-5. Create main entry point with CLI (1 week)
-6. Implement `emit-tokens` and `emit-ast-json` commands (1 week)
-7. Differential testing validation (1 week)
+1. ✅ Parser phases 1-6 (DONE!)
+2. ⚙️ Parser phase 7: Integration (1 week)
+3. Complete lexer (1 week)
+4. Create main entry point with CLI (1 week)
+5. Implement `emit-tokens` and `emit-ast-json` commands (1 week)
+6. Differential testing validation (1 week)
 
 **Estimated Completion**: 2-3 months
 
