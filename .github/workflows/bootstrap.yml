@@ -1,0 +1,126 @@
+name: Bootstrap Stage1
+
+on:
+  push:
+    branches: [ main, 'copilot/**' ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  bootstrap-linux:
+    name: Bootstrap Stage1 (Linux)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      
+      - name: Cache NuGet packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+      
+      - name: Restore dependencies
+        run: dotnet restore
+      
+      - name: Build aster0 (seed compiler)
+        run: dotnet build --configuration Release --no-restore
+      
+      - name: Test aster0
+        run: dotnet test --no-build --configuration Release --verbosity normal
+      
+      - name: Run bootstrap script
+        run: |
+          chmod +x ./scripts/bootstrap_stage1.sh
+          ./scripts/bootstrap_stage1.sh
+      
+      - name: Upload bootstrap artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: bootstrap-linux
+          path: build/bootstrap/stage1/
+          retention-days: 7
+  
+  bootstrap-windows:
+    name: Bootstrap Stage1 (Windows)
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      
+      - name: Cache NuGet packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+      
+      - name: Restore dependencies
+        run: dotnet restore
+      
+      - name: Build aster0 (seed compiler)
+        run: dotnet build --configuration Release --no-restore
+      
+      - name: Test aster0
+        run: dotnet test --no-build --configuration Release --verbosity normal
+      
+      - name: Run bootstrap script
+        run: .\scripts\bootstrap_stage1.ps1
+        shell: powershell
+      
+      - name: Upload bootstrap artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: bootstrap-windows
+          path: build/bootstrap/stage1/
+          retention-days: 7
+  
+  verify-determinism:
+    name: Verify Deterministic Build
+    runs-on: ubuntu-latest
+    needs: [bootstrap-linux]
+    if: false  # Disabled until aster1 binary available
+    permissions:
+      contents: read
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      
+      - name: Build twice
+        run: |
+          ./scripts/bootstrap_stage1.sh
+          cp build/bootstrap/stage1/test0.ll build1.ll
+          rm -rf build/bootstrap/stage1
+          ./scripts/bootstrap_stage1.sh
+          cp build/bootstrap/stage1/test0.ll build2.ll
+      
+      - name: Compare outputs
+        run: |
+          sha256sum build1.ll build2.ll
+          diff build1.ll build2.ll || (echo "Builds are not deterministic!" && exit 1)

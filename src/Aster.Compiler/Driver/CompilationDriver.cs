@@ -21,9 +21,22 @@ namespace Aster.Compiler.Driver;
 public sealed class CompilationDriver
 {
     private readonly DiagnosticBag _diagnostics = new();
+    private readonly bool _stage1Mode;
 
     /// <summary>All diagnostics from the compilation.</summary>
     public DiagnosticBag Diagnostics => _diagnostics;
+
+    /// <summary>Whether Stage1 (Core-0) mode is enabled.</summary>
+    public bool Stage1Mode => _stage1Mode;
+
+    /// <summary>
+    /// Create a new compilation driver.
+    /// </summary>
+    /// <param name="stage1Mode">If true, enforces Stage1 (Core-0) language subset restrictions.</param>
+    public CompilationDriver(bool stage1Mode = false)
+    {
+        _stage1Mode = stage1Mode;
+    }
 
     /// <summary>
     /// Compile source code through the entire pipeline.
@@ -40,7 +53,7 @@ public sealed class CompilationDriver
             return null;
 
         // Phase 2: Parsing
-        var parser = new AsterParser(tokens);
+        var parser = new AsterParser(tokens, _stage1Mode);
         var ast = parser.ParseProgram();
         _diagnostics.AddRange(parser.Diagnostics);
 
@@ -109,7 +122,7 @@ public sealed class CompilationDriver
         _diagnostics.AddRange(lexer.Diagnostics);
         if (_diagnostics.HasErrors) return false;
 
-        var parser = new AsterParser(tokens);
+        var parser = new AsterParser(tokens, _stage1Mode);
         var ast = parser.ParseProgram();
         _diagnostics.AddRange(parser.Diagnostics);
         if (_diagnostics.HasErrors) return false;

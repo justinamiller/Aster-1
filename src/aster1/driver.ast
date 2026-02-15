@@ -1,0 +1,160 @@
+// Driver - Compiler Entry Point and Pipeline
+// Part of Aster Stage 1 (Core-0 implementation)
+//
+// This module orchestrates the compilation pipeline:
+// Source → Lexer → Parser → Type Checker → IR → Codegen → LLVM IR
+//
+// Language Subset: Core-0
+// - Uses only: structs, enums, Vec, String, functions
+
+// use crate::lexer::*;
+// use crate::parser::*;
+// use crate::symbols::*;
+// use crate::typecheck::*;
+// use crate::ir::*;
+// use crate::codegen::*;
+
+/// Compilation options
+struct CompileOptions {
+    input_file: String,
+    output_file: String,
+    emit_llvm: bool,
+    emit_ast: bool,
+    stage1_mode: bool
+}
+
+/// Compilation result
+struct CompileResult {
+    success: bool,
+    errors: Vec<String>,
+    output: String
+}
+
+/// Create default compile options
+fn default_options() -> CompileOptions {
+    CompileOptions {
+        input_file: "",
+        output_file: "output.ll",
+        emit_llvm: true,
+        emit_ast: false,
+        stage1_mode: false
+    }
+}
+
+/// Main compilation function
+fn compile(options: CompileOptions, source: String) -> CompileResult {
+    // TODO: Full compilation pipeline
+    //
+    // 1. Lexing
+    let mut lexer = new_lexer(source, options.input_file);
+    let tokens = tokenize(lexer);
+    
+    // 2. Parsing
+    let parser = new_parser(tokens);
+    let items = parse_program(parser);
+    
+    // 3. Name Resolution & Symbol Table
+    let mut symbol_table = new_symbol_table();
+    // TODO: populate symbol table from items
+    
+    // 4. Type Checking
+    let type_ctx = new_type_context(symbol_table);
+    let checked_ctx = typecheck_program(type_ctx, items);
+    
+    // Check for type errors
+    if has_type_errors(checked_ctx) {
+        let errors = get_type_errors(checked_ctx);
+        return CompileResult {
+            success: false,
+            errors: format_type_errors(errors),
+            output: ""
+        };
+    }
+    
+    // 5. IR Generation
+    let ir_module = lower_ast_to_ir(items);
+    
+    // 6. Code Generation
+    let codegen_ctx = new_codegen_context();
+    let llvm_ir = codegen_module(codegen_ctx, ir_module);
+    
+    // Success
+    CompileResult {
+        success: true,
+        errors: Vec::new(),
+        output: llvm_ir
+    }
+}
+
+/// Compile a file
+fn compile_file(input_path: String, output_path: String) -> CompileResult {
+    // TODO: Read file, call compile, write output
+    
+    // For now, placeholder
+    let options = CompileOptions {
+        input_file: input_path,
+        output_file: output_path,
+        emit_llvm: true,
+        emit_ast: false,
+        stage1_mode: false
+    };
+    
+    let source = "";  // TODO: read from file
+    
+    compile(options, source)
+}
+
+/// Entry point (would be called from main())
+fn driver_main(args: Vec<String>) -> i32 {
+    // TODO: Parse command-line arguments
+    //
+    // Usage: aster1 build <input.ast> -o <output.ll>
+    //        aster1 check <input.ast>
+    //        aster1 emit-llvm <input.ast>
+    //        aster1 --stage1 build <input.ast>
+    
+    // For now, placeholder
+    let input_file = "input.ast";
+    let output_file = "output.ll";
+    
+    let result = compile_file(input_file, output_file);
+    
+    if result.success {
+        // Success
+        0
+    } else {
+        // Print errors
+        print_errors(result.errors);
+        1
+    }
+}
+
+// Helper functions
+
+fn format_type_errors(errors: Vec<TypeError>) -> Vec<String> {
+    // TODO: Convert type errors to string messages
+    Vec::new()
+}
+
+fn print_errors(errors: Vec<String>) {
+    // TODO: Print error messages to stderr
+}
+
+fn read_file(path: String) -> String {
+    // TODO: Read file contents
+    // This would require file I/O which may not be available in Core-0
+    // For bootstrap, we might need to use FFI or external helper
+    ""
+}
+
+fn write_file(path: String, content: String) -> bool {
+    // TODO: Write content to file
+    true
+}
+
+// Example usage
+fn example_compile() -> CompileResult {
+    let source = "fn main() { let x = 42; }";
+    let options = default_options();
+    compile(options, source)
+}

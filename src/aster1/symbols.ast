@@ -1,0 +1,178 @@
+// Symbols - Symbol Table and Name Resolution
+// Part of Aster Stage 1 (Core-0 implementation)
+//
+// This module implements symbol tables for name resolution.
+// Tracks variable bindings, function definitions, types, etc.
+//
+// Language Subset: Core-0
+// - Uses only: structs, enums, Vec, basic types
+// - No hash maps (use Vec with linear search for simplicity)
+
+/// Unique identifier for symbols
+struct SymbolId {
+    id: u32
+}
+
+/// Symbol information
+struct Symbol {
+    id: SymbolId,
+    name: String,
+    kind: SymbolKind,
+    scope_id: u32
+}
+
+/// Kind of symbol
+enum SymbolKind {
+    Variable(VarSymbol),
+    Function(FuncSymbol),
+    Struct(StructSymbol),
+    Enum(EnumSymbol),
+    EnumVariant(VariantSymbol)
+}
+
+struct VarSymbol {
+    mutable: bool,
+    var_type: Type
+}
+
+struct FuncSymbol {
+    params: Vec<Type>,
+    return_type: Type
+}
+
+struct StructSymbol {
+    fields: Vec<FieldSymbol>
+}
+
+struct FieldSymbol {
+    name: String,
+    field_type: Type
+}
+
+struct EnumSymbol {
+    variants: Vec<String>  // Variant names
+}
+
+struct VariantSymbol {
+    enum_name: String,
+    has_data: bool,
+    data_type: Type
+}
+
+/// Scope for tracking symbols
+struct Scope {
+    id: u32,
+    parent: i32,  // -1 for global scope, otherwise parent scope id
+    symbols: Vec<Symbol>
+}
+
+/// Symbol table managing all scopes
+struct SymbolTable {
+    scopes: Vec<Scope>,
+    current_scope: u32,
+    next_symbol_id: u32,
+    next_scope_id: u32
+}
+
+/// Create a new symbol table with global scope
+fn new_symbol_table() -> SymbolTable {
+    let mut scopes = Vec::new();
+    
+    // Create global scope
+    let global_scope = Scope {
+        id: 0,
+        parent: -1,
+        symbols: Vec::new()
+    };
+    scopes.push(global_scope);
+    
+    SymbolTable {
+        scopes: scopes,
+        current_scope: 0,
+        next_symbol_id: 0,
+        next_scope_id: 1
+    }
+}
+
+/// Enter a new scope
+fn enter_scope(table: SymbolTable) -> SymbolTable {
+    // TODO: Create new scope with current_scope as parent
+    // Increment next_scope_id
+    // Set current_scope to new scope id
+    table
+}
+
+/// Exit current scope
+fn exit_scope(table: SymbolTable) -> SymbolTable {
+    // TODO: Set current_scope to parent of current scope
+    table
+}
+
+/// Define a new symbol in current scope
+fn define_symbol(table: SymbolTable, name: String, kind: SymbolKind) -> SymbolId {
+    // TODO:
+    // 1. Create new Symbol with next_symbol_id
+    // 2. Add to current scope's symbols
+    // 3. Increment next_symbol_id
+    // 4. Return new SymbolId
+    
+    SymbolId { id: 0 }
+}
+
+/// Lookup a symbol by name in current scope or parent scopes
+fn lookup_symbol(table: SymbolTable, name: String) -> Option<Symbol> {
+    // TODO:
+    // 1. Start with current_scope
+    // 2. Search symbols for matching name
+    // 3. If not found, move to parent scope
+    // 4. Repeat until found or reach global scope
+    
+    Option::None
+}
+
+/// Lookup a symbol only in current scope (not parents)
+fn lookup_local(table: SymbolTable, name: String) -> Option<Symbol> {
+    // TODO: Search only current scope
+    
+    Option::None
+}
+
+/// Check if a name is already defined in current scope
+fn is_defined_local(table: SymbolTable, name: String) -> bool {
+    // TODO: Check if name exists in current scope
+    false
+}
+
+/// Get all symbols in current scope
+fn get_current_scope_symbols(table: SymbolTable) -> Vec<Symbol> {
+    // TODO: Return symbols from current scope
+    Vec::new()
+}
+
+// Helper functions for symbol creation
+
+fn create_var_symbol(name: String, mutable: bool, var_type: Type) -> (String, SymbolKind) {
+    (name, SymbolKind::Variable(VarSymbol {
+        mutable: mutable,
+        var_type: var_type
+    }))
+}
+
+fn create_func_symbol(name: String, params: Vec<Type>, return_type: Type) -> (String, SymbolKind) {
+    (name, SymbolKind::Function(FuncSymbol {
+        params: params,
+        return_type: return_type
+    }))
+}
+
+fn create_struct_symbol(name: String, fields: Vec<FieldSymbol>) -> (String, SymbolKind) {
+    (name, SymbolKind::Struct(StructSymbol {
+        fields: fields
+    }))
+}
+
+fn create_enum_symbol(name: String, variants: Vec<String>) -> (String, SymbolKind) {
+    (name, SymbolKind::Enum(EnumSymbol {
+        variants: variants
+    }))
+}

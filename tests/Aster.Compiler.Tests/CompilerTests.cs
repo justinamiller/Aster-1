@@ -1369,3 +1369,158 @@ fn main() {
         // Struct construction syntax may not be fully implemented
     }
 }
+
+// ========== Stage1 Mode Tests ==========
+
+public class Stage1ModeTests
+{
+    [Fact]
+    public void Stage1Mode_ValidCore0Code_Passes()
+    {
+        var source = @"
+struct Point {
+    x: i32,
+    y: i32
+}
+
+fn area(p: Point) -> i32 {
+    p.x * p.y
+}
+
+fn main() {
+    let p = Point { x: 10, y: 20 };
+    let a = area(p);
+}
+";
+        var driver = new CompilationDriver(stage1Mode: true);
+        var ok = driver.Check(source, "test.ast");
+        
+        // Should compile without Stage1 errors
+        Assert.True(ok || driver.Diagnostics.All(d => !d.Code.StartsWith("E90")));
+    }
+
+    [Fact]
+    public void Stage1Mode_RejectsTraits()
+    {
+        var source = @"
+trait Printable {
+    fn print(&self);
+}
+";
+        var driver = new CompilationDriver(stage1Mode: true);
+        var ok = driver.Check(source, "test.ast");
+        
+        Assert.False(ok);
+        Assert.Contains(driver.Diagnostics, d => d.Code == "E9001");
+    }
+
+    [Fact]
+    public void Stage1Mode_RejectsImplBlocks()
+    {
+        var source = @"
+struct Point { x: i32 }
+
+impl Point {
+    fn new() -> Point {
+        Point { x: 0 }
+    }
+}
+";
+        var driver = new CompilationDriver(stage1Mode: true);
+        var ok = driver.Check(source, "test.ast");
+        
+        Assert.False(ok);
+        Assert.Contains(driver.Diagnostics, d => d.Code == "E9002");
+    }
+
+    [Fact]
+    public void Stage1Mode_RejectsAsyncFunctions()
+    {
+        var source = @"
+async fn fetch_data() -> i32 {
+    42
+}
+";
+        var driver = new CompilationDriver(stage1Mode: true);
+        var ok = driver.Check(source, "test.ast");
+        
+        Assert.False(ok);
+        Assert.Contains(driver.Diagnostics, d => d.Code == "E9003");
+    }
+
+    [Fact]
+    public void Stage1Mode_RejectsReferenceTypes()
+    {
+        var source = @"
+fn read_value(x: &i32) -> i32 {
+    x
+}
+";
+        var driver = new CompilationDriver(stage1Mode: true);
+        var ok = driver.Check(source, "test.ast");
+        
+        Assert.False(ok);
+        Assert.Contains(driver.Diagnostics, d => d.Code == "E9004");
+    }
+
+    [Fact]
+    public void Stage1Mode_RejectsReferenceExpressions()
+    {
+        var source = @"
+fn main() {
+    let x = 10;
+    let y = &x;
+}
+";
+        var driver = new CompilationDriver(stage1Mode: true);
+        var ok = driver.Check(source, "test.ast");
+        
+        Assert.False(ok);
+        Assert.Contains(driver.Diagnostics, d => d.Code == "E9004");
+    }
+
+    [Fact]
+    public void Stage1Mode_RejectsClosures()
+    {
+        var source = @"
+fn main() {
+    let add_one = |x| x + 1;
+}
+";
+        var driver = new CompilationDriver(stage1Mode: true);
+        var ok = driver.Check(source, "test.ast");
+        
+        Assert.False(ok);
+        Assert.Contains(driver.Diagnostics, d => d.Code == "E9005");
+    }
+
+    [Fact]
+    public void NormalMode_AllowsTraits()
+    {
+        var source = @"
+trait Printable {
+    fn print(&self);
+}
+";
+        var driver = new CompilationDriver(stage1Mode: false);
+        var ok = driver.Check(source, "test.ast");
+        
+        // Should not have Stage1 errors (E90XX)
+        Assert.DoesNotContain(driver.Diagnostics, d => d.Code.StartsWith("E90"));
+    }
+
+    [Fact]
+    public void NormalMode_AllowsAsyncFunctions()
+    {
+        var source = @"
+async fn fetch_data() -> i32 {
+    42
+}
+";
+        var driver = new CompilationDriver(stage1Mode: false);
+        var ok = driver.Check(source, "test.ast");
+        
+        // Should not have Stage1 errors (E90XX)
+        Assert.DoesNotContain(driver.Diagnostics, d => d.Code.StartsWith("E90"));
+    }
+}

@@ -68,13 +68,28 @@ public static class Program
 
     private static int Build(string[] args)
     {
-        if (args.Length == 0)
+        bool stage1Mode = false;
+        string? filePath = null;
+
+        // Parse arguments
+        foreach (var arg in args)
+        {
+            if (arg == "--stage1")
+            {
+                stage1Mode = true;
+            }
+            else if (!arg.StartsWith("--") && filePath == null)
+            {
+                filePath = arg;
+            }
+        }
+
+        if (filePath == null)
         {
             Console.Error.WriteLine("error: no input file specified");
             return 1;
         }
 
-        var filePath = args[0];
         if (!File.Exists(filePath))
         {
             Console.Error.WriteLine($"error: file not found: {filePath}");
@@ -82,7 +97,7 @@ public static class Program
         }
 
         var source = File.ReadAllText(filePath);
-        var driver = new CompilationDriver();
+        var driver = new CompilationDriver(stage1Mode);
         var llvmIr = driver.Compile(source, filePath);
 
         if (llvmIr == null)
@@ -93,19 +108,42 @@ public static class Program
 
         var outputPath = Path.ChangeExtension(filePath, ".ll");
         File.WriteAllText(outputPath, llvmIr);
-        Console.WriteLine($"Compiled {filePath} -> {outputPath}");
+        
+        if (stage1Mode)
+        {
+            Console.WriteLine($"Compiled {filePath} -> {outputPath} [Stage1 mode]");
+        }
+        else
+        {
+            Console.WriteLine($"Compiled {filePath} -> {outputPath}");
+        }
         return 0;
     }
 
     private static int Check(string[] args)
     {
-        if (args.Length == 0)
+        bool stage1Mode = false;
+        string? filePath = null;
+
+        // Parse arguments
+        foreach (var arg in args)
+        {
+            if (arg == "--stage1")
+            {
+                stage1Mode = true;
+            }
+            else if (!arg.StartsWith("--") && filePath == null)
+            {
+                filePath = arg;
+            }
+        }
+
+        if (filePath == null)
         {
             Console.Error.WriteLine("error: no input file specified");
             return 1;
         }
 
-        var filePath = args[0];
         if (!File.Exists(filePath))
         {
             Console.Error.WriteLine($"error: file not found: {filePath}");
@@ -113,7 +151,7 @@ public static class Program
         }
 
         var source = File.ReadAllText(filePath);
-        var driver = new CompilationDriver();
+        var driver = new CompilationDriver(stage1Mode);
         var ok = driver.Check(source, filePath);
 
         if (!ok)
@@ -122,7 +160,14 @@ public static class Program
             return 1;
         }
 
-        Console.WriteLine("Check passed.");
+        if (stage1Mode)
+        {
+            Console.WriteLine("Check passed. [Stage1 mode]");
+        }
+        else
+        {
+            Console.WriteLine("Check passed.");
+        }
         return 0;
     }
 
@@ -264,6 +309,7 @@ public static class Program
         Console.WriteLine("  crash-report  View crash report details");
         Console.WriteLine();
         Console.WriteLine("  Options:");
+        Console.WriteLine("  --stage1       Enforce Stage1 (Core-0) language subset");
         Console.WriteLine("  --help, -h     Show this help message");
         Console.WriteLine("  --version, -v  Show version");
         return 0;
@@ -271,7 +317,34 @@ public static class Program
 
     private static int PrintVersion()
     {
-        Console.WriteLine("aster 0.2.0");
+        // Try to read version from VERSION file
+        var versionFilePath = Path.Combine(AppContext.BaseDirectory, "VERSION");
+        var version = "0.2.0"; // Default fallback
+        
+        if (File.Exists(versionFilePath))
+        {
+            try
+            {
+                version = File.ReadAllText(versionFilePath).Trim();
+            }
+            catch
+            {
+                // Fallback to default
+            }
+        }
+        
+        Console.WriteLine($"aster {version}");
+        Console.WriteLine();
+        Console.WriteLine("ASTER Programming Language Compiler");
+        Console.WriteLine("Copyright (c) 2026 Aster Project");
+        Console.WriteLine();
+        Console.WriteLine("Features:");
+        Console.WriteLine("  - Full ahead-of-time compilation to native code");
+        Console.WriteLine("  - Effect system (io, alloc, async, unsafe, ffi)");
+        Console.WriteLine("  - Ownership and borrowing");
+        Console.WriteLine("  - Stage1 self-hosting support (--stage1 flag)");
+        Console.WriteLine();
+        Console.WriteLine("For more information, visit: https://github.com/justinamiller/Aster-1");
         return 0;
     }
 

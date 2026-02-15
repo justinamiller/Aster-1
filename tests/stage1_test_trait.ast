@@ -1,0 +1,21 @@
+// Test file for --stage1 flag
+// This uses traits which should be rejected in Stage1 mode
+
+trait Printable {
+    fn print(&self);
+}
+
+struct Point {
+    x: i32,
+    y: i32
+}
+
+impl Printable for Point {
+    fn print(&self) {
+        println("Point");
+    }
+}
+
+fn main() {
+    let p = Point { x: 10, y: 20 };
+}
