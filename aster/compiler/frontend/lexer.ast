@@ -38,11 +38,13 @@ fn new_lexer(source: String, file_name: String) -> Lexer {
 }
 
 /// Tokenize the entire source code and return a list of tokens.
-fn tokenize(lexer: &mut Lexer) -> Vec<Token> {
+fn tokenize(mut lexer: Lexer) -> Vec<Token> {
     let mut tokens = Vec::new();
     
     loop {
-        let token = next_token(lexer);
+        let result = next_token(lexer);
+        lexer = result.0;
+        let token = result.1;
         let is_eof = token_kind_equals(token.kind, TokenKind::Eof);
         tokens.push(token);
         if is_eof {
@@ -54,18 +56,20 @@ fn tokenize(lexer: &mut Lexer) -> Vec<Token> {
 }
 
 /// Get the next token from the source.
-fn next_token(lexer: &mut Lexer) -> Token {
-    skip_whitespace_and_comments(lexer);
+/// Returns (updated_lexer, token)
+fn next_token(mut lexer: Lexer) -> (Lexer, Token) {
+    lexer = skip_whitespace_and_comments(lexer);
     
     // Check for end of file
-    if lexer.position >= string_length(&lexer.source) {
-        return make_eof_token(lexer.file_name.clone(), lexer.position);
+    if lexer.position >= string_length(lexer.source.clone()) {
+        let token = make_eof_token(lexer.file_name.clone(), lexer.position);
+        return (lexer, token);
     }
     
     let start = lexer.position;
     let start_line = lexer.line;
     let start_column = lexer.column;
-    let ch = current_char(lexer);
+    let ch = current_char_from_lexer(lexer.clone());
     
     // Identifiers and keywords
     if is_ident_start(ch) {
@@ -92,151 +96,160 @@ fn next_token(lexer: &mut Lexer) -> Token {
 }
 
 /// Lex an identifier or keyword.
-fn lex_identifier_or_keyword(lexer: &mut Lexer) -> Token {
+/// Returns (updated_lexer, token)
+fn lex_identifier_or_keyword(mut lexer: Lexer) -> (Lexer, Token) {
     let start = lexer.position;
     let start_line = lexer.line;
     let start_col = lexer.column;
     
     // Consume identifier characters
-    while lexer.position < string_length(&lexer.source) {
-        let ch = char_at(&lexer.source, lexer.position);
+    while lexer.position < string_length(lexer.source.clone()) {
+        let ch = char_at(lexer.source.clone(), lexer.position);
         if !is_ident_continue(ch) {
             break;
         }
-        advance(lexer);
+        lexer = advance(lexer);
     }
     
     // Extract and intern the text
-    let text = intern_substring(&mut lexer.interner, &lexer.source, start, lexer.position);
+    let result = intern_substring(lexer.interner, lexer.source.clone(), start, lexer.position);
+    lexer.interner = result.0;
+    let text = result.1;
     
     // Check if it's a keyword
-    let kind = keyword_lookup(&text);
+    let kind = keyword_lookup(text.clone());
     
     let span = new_span(lexer.file_name.clone(), start_line, start_col, start, lexer.position - start);
-    new_token(kind, span, text)
+    let token = new_token(kind, span, text);
+    (lexer, token)
 }
 
 /// Lex a number literal (integer or float).
-fn lex_number(lexer: &mut Lexer) -> Token {
+/// Returns (updated_lexer, token)
+fn lex_number(mut lexer: Lexer) -> (Lexer, Token) {
     let start = lexer.position;
     let start_line = lexer.line;
     let start_col = lexer.column;
     let mut is_float = false;
     
     // Handle hex/binary prefixes
-    if current_char(lexer) == '0' && lexer.position + 1 < string_length(&lexer.source) {
-        let next = char_at(&lexer.source, lexer.position + 1);
+    if current_char_from_lexer(lexer.clone()) == '0' && lexer.position + 1 < string_length(lexer.source.clone()) {
+        let next = char_at(lexer.source.clone(), lexer.position + 1);
         
         // Hexadecimal: 0x...
         if next == 'x' || next == 'X' {
-            advance(lexer); // skip '0'
-            advance(lexer); // skip 'x'
-            while lexer.position < string_length(&lexer.source) {
-                let ch = char_at(&lexer.source, lexer.position);
+            lexer = advance(lexer); // skip '0'
+            lexer = advance(lexer); // skip 'x'
+            while lexer.position < string_length(lexer.source.clone()) {
+                let ch = char_at(lexer.source.clone(), lexer.position);
                 if !is_hex_digit(ch) {
                     break;
                 }
-                advance(lexer);
+                lexer = advance(lexer);
             }
-            let text = string_substring(&lexer.source, start, lexer.position);
+            let text = string_substring(lexer.source.clone(), start, lexer.position);
             let span = new_span(lexer.file_name.clone(), start_line, start_col, start, lexer.position - start);
-            return new_token(TokenKind::IntegerLiteral, span, text);
+            let token = new_token(TokenKind::IntegerLiteral, span, text);
+            return (lexer, token);
         }
         
         // Binary: 0b...
         if next == 'b' || next == 'B' {
-            advance(lexer); // skip '0'
-            advance(lexer); // skip 'b'
-            while lexer.position < string_length(&lexer.source) {
-                let ch = char_at(&lexer.source, lexer.position);
+            lexer = advance(lexer); // skip '0'
+            lexer = advance(lexer); // skip 'b'
+            while lexer.position < string_length(lexer.source.clone()) {
+                let ch = char_at(lexer.source.clone(), lexer.position);
                 if ch != '0' && ch != '1' && ch != '_' {
                     break;
                 }
-                advance(lexer);
+                lexer = advance(lexer);
             }
-            let text = string_substring(&lexer.source, start, lexer.position);
+            let text = string_substring(lexer.source.clone(), start, lexer.position);
             let span = new_span(lexer.file_name.clone(), start_line, start_col, start, lexer.position - start);
-            return new_token(TokenKind::IntegerLiteral, span, text);
+            let token = new_token(TokenKind::IntegerLiteral, span, text);
+            return (lexer, token);
         }
     }
     
     // Decimal digits
-    while lexer.position < string_length(&lexer.source) {
-        let ch = char_at(&lexer.source, lexer.position);
+    while lexer.position < string_length(lexer.source.clone()) {
+        let ch = char_at(lexer.source.clone(), lexer.position);
         if !is_digit(ch) && ch != '_' {
             break;
         }
-        advance(lexer);
+        lexer = advance(lexer);
     }
     
     // Decimal point (for floats)
-    if lexer.position < string_length(&lexer.source) {
-        let ch = char_at(&lexer.source, lexer.position);
-        if ch == '.' && lexer.position + 1 < string_length(&lexer.source) {
-            let next = char_at(&lexer.source, lexer.position + 1);
+    if lexer.position < string_length(lexer.source.clone()) {
+        let ch = char_at(lexer.source.clone(), lexer.position);
+        if ch == '.' && lexer.position + 1 < string_length(lexer.source.clone()) {
+            let next = char_at(lexer.source.clone(), lexer.position + 1);
             if is_digit(next) {
                 is_float = true;
-                advance(lexer); // skip '.'
-                while lexer.position < string_length(&lexer.source) {
-                    let ch = char_at(&lexer.source, lexer.position);
+                lexer = advance(lexer); // skip '.'
+                while lexer.position < string_length(lexer.source.clone()) {
+                    let ch = char_at(lexer.source.clone(), lexer.position);
                     if !is_digit(ch) && ch != '_' {
                         break;
                     }
-                    advance(lexer);
+                    lexer = advance(lexer);
                 }
             }
         }
     }
     
     // Exponent (e or E)
-    if lexer.position < string_length(&lexer.source) {
-        let ch = char_at(&lexer.source, lexer.position);
+    if lexer.position < string_length(lexer.source.clone()) {
+        let ch = char_at(lexer.source.clone(), lexer.position);
         if ch == 'e' || ch == 'E' {
             is_float = true;
-            advance(lexer);
-            if lexer.position < string_length(&lexer.source) {
-                let ch = char_at(&lexer.source, lexer.position);
+            lexer = advance(lexer);
+            if lexer.position < string_length(lexer.source.clone()) {
+                let ch = char_at(lexer.source.clone(), lexer.position);
                 if ch == '+' || ch == '-' {
-                    advance(lexer);
+                    lexer = advance(lexer);
                 }
             }
-            while lexer.position < string_length(&lexer.source) {
-                let ch = char_at(&lexer.source, lexer.position);
+            while lexer.position < string_length(lexer.source.clone()) {
+                let ch = char_at(lexer.source.clone(), lexer.position);
                 if !is_digit(ch) {
                     break;
                 }
-                advance(lexer);
+                lexer = advance(lexer);
             }
         }
     }
     
-    let text = string_substring(&lexer.source, start, lexer.position);
+    let text = string_substring(lexer.source.clone(), start, lexer.position);
     let kind = if is_float { TokenKind::FloatLiteral } else { TokenKind::IntegerLiteral };
     let span = new_span(lexer.file_name.clone(), start_line, start_col, start, lexer.position - start);
-    new_token(kind, span, text)
+    let token = new_token(kind, span, text);
+    (lexer, token)
 }
 
 /// Lex a string literal with escape sequences.
-fn lex_string(lexer: &mut Lexer) -> Token {
+/// Returns (updated_lexer, token)
+fn lex_string(mut lexer: Lexer) -> (Lexer, Token) {
     let start = lexer.position;
     let start_line = lexer.line;
     let start_col = lexer.column;
     
-    advance(lexer); // skip opening '"'
+    lexer = advance(lexer); // skip opening '"'
     
     let mut result = String::new();
     
-    while lexer.position < string_length(&lexer.source) {
-        let ch = char_at(&lexer.source, lexer.position);
+    while lexer.position < string_length(lexer.source.clone()) {
+        let ch = char_at(lexer.source.clone(), lexer.position);
         if ch == '"' {
             break;
         }
         
         if ch == '\\' {
             // Escape sequence
-            advance(lexer);
-            if lexer.position < string_length(&lexer.source) {
-                let esc = char_at(&lexer.source, lexer.position);
+            lexer = advance(lexer);
+            if lexer.position < string_length(lexer.source.clone()) {
+                let esc = char_at(lexer.source.clone(), lexer.position);
                 let escaped_char = match esc {
                     'n' => '\n',
                     'r' => '\r',
@@ -247,44 +260,47 @@ fn lex_string(lexer: &mut Lexer) -> Token {
                     _ => esc
                 };
                 result.push(escaped_char);
-                advance(lexer);
+                lexer = advance(lexer);
             }
         } else {
             result.push(ch);
-            advance(lexer);
+            lexer = advance(lexer);
         }
     }
     
     // Check for unterminated string
-    if lexer.position >= string_length(&lexer.source) {
+    if lexer.position >= string_length(lexer.source.clone()) {
         // Error: unterminated string
         let span = new_span(lexer.file_name.clone(), start_line, start_col, start, lexer.position - start);
-        return make_error_token(span, String::from("Unterminated string literal"));
+        let token = make_error_token(span, String::from("Unterminated string literal"));
+        return (lexer, token);
     }
     
-    advance(lexer); // skip closing '"'
+    lexer = advance(lexer); // skip closing '"'
     let span = new_span(lexer.file_name.clone(), start_line, start_col, start, lexer.position - start);
-    new_token(TokenKind::StringLiteral, span, result)
+    let token = new_token(TokenKind::StringLiteral, span, result);
+    (lexer, token)
 }
 
 /// Lex a character literal.
-fn lex_char(lexer: &mut Lexer) -> Token {
+/// Returns (updated_lexer, token)
+fn lex_char(mut lexer: Lexer) -> (Lexer, Token) {
     let start = lexer.position;
     let start_line = lexer.line;
     let start_col = lexer.column;
     
-    advance(lexer); // skip opening '\''
+    lexer = advance(lexer); // skip opening '\''
     
     let mut value = String::new();
     
-    if lexer.position < string_length(&lexer.source) {
-        let ch = char_at(&lexer.source, lexer.position);
+    if lexer.position < string_length(lexer.source.clone()) {
+        let ch = char_at(lexer.source.clone(), lexer.position);
         
         if ch == '\\' {
             // Escape sequence
-            advance(lexer);
-            if lexer.position < string_length(&lexer.source) {
-                let esc = char_at(&lexer.source, lexer.position);
+            lexer = advance(lexer);
+            if lexer.position < string_length(lexer.source.clone()) {
+                let esc = char_at(lexer.source.clone(), lexer.position);
                 let escaped_char = match esc {
                     'n' => '\n',
                     'r' => '\r',
@@ -295,108 +311,125 @@ fn lex_char(lexer: &mut Lexer) -> Token {
                     _ => esc
                 };
                 value.push(escaped_char);
-                advance(lexer);
+                lexer = advance(lexer);
             }
         } else {
             value.push(ch);
-            advance(lexer);
+            lexer = advance(lexer);
         }
     }
     
     // Check for closing quote
-    if lexer.position >= string_length(&lexer.source) || char_at(&lexer.source, lexer.position) != '\'' {
+    if lexer.position >= string_length(lexer.source.clone()) || char_at(lexer.source.clone(), lexer.position) != '\'' {
         let span = new_span(lexer.file_name.clone(), start_line, start_col, start, lexer.position - start);
-        return make_error_token(span, String::from("Unterminated character literal"));
+        let token = make_error_token(span, String::from("Unterminated character literal"));
+        return (lexer, token);
     }
     
-    advance(lexer); // skip closing '\''
+    lexer = advance(lexer); // skip closing '\''
     let span = new_span(lexer.file_name.clone(), start_line, start_col, start, lexer.position - start);
-    new_token(TokenKind::CharLiteral, span, value)
+    let token = new_token(TokenKind::CharLiteral, span, value);
+    (lexer, token)
 }
 
 /// Lex an operator or punctuation token.
-fn lex_operator_or_punctuation(lexer: &mut Lexer) -> Token {
+/// Returns (updated_lexer, token)
+fn lex_operator_or_punctuation(mut lexer: Lexer) -> (Lexer, Token) {
     let start = lexer.position;
     let start_line = lexer.line;
     let start_col = lexer.column;
-    let ch = current_char(lexer);
+    let ch = current_char_from_lexer(lexer.clone());
     
-    advance(lexer);
+    lexer = advance(lexer);
     
     // Two-character operators
-    if lexer.position < string_length(&lexer.source) {
-        let next = char_at(&lexer.source, lexer.position);
+    if lexer.position < string_length(lexer.source.clone()) {
+        let next = char_at(lexer.source.clone(), lexer.position);
         
         // Check all two-character operators
         if ch == '&' && next == '&' {
-            advance(lexer);
+            lexer = advance(lexer);
             let span = new_span(lexer.file_name.clone(), start_line, start_col, start, 2);
-            return new_token(TokenKind::AmpersandAmpersand, span, String::from("&&"));
+            let token = new_token(TokenKind::AmpersandAmpersand, span, String::from("&&"));
+            return (lexer, token);
         }
         if ch == '|' && next == '|' {
-            advance(lexer);
+            lexer = advance(lexer);
             let span = new_span(lexer.file_name.clone(), start_line, start_col, start, 2);
-            return new_token(TokenKind::PipePipe, span, String::from("||"));
+            let token = new_token(TokenKind::PipePipe, span, String::from("||"));
+            return (lexer, token);
         }
         if ch == '=' && next == '=' {
-            advance(lexer);
+            lexer = advance(lexer);
             let span = new_span(lexer.file_name.clone(), start_line, start_col, start, 2);
-            return new_token(TokenKind::EqualsEquals, span, String::from("=="));
+            let token = new_token(TokenKind::EqualsEquals, span, String::from("=="));
+            return (lexer, token);
         }
         if ch == '!' && next == '=' {
-            advance(lexer);
+            lexer = advance(lexer);
             let span = new_span(lexer.file_name.clone(), start_line, start_col, start, 2);
-            return new_token(TokenKind::BangEquals, span, String::from("!="));
+            let token = new_token(TokenKind::BangEquals, span, String::from("!="));
+            return (lexer, token);
         }
         if ch == '<' && next == '=' {
-            advance(lexer);
+            lexer = advance(lexer);
             let span = new_span(lexer.file_name.clone(), start_line, start_col, start, 2);
-            return new_token(TokenKind::LessEquals, span, String::from("<="));
+            let token = new_token(TokenKind::LessEquals, span, String::from("<="));
+            return (lexer, token);
         }
         if ch == '>' && next == '=' {
-            advance(lexer);
+            lexer = advance(lexer);
             let span = new_span(lexer.file_name.clone(), start_line, start_col, start, 2);
-            return new_token(TokenKind::GreaterEquals, span, String::from(">="));
+            let token = new_token(TokenKind::GreaterEquals, span, String::from(">="));
+            return (lexer, token);
         }
         if ch == '-' && next == '>' {
-            advance(lexer);
+            lexer = advance(lexer);
             let span = new_span(lexer.file_name.clone(), start_line, start_col, start, 2);
-            return new_token(TokenKind::Arrow, span, String::from("->"));
+            let token = new_token(TokenKind::Arrow, span, String::from("->"));
+            return (lexer, token);
         }
         if ch == '=' && next == '>' {
-            advance(lexer);
+            lexer = advance(lexer);
             let span = new_span(lexer.file_name.clone(), start_line, start_col, start, 2);
-            return new_token(TokenKind::FatArrow, span, String::from("=>"));
+            let token = new_token(TokenKind::FatArrow, span, String::from("=>"));
+            return (lexer, token);
         }
         if ch == '+' && next == '=' {
-            advance(lexer);
+            lexer = advance(lexer);
             let span = new_span(lexer.file_name.clone(), start_line, start_col, start, 2);
-            return new_token(TokenKind::PlusEquals, span, String::from("+="));
+            let token = new_token(TokenKind::PlusEquals, span, String::from("+="));
+            return (lexer, token);
         }
         if ch == '-' && next == '=' {
-            advance(lexer);
+            lexer = advance(lexer);
             let span = new_span(lexer.file_name.clone(), start_line, start_col, start, 2);
-            return new_token(TokenKind::MinusEquals, span, String::from("-="));
+            let token = new_token(TokenKind::MinusEquals, span, String::from("-="));
+            return (lexer, token);
         }
         if ch == '*' && next == '=' {
-            advance(lexer);
+            lexer = advance(lexer);
             let span = new_span(lexer.file_name.clone(), start_line, start_col, start, 2);
-            return new_token(TokenKind::StarEquals, span, String::from("*="));
+            let token = new_token(TokenKind::StarEquals, span, String::from("*="));
+            return (lexer, token);
         }
         if ch == '/' && next == '=' {
-            advance(lexer);
+            lexer = advance(lexer);
             let span = new_span(lexer.file_name.clone(), start_line, start_col, start, 2);
-            return new_token(TokenKind::SlashEquals, span, String::from("/="));
+            let token = new_token(TokenKind::SlashEquals, span, String::from("/="));
+            return (lexer, token);
         }
         if ch == ':' && next == ':' {
-            advance(lexer);
+            lexer = advance(lexer);
             let span = new_span(lexer.file_name.clone(), start_line, start_col, start, 2);
-            return new_token(TokenKind::ColonColon, span, String::from("::"));
+            let token = new_token(TokenKind::ColonColon, span, String::from("::"));
+            return (lexer, token);
         }
         if ch == '.' && next == '.' {
-            advance(lexer);
+            lexer = advance(lexer);
             let span = new_span(lexer.file_name.clone(), start_line, start_col, start, 2);
-            return new_token(TokenKind::DotDot, span, String::from(".."));
+            let token = new_token(TokenKind::DotDot, span, String::from(".."));
+            return (lexer, token);
         }
     }
     
@@ -433,67 +466,69 @@ fn lex_operator_or_punctuation(lexer: &mut Lexer) -> Token {
     let mut char_str = String::new();
     char_str.push(ch);
     let span = new_span(lexer.file_name.clone(), start_line, start_col, start, 1);
-    new_token(kind, span, char_str)
+    let token = new_token(kind, span, char_str);
+    (lexer, token)
 }
 
 /// Skip whitespace and comments.
-fn skip_whitespace_and_comments(lexer: &mut Lexer) {
-    while lexer.position < string_length(&lexer.source) {
-        let ch = char_at(&lexer.source, lexer.position);
+/// Returns updated lexer
+fn skip_whitespace_and_comments(mut lexer: Lexer) -> Lexer {
+    while lexer.position < string_length(lexer.source.clone()) {
+        let ch = char_at(lexer.source.clone(), lexer.position);
         
         // Whitespace
         if is_whitespace(ch) {
-            advance(lexer);
+            lexer = advance(lexer);
             continue;
         }
         
         // Line comment: //
-        if ch == '/' && lexer.position + 1 < string_length(&lexer.source) {
-            let next = char_at(&lexer.source, lexer.position + 1);
+        if ch == '/' && lexer.position + 1 < string_length(lexer.source.clone()) {
+            let next = char_at(lexer.source.clone(), lexer.position + 1);
             if next == '/' {
                 // Skip until end of line
-                while lexer.position < string_length(&lexer.source) {
-                    let c = char_at(&lexer.source, lexer.position);
+                while lexer.position < string_length(lexer.source.clone()) {
+                    let c = char_at(lexer.source.clone(), lexer.position);
                     if c == '\n' {
                         break;
                     }
-                    advance(lexer);
+                    lexer = advance(lexer);
                 }
                 continue;
             }
             
             // Block comment: /* */
             if next == '*' {
-                advance(lexer); // skip '/'
-                advance(lexer); // skip '*'
+                lexer = advance(lexer); // skip '/'
+                lexer = advance(lexer); // skip '*'
                 let mut depth = 1;
                 
-                while lexer.position < string_length(&lexer.source) && depth > 0 {
-                    let c = char_at(&lexer.source, lexer.position);
+                while lexer.position < string_length(lexer.source.clone()) && depth > 0 {
+                    let c = char_at(lexer.source.clone(), lexer.position);
                     
                     // Nested block comment start
-                    if c == '/' && lexer.position + 1 < string_length(&lexer.source) {
-                        let n = char_at(&lexer.source, lexer.position + 1);
+                    if c == '/' && lexer.position + 1 < string_length(lexer.source.clone()) {
+                        let n = char_at(lexer.source.clone(), lexer.position + 1);
                         if n == '*' {
                             depth = depth + 1;
-                            advance(lexer);
-                            advance(lexer);
+                            lexer = advance(lexer);
+                            lexer = advance(lexer);
                             continue;
                         }
                     }
                     
                     // Block comment end
-                    if c == '*' && lexer.position + 1 < string_length(&lexer.source) {
-                        let n = char_at(&lexer.source, lexer.position + 1);
+                    if c == '*' && lexer.position + 1 < string_length(lexer.source.clone()) {
+                        let n = char_at(lexer.source.clone(), lexer.position + 1);
                         if n == '/' {
                             depth = depth - 1;
-                            advance(lexer);
-                            advance(lexer);
+                            lexer = advance(lexer);
+                            lexer = advance(lexer);
                             continue;
                         }
                     }
                     
-                    advance(lexer);
+                    lexer = advance(lexer);
                 }
                 continue;
             }
@@ -502,12 +537,14 @@ fn skip_whitespace_and_comments(lexer: &mut Lexer) {
         // Not whitespace or comment
         break;
     }
+    lexer
 }
 
 /// Advance position, tracking line and column.
-fn advance(lexer: &mut Lexer) {
-    if lexer.position < string_length(&lexer.source) {
-        let ch = char_at(&lexer.source, lexer.position);
+/// Returns updated lexer
+fn advance(mut lexer: Lexer) -> Lexer {
+    if lexer.position < string_length(lexer.source.clone()) {
+        let ch = char_at(lexer.source.clone(), lexer.position);
         if ch == '\n' {
             lexer.line = lexer.line + 1;
             lexer.column = 1;
@@ -516,12 +553,13 @@ fn advance(lexer: &mut Lexer) {
         }
         lexer.position = lexer.position + 1;
     }
+    lexer
 }
 
 /// Get the current character without advancing.
-fn current_char(lexer: &Lexer) -> char {
-    if lexer.position < string_length(&lexer.source) {
-        char_at(&lexer.source, lexer.position)
+fn current_char_from_lexer(lexer: Lexer) -> char {
+    if lexer.position < string_length(lexer.source.clone()) {
+        char_at(lexer.source.clone(), lexer.position)
     } else {
         '\0'
     }
@@ -554,21 +592,34 @@ fn is_ident_continue(ch: char) -> bool {
 
 // String helper functions (Core-0 doesn't have string methods)
 
-fn string_length(s: &String) -> i32 {
-    s.len() as i32
+// Type conversion helpers for Core-0
+fn usize_to_i32(val: usize) -> i32 {
+    val
 }
 
-fn char_at(s: &String, index: i32) -> char {
+fn i32_to_usize(val: i32) -> usize {
+    val
+}
+
+fn u8_to_char(byte: u8) -> char {
+    byte
+}
+
+fn string_length(s: String) -> i32 {
+    usize_to_i32(s.len())
+}
+
+fn char_at(s: String, index: i32) -> char {
     let bytes = s.as_bytes();
-    if index >= 0 && (index as usize) < bytes.len() {
-        bytes[index as usize] as char
+    if index >= 0 && i32_to_usize(index) < bytes.len() {
+        u8_to_char(bytes[i32_to_usize(index)])
     } else {
         '\0'
     }
 }
 
 /// Lookup a keyword by text. Returns Identifier if not a keyword.
-fn keyword_lookup(text: &String) -> TokenKind {
+fn keyword_lookup(text: String) -> TokenKind {
     // In Core-0, we can't use HashMap, so we do manual comparison
     // This is a simplified version - in reality we'd check all keywords
     

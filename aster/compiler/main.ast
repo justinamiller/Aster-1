@@ -25,57 +25,69 @@ fn new_compiler(source_file: String, source_text: String) -> Compiler {
 }
 
 /// Compile a source file through all stages
-fn compile(compiler: &mut Compiler) -> CompilationResult {
+/// Returns (updated_compiler, result)
+fn compile(mut compiler: Compiler) -> (Compiler, CompilationResult) {
     // Stage 1: Lexical Analysis
-    let tokens = lex_source(compiler);
+    let lex_result = lex_source(compiler);
+    compiler = lex_result.0;
+    let tokens = lex_result.1;
     
-    if has_errors(compiler.diagnostics) {
-        return CompilationResult {
+    if has_errors(compiler.diagnostics.clone()) {
+        let result = CompilationResult {
             success: false,
             module: None,
-            diagnostics: compiler.diagnostics
+            diagnostics: compiler.diagnostics.clone()
         };
+        return (compiler, result);
     }
     
     // Stage 2: Parsing
-    let module = parse_source(compiler, tokens);
+    let parse_result = parse_source(compiler, tokens);
+    compiler = parse_result.0;
+    let module = parse_result.1;
     
-    if has_errors(compiler.diagnostics) {
-        return CompilationResult {
+    if has_errors(compiler.diagnostics.clone()) {
+        let result = CompilationResult {
             success: false,
             module: Some(module),
-            diagnostics: compiler.diagnostics
+            diagnostics: compiler.diagnostics.clone()
         };
+        return (compiler, result);
     }
     
     // Success
-    CompilationResult {
+    let result = CompilationResult {
         success: true,
         module: Some(module),
-        diagnostics: compiler.diagnostics
-    }
+        diagnostics: compiler.diagnostics.clone()
+    };
+    (compiler, result)
 }
 
 /// Lex the source code into tokens
-fn lex_source(compiler: &mut Compiler) -> Vec<Token> {
-    let mut lexer = new_lexer(compiler.source_text.clone(), compiler.source_file.clone());
-    let tokens = tokenize(&mut lexer);
+/// Returns (updated_compiler, tokens)
+fn lex_source(compiler: Compiler) -> (Compiler, Vec<Token>) {
+    let lexer = new_lexer(compiler.source_text.clone(), compiler.source_file.clone());
+    let tokens = tokenize(lexer);
     
     // Collect any lexer diagnostics
     // (In a full implementation, the lexer would report errors)
     
-    tokens
+    (compiler, tokens)
 }
 
 /// Parse tokens into an AST module
-fn parse_source(compiler: &mut Compiler, tokens: Vec<Token>) -> Module {
-    let mut parser = new_parser(tokens);
-    let module = parse(&mut parser);
+/// Returns (updated_compiler, module)
+fn parse_source(mut compiler: Compiler, tokens: Vec<Token>) -> (Compiler, Module) {
+    let parser = new_parser(tokens);
+    let parse_result = parse(parser);
+    let final_parser = parse_result.0;
+    let module = parse_result.1;
     
     // Collect parser diagnostics
-    compiler.diagnostics = parser.diagnostics;
+    compiler.diagnostics = final_parser.diagnostics;
     
-    module
+    (compiler, module)
 }
 
 /// Result of compilation
@@ -94,8 +106,10 @@ fn main() {
     let test_source = "fn main() { let x = 42; }";
     let test_file = "test.ast";
     
-    let mut compiler = new_compiler(test_file, test_source);
-    let result = compile(&mut compiler);
+    let compiler = new_compiler(test_file, test_source);
+    let compile_result = compile(compiler);
+    let final_compiler = compile_result.0;
+    let result = compile_result.1;
     
     if result.success {
         print_success();

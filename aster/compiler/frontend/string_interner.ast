@@ -22,54 +22,74 @@ fn new_interner() -> StringInterner {
     }
 }
 
-/// Intern a string. Returns the canonical instance from the pool.
+/// Intern a string. Returns (updated_interner, interned_string).
 /// If the string is already in the pool, returns the existing instance.
 /// Otherwise, adds it to the pool and returns it.
 ///
 /// Note: In Core-0, we use linear search since HashMap is not available.
 /// This is acceptable for bootstrap performance.
-fn intern(interner: &mut StringInterner, value: String) -> String {
+fn intern(mut interner: StringInterner, value: String) -> (StringInterner, String) {
     // Search for existing string in pool
     let mut i = 0;
-    while i < interner.pool.len() {
-        if interner.pool[i] == value {
-            return interner.pool[i].clone();
+    let pool_len = usize_to_i32(interner.pool.len());
+    while i < pool_len {
+        let idx = i32_to_usize(i);
+        if interner.pool[idx] == value {
+            let result = interner.pool[idx].clone();
+            return (interner, result);
         }
         i = i + 1;
     }
     
     // Not found, add to pool
     interner.pool.push(value.clone());
-    value
+    (interner, value)
 }
 
 /// Intern a substring from source text.
 /// Creates a String from the specified range and interns it.
-fn intern_substring(interner: &mut StringInterner, source: &String, start: i32, end: i32) -> String {
+/// Returns (updated_interner, interned_string).
+fn intern_substring(interner: StringInterner, source: String, start: i32, end: i32) -> (StringInterner, String) {
     let substring = string_substring(source, start, end);
     intern(interner, substring)
 }
 
 /// Get the number of interned strings.
-fn interner_count(interner: &StringInterner) -> i32 {
-    interner.pool.len() as i32
+fn interner_count(interner: StringInterner) -> i32 {
+    usize_to_i32(interner.pool.len())
 }
 
 /// Clear the interner pool (for testing or cleanup).
-fn interner_clear(interner: &mut StringInterner) {
+/// Returns new empty interner.
+fn interner_clear(mut interner: StringInterner) -> StringInterner {
     interner.pool = Vec::new();
+    interner
+}
+
+// Type conversion helpers for Core-0
+fn usize_to_i32(val: usize) -> i32 {
+    val
+}
+
+fn i32_to_usize(val: i32) -> usize {
+    val
+}
+
+fn u8_to_char(byte: u8) -> char {
+    byte
 }
 
 // Helper: Extract substring from String
 // In Core-0, we don't have string slicing methods, so we do it manually
-fn string_substring(s: &String, start: i32, end: i32) -> String {
+fn string_substring(s: String, start: i32, end: i32) -> String {
     let bytes = s.as_bytes();
     let mut result = String::new();
     
     let mut i = start;
-    while i < end && i < (bytes.len() as i32) {
-        let byte = bytes[i as usize];
-        result.push(byte as char);
+    let bytes_len = usize_to_i32(bytes.len());
+    while i < end && i < bytes_len {
+        let byte = bytes[i32_to_usize(i)];
+        result.push(u8_to_char(byte));
         i = i + 1;
     }
     
