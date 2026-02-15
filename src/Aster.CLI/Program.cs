@@ -317,7 +317,34 @@ public static class Program
 
     private static int PrintVersion()
     {
-        Console.WriteLine("aster 0.2.0");
+        // Try to read version from VERSION file
+        var versionFilePath = Path.Combine(AppContext.BaseDirectory, "VERSION");
+        var version = "0.2.0"; // Default fallback
+        
+        if (File.Exists(versionFilePath))
+        {
+            try
+            {
+                version = File.ReadAllText(versionFilePath).Trim();
+            }
+            catch
+            {
+                // Fallback to default
+            }
+        }
+        
+        Console.WriteLine($"aster {version}");
+        Console.WriteLine();
+        Console.WriteLine("ASTER Programming Language Compiler");
+        Console.WriteLine("Copyright (c) 2026 Aster Project");
+        Console.WriteLine();
+        Console.WriteLine("Features:");
+        Console.WriteLine("  - Full ahead-of-time compilation to native code");
+        Console.WriteLine("  - Effect system (io, alloc, async, unsafe, ffi)");
+        Console.WriteLine("  - Ownership and borrowing");
+        Console.WriteLine("  - Stage1 self-hosting support (--stage1 flag)");
+        Console.WriteLine();
+        Console.WriteLine("For more information, visit: https://github.com/justinamiller/Aster-1");
         return 0;
     }
 
