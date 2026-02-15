@@ -1,0 +1,10 @@
+// Test file for --stage1 flag
+// This uses async which should be rejected in Stage1 mode
+
+async fn fetch_data() -> i32 {
+    42
+}
+
+fn main() {
+    let x = fetch_data();
+}

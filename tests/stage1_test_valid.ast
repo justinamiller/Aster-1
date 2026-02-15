@@ -1,0 +1,16 @@
+// Test file for --stage1 flag
+// This should compile successfully in Stage1 mode (Core-0 compatible)
+
+struct Point {
+    x: i32,
+    y: i32
+}
+
+fn area(p: Point) -> i32 {
+    p.x * p.y
+}
+
+fn main() {
+    let p = Point { x: 10, y: 20 };
+    let a = area(p);
+}

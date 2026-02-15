@@ -13,13 +13,15 @@ public sealed class AsterParser
 {
     private readonly IReadOnlyList<Token> _tokens;
     private int _position;
+    private readonly bool _stage1Mode;
 
     public DiagnosticBag Diagnostics { get; } = new();
 
-    public AsterParser(IReadOnlyList<Token> tokens)
+    public AsterParser(IReadOnlyList<Token> tokens, bool stage1Mode = false)
     {
         _tokens = tokens ?? throw new ArgumentNullException(nameof(tokens));
         _position = 0;
+        _stage1Mode = stage1Mode;
     }
 
     // ========== Entry Point ==========
@@ -65,9 +67,25 @@ public sealed class AsterParser
         if (Check(TokenKind.Enum))
             return ParseEnumDecl(isPublic);
         if (Check(TokenKind.Trait))
+        {
+            if (_stage1Mode)
+            {
+                ReportError("E9001", "Traits are not allowed in Stage1 (Core-0) mode. Use standalone functions instead.");
+                Synchronize();
+                return null;
+            }
             return ParseTraitDecl(isPublic);
+        }
         if (Check(TokenKind.Impl))
+        {
+            if (_stage1Mode)
+            {
+                ReportError("E9002", "Impl blocks are not allowed in Stage1 (Core-0) mode. Use standalone functions instead.");
+                Synchronize();
+                return null;
+            }
             return ParseImplDecl();
+        }
         if (Check(TokenKind.Module))
             return ParseModuleDecl(isPublic);
         if (Check(TokenKind.Let))
@@ -84,6 +102,14 @@ public sealed class AsterParser
 
         if (Check(TokenKind.Async))
         {
+            if (_stage1Mode)
+            {
+                ReportError("E9003", "Async functions are not allowed in Stage1 (Core-0) mode.");
+                Synchronize();
+                // Return dummy node to continue parsing
+                var emptyBody = new BlockExprNode(new List<AstNode>(), null, startSpan);
+                return new FunctionDeclNode("error", new List<ParameterNode>(), null, emptyBody, isPublic, false, startSpan);
+            }
             isAsync = true;
             Advance();
         }
