@@ -1036,12 +1036,10 @@ fn unit_type() -> Type {
 
 /// Convert usize to i32 (Core-0 doesn't support `as` casts)
 fn usize_to_i32(value: usize) -> i32 {
-    // In Core-0, we use a builtin conversion function
-    value as i32
+    value
 }
 
 /// Convert i32 to usize (Core-0 doesn't support `as` casts)
 fn i32_to_usize(value: i32) -> usize {
-    // In Core-0, we use a builtin conversion function
-    value as usize
+    value
 }
