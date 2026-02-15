@@ -7,6 +7,15 @@
 **Stage 0**: ✅ **100% COMPLETE (Built & Verified)**  
 **Overall**: ✅ **READY FOR CONTINUED DEVELOPMENT**
 
+## Production Validation Snapshot (2026-02-15)
+
+For an evidence-based status and reproducible commands, see:
+
+- `docs/BOOTSTRAP_RUNBOOK.md`
+- `docs/BOOTSTRAP_GAP_ASSESSMENT.md`
+
+These documents capture current stage blockers for full self-hosting and a validated Aster-only hello-world compile/run flow.
+
 ## Quick Start
 
 ### Check Current Bootstrap Status
@@ -14,6 +23,18 @@
 ```bash
 ./bootstrap/scripts/check-and-advance.sh --check-only
 ```
+
+### Phase A Smoke Test (recommended)
+
+```bash
+./scripts/phase-a-smoke.sh
+```
+
+This validates the practical toolchain path today:
+- Stage 0 compiler build
+- Aster `hello` → LLVM IR
+- LLVM IR → native executable (`clang`)
+- execute binary locally
 
 **Current Output**:
 ```

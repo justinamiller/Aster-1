@@ -133,16 +133,16 @@ is_stage_built() {
             [[ -f "${BUILD_DIR}/stage0/Aster.CLI.dll" ]]
             ;;
         1)
-            # Stage 1 is built if aster1 binary exists
-            [[ -f "${BUILD_DIR}/stage1/aster1" ]]
+            # Stage 1 is built if aster1 binary exists (unix or windows artifact)
+            [[ -f "${BUILD_DIR}/stage1/aster1" ]] || [[ -f "${BUILD_DIR}/stage1/aster1.exe" ]]
             ;;
         2)
-            # Stage 2 is built if aster2 binary exists
-            [[ -f "${BUILD_DIR}/stage2/aster2" ]]
+            # Stage 2 is built if aster2 binary exists (unix or windows artifact)
+            [[ -f "${BUILD_DIR}/stage2/aster2" ]] || [[ -f "${BUILD_DIR}/stage2/aster2.exe" ]]
             ;;
         3)
-            # Stage 3 is built if aster3 binary exists
-            [[ -f "${BUILD_DIR}/stage3/aster3" ]]
+            # Stage 3 is built if aster3 binary exists (unix or windows artifact)
+            [[ -f "${BUILD_DIR}/stage3/aster3" ]] || [[ -f "${BUILD_DIR}/stage3/aster3.exe" ]]
             ;;
         *)
             return 1
@@ -271,6 +271,15 @@ show_next_stage_details() {
     fi
 }
 
+find_stage0_cli_dll() {
+    local base="${SRC_DIR}/Aster.CLI/bin/Release"
+    if [[ ! -d "$base" ]]; then
+        return 1
+    fi
+
+    find "$base" -type f -name "Aster.CLI.dll" | sort | tail -n 1
+}
+
 # Build a specific stage
 build_stage() {
     local stage=$1
@@ -289,16 +298,21 @@ build_stage() {
         fi
         
         # Verify build
-        if [[ ! -f "${SRC_DIR}/Aster.CLI/bin/Release/net10.0/Aster.CLI.dll" ]]; then
-            log_error "Stage 0 build failed: Aster.CLI.dll not found"
+        local stage0_cli
+        stage0_cli="$(find_stage0_cli_dll || true)"
+        if [[ -z "$stage0_cli" ]] || [[ ! -f "$stage0_cli" ]]; then
+            log_error "Stage 0 build failed: Aster.CLI.dll not found under ${SRC_DIR}/Aster.CLI/bin/Release"
             return 1
         fi
-        
+
         # Copy to build directory
         mkdir -p "${BUILD_DIR}/stage0"
-        cp -r "${SRC_DIR}/Aster.CLI/bin/Release/net10.0/"* "${BUILD_DIR}/stage0/"
-        
+        local stage0_out_dir
+        stage0_out_dir="$(dirname "$stage0_cli")"
+        cp -r "${stage0_out_dir}/"* "${BUILD_DIR}/stage0/"
+
         log_success "Stage 0 built successfully"
+        log_info "Resolved Stage 0 output: ${stage0_out_dir}"
         return 0
     fi
     

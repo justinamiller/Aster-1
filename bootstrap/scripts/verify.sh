@@ -206,7 +206,7 @@ verify_stage1() {
         exit 1
     fi
     
-    if [[ ! -f "${BUILD_DIR}/stage1/aster1" ]]; then
+    if [[ ! -f "${BUILD_DIR}/stage1/aster1" ]] && [[ ! -f "${BUILD_DIR}/stage1/aster1.exe" ]]; then
         log_warning "Stage 1 binary not yet built"
         log_info "Golden files verified. Build aster1 for full differential testing."
         return
@@ -219,7 +219,7 @@ verify_stage1() {
 verify_stage2() {
     log_step "Verifying Stage 2: Expanded Compiler"
     
-    if [[ ! -f "${BUILD_DIR}/stage2/aster2" ]]; then
+    if [[ ! -f "${BUILD_DIR}/stage2/aster2" ]] && [[ ! -f "${BUILD_DIR}/stage2/aster2.exe" ]]; then
         log_warning "Stage 2 binary not found (not yet implemented)"
         log_info "Stage 2 verification will be implemented when Stage 2 is built"
         return
@@ -233,7 +233,7 @@ verify_stage2() {
 verify_stage3() {
     log_step "Verifying Stage 3: Full Compiler"
     
-    if [[ ! -f "${BUILD_DIR}/stage3/aster3" ]]; then
+    if [[ ! -f "${BUILD_DIR}/stage3/aster3" ]] && [[ ! -f "${BUILD_DIR}/stage3/aster3.exe" ]]; then
         log_warning "Stage 3 binary not found (not yet implemented)"
         log_info "Stage 3 verification will be implemented when Stage 3 is built"
         return

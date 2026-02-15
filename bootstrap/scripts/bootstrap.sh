@@ -42,6 +42,16 @@ CLEAN_BUILD=0
 VERBOSE=0
 REPRODUCIBLE=1  # Enable reproducible builds by default
 
+# Resolve Stage 0 output path dynamically (framework may change: net10.0, net11.0, etc.)
+find_stage0_cli_dll() {
+    local base="${SRC_DIR}/Aster.CLI/bin/Release"
+    if [[ ! -d "$base" ]]; then
+        return 1
+    fi
+
+    find "$base" -type f -name "Aster.CLI.dll" | sort | tail -n 1
+}
+
 # Logging functions
 log_info() {
     echo -e "${BLUE}[INFO]${NC} $1"
@@ -212,18 +222,23 @@ build_stage0() {
     fi
     
     # Verify build
-    if [[ ! -f "${SRC_DIR}/Aster.CLI/bin/Release/net10.0/Aster.CLI.dll" ]]; then
-        log_error "Stage 0 build failed: Aster.CLI.dll not found"
+    local stage0_cli
+    stage0_cli="$(find_stage0_cli_dll || true)"
+    if [[ -z "$stage0_cli" ]] || [[ ! -f "$stage0_cli" ]]; then
+        log_error "Stage 0 build failed: Aster.CLI.dll not found under ${SRC_DIR}/Aster.CLI/bin/Release"
         exit 1
     fi
-    
+
     log_success "Stage 0 built successfully"
-    
+
     # Copy to build directory
     mkdir -p "${BUILD_DIR}/stage0"
-    cp -r "${SRC_DIR}/Aster.CLI/bin/Release/net10.0/"* "${BUILD_DIR}/stage0/"
-    
+    local stage0_out_dir
+    stage0_out_dir="$(dirname "$stage0_cli")"
+    cp -r "${stage0_out_dir}/"* "${BUILD_DIR}/stage0/"
+
     log_info "Stage 0 binary: ${BUILD_DIR}/stage0/Aster.CLI.dll"
+    log_info "Stage 0 source framework output: ${stage0_out_dir}"
 }
 
 # Build Stage 1 (Minimal Aster Compiler)

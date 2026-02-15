@@ -1,0 +1,4 @@
+// Bootstrap validation hello world (Aster-only source)
+fn main() {
+    print("hello world")
+}
