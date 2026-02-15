@@ -1,7 +1,9 @@
 using Aster.Compiler.Backends.Abstractions;
 using Aster.Compiler.Backends.LLVM;
 using Aster.Compiler.Diagnostics;
+using Aster.Compiler.Frontend.Ast;
 using Aster.Compiler.Frontend.Effects;
+using Aster.Compiler.Frontend.Hir;
 using Aster.Compiler.Frontend.Lexer;
 using Aster.Compiler.Frontend.NameResolution;
 using Aster.Compiler.Frontend.Parser;
@@ -178,13 +180,10 @@ public sealed class CompilationDriver
     /// Parse source code and return the AST.
     /// Used for differential testing (bootstrap stage 1).
     /// </summary>
-    public object? EmitAst(string source, string fileName)
+    public ProgramNode? EmitAst(string source, string fileName)
     {
-        var lexer = new AsterLexer(source, fileName);
-        var tokens = lexer.Tokenize();
-        _diagnostics.AddRange(lexer.Diagnostics);
-
-        if (_diagnostics.HasErrors)
+        var tokens = LexSource(source, fileName);
+        if (tokens == null)
             return null;
 
         var parser = new AsterParser(tokens, _stage1Mode);
@@ -198,23 +197,13 @@ public sealed class CompilationDriver
     }
 
     /// <summary>
-    /// Perform name resolution and return the symbol table.
+    /// Perform name resolution and return HIR.
     /// Used for differential testing (bootstrap stage 1).
     /// </summary>
-    public object? EmitSymbols(string source, string fileName)
+    public HirProgram? EmitSymbols(string source, string fileName)
     {
-        var lexer = new AsterLexer(source, fileName);
-        var tokens = lexer.Tokenize();
-        _diagnostics.AddRange(lexer.Diagnostics);
-
-        if (_diagnostics.HasErrors)
-            return null;
-
-        var parser = new AsterParser(tokens, _stage1Mode);
-        var ast = parser.ParseProgram();
-        _diagnostics.AddRange(parser.Diagnostics);
-
-        if (_diagnostics.HasErrors)
+        var ast = EmitAst(source, fileName);
+        if (ast == null)
             return null;
 
         var resolver = new NameResolver();
@@ -225,5 +214,21 @@ public sealed class CompilationDriver
             return null;
 
         return hir;
+    }
+
+    /// <summary>
+    /// Private helper to lex source code and handle diagnostics.
+    /// Returns null if lexing fails.
+    /// </summary>
+    private IReadOnlyList<Token>? LexSource(string source, string fileName)
+    {
+        var lexer = new AsterLexer(source, fileName);
+        var tokens = lexer.Tokenize();
+        _diagnostics.AddRange(lexer.Diagnostics);
+
+        if (_diagnostics.HasErrors)
+            return null;
+
+        return tokens;
     }
 }

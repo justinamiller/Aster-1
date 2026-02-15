@@ -36,8 +36,12 @@ void aster_panic(const char* msg, size_t len) {
  */
 void* aster_malloc(size_t size) {
     void* ptr = malloc(size);
-    if (ptr == NULL && size > 0) {
-        aster_panic("allocation failed", 17);
+    if (ptr == NULL) {
+        // Treat allocation failure as panic, except for size 0
+        // which is allowed to return NULL on some platforms
+        if (size > 0) {
+            aster_panic("allocation failed", 17);
+        }
     }
     return ptr;
 }
