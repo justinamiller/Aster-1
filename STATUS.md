@@ -52,7 +52,8 @@ This document tracks the implementation status of features across all bootstrap 
 | String Interner | ✅ Complete | [string_interner.ast](src/aster1/string_interner.ast) |
 | Lexer | 🚧 80% | [lexer.ast](src/aster1/lexer.ast) |
 | Token Definitions | ✅ Complete | [Documented in lexer](src/aster1/lexer.ast) |
-| Parser | ❌ Not Started | Planned in [parser.ast](src/aster1/parser.ast) |
+| Parser Infrastructure | ✅ Complete | [parser.ast](src/aster1/parser.ast) - 18 helper functions |
+| Parser Implementation | 🚧 15% | [parser.ast](src/aster1/parser.ast) - Phase 1 done |
 | AST | 🚧 Partial | [ast.ast](src/aster1/ast.ast) |
 | Symbol Table | 🚧 Partial | [symbols.ast](src/aster1/symbols.ast) |
 | Type Checker | 🚧 Skeleton | [typecheck.ast](src/aster1/typecheck.ast) |
@@ -64,15 +65,25 @@ This document tracks the implementation status of features across all bootstrap 
 | Emit AST | ❌ Not Started | Required for differential testing |
 | **Differential Testing** | ✅ Complete | [bootstrap/scripts/](bootstrap/scripts/) |
 | **Golden Files** | ✅ Generated | 28 files: tokens, AST, symbols |
+| **Parser Guide** | ✅ Complete | [docs/STAGE1_PARSER_GUIDE.md](docs/STAGE1_PARSER_GUIDE.md) |
+
+**Parser Progress** (Phase 1 of 7 Complete):
+- ✅ Phase 1: Helper functions (peek, advance, check, expect, synchronize)
+- ⚙️ Phase 2: Declaration parsing (functions, structs, enums)  
+- ⚙️ Phase 3: Type parsing
+- ⚙️ Phase 4: Expression parsing (Pratt parser)
+- ⚙️ Phase 5: Statement parsing
+- ⚙️ Phase 6: Pattern matching
+- ⚙️ Phase 7: Integration and testing
 
 **Remaining Work for Stage 1**:
-1. Complete lexer (1-2 weeks)
-2. Implement parser (3-4 weeks)
+1. Complete parser phases 2-7 (2-3 weeks)
+2. Complete lexer (1 week)
 3. Complete AST nodes (1 week)
 4. Implement symbol table (1 week)
 5. Create main entry point with CLI (1 week)
 6. Implement `emit-tokens` and `emit-ast-json` commands (1 week)
-7. Differential testing (1 week)
+7. Differential testing validation (1 week)
 
 **Estimated Completion**: 2-3 months
 

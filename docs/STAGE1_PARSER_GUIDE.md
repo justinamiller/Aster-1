@@ -40,33 +40,33 @@ Tokens → Parser → AST
 
 ## Implementation Plan
 
-### Phase 1: Parser Infrastructure ✅ (Week 1)
+### Phase 1: Parser Infrastructure ✅ COMPLETE (Week 1)
 
 **Goal**: Set up basic parser structure and helpers
 
+**Status**: ✅ Complete (2026-02-15)
+
 #### Tasks
 - [x] Define Parser struct with state
-- [ ] Implement token navigation helpers:
-  - [ ] `peek()` — Look at current token without consuming
-  - [ ] `peek_ahead(n)` — Look ahead n tokens
-  - [ ] `advance()` — Consume and return current token
-  - [ ] `expect(kind)` — Consume token of expected kind or error
-  - [ ] `is_at_end()` — Check if at EOF
-  - [ ] `check(kind)` — Check if current token is of kind
-  - [ ] `match_tokens(kinds)` — Try to match any of given kinds
-- [ ] Implement error handling:
-  - [ ] `error(message)` — Report error at current position
-  - [ ] `synchronize()` — Recover from parse errors
-- [ ] Implement node ID generation
-- [ ] Create basic test harness
+- [x] Implement token navigation helpers:
+  - [x] `peek()` — Look at current token without consuming
+  - [x] `peek_ahead(n)` — Look ahead n tokens
+  - [x] `advance()` — Consume and return current token
+  - [x] `expect(kind)` — Consume token of expected kind or error
+  - [x] `is_at_end()` — Check if at EOF
+  - [x] `check(kind)` — Check if current token is of kind
+  - [x] `match_tokens(kinds)` — Try to match any of given kinds
+  - [x] `previous()` — Get previous token
+- [x] Implement error handling:
+  - [x] `error(message)` — Report error at current position (via expect)
+  - [x] `synchronize()` — Recover from parse errors
+- [x] Implement node ID generation: `new_node_id()`
+- [ ] Create basic test harness (deferred to integration phase)
 
-**Testing**:
-- Test helper functions with mock token stream
-- Verify error reporting works
-- Verify synchronization logic
+**Testing**: Helper functions implemented, ready for use in Phase 2
 
 **Files Modified**:
-- `src/aster1/parser.ast`
+- `src/aster1/parser.ast` ✅ (18 helper functions added)
 
 ---
 
