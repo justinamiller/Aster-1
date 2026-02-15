@@ -1,0 +1,42 @@
+{
+  "Declarations": [
+    {
+      "Span": {
+        "File": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+        "Line": 5,
+        "Column": 1,
+        "Start": 119,
+        "Length": 43,
+        "End": 162
+      }
+    },
+    {
+      "Span": {
+        "File": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+        "Line": 9,
+        "Column": 1,
+        "Start": 164,
+        "Length": 48,
+        "End": 212
+      }
+    },
+    {
+      "Span": {
+        "File": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+        "Line": 13,
+        "Column": 1,
+        "Start": 214,
+        "Length": 95,
+        "End": 309
+      }
+    }
+  ],
+  "Span": {
+    "File": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/simple_function.ast",
+    "Line": 5,
+    "Column": 1,
+    "Start": 119,
+    "Length": 2,
+    "End": 121
+  }
+}

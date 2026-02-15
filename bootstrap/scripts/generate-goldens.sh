@@ -33,8 +33,12 @@ chmod +x "${ASTER0}"
 
 # Create golden directories
 mkdir -p "${GOLDENS_DIR}/compile-pass/tokens"
+mkdir -p "${GOLDENS_DIR}/compile-pass/ast"
+mkdir -p "${GOLDENS_DIR}/compile-pass/symbols"
 mkdir -p "${GOLDENS_DIR}/compile-fail/tokens"
 mkdir -p "${GOLDENS_DIR}/run-pass/tokens"
+mkdir -p "${GOLDENS_DIR}/run-pass/ast"
+mkdir -p "${GOLDENS_DIR}/run-pass/symbols"
 
 echo -e "${YELLOW}Using seed compiler:${NC} ${ASTER0}"
 echo -e "${YELLOW}Fixtures directory:${NC} ${FIXTURES_DIR}"
@@ -46,24 +50,41 @@ generate_golden() {
     local fixture_path="$1"
     local category="$2"
     local fixture_name=$(basename "${fixture_path}" .ast)
-    local golden_path="${GOLDENS_DIR}/${category}/tokens/${fixture_name}.json"
+    local tokens_path="${GOLDENS_DIR}/${category}/tokens/${fixture_name}.json"
+    local ast_path="${GOLDENS_DIR}/${category}/ast/${fixture_name}.json"
+    local symbols_path="${GOLDENS_DIR}/${category}/symbols/${fixture_name}.json"
     
     echo -n "  ${fixture_name} ... "
     
-    if "${ASTER0}" emit-tokens "${fixture_path}" > "${golden_path}" 2>/dev/null; then
-        echo -e "${GREEN}✓${NC}"
-        return 0
-    else
-        echo -e "${RED}✗${NC}"
+    # Generate tokens
+    if ! "${ASTER0}" emit-tokens "${fixture_path}" > "${tokens_path}" 2>/dev/null; then
+        echo -e "${RED}✗ (tokens)${NC}"
         # For compile-fail fixtures, this is expected
         if [ "${category}" = "compile-fail" ]; then
             echo -e "    ${YELLOW}(Expected failure for compile-fail fixture)${NC}"
             # Still create an error marker file
-            echo '{"error": "Expected compilation failure"}' > "${golden_path}"
+            echo '{"error": "Expected compilation failure"}' > "${tokens_path}"
             return 0
         fi
         return 1
     fi
+    
+    # Generate AST (only for compile-pass and run-pass)
+    if [ "${category}" != "compile-fail" ]; then
+        if ! "${ASTER0}" emit-ast-json "${fixture_path}" > "${ast_path}" 2>/dev/null; then
+            echo -e "${RED}✗ (ast)${NC}"
+            return 1
+        fi
+        
+        # Generate symbols
+        if ! "${ASTER0}" emit-symbols-json "${fixture_path}" > "${symbols_path}" 2>/dev/null; then
+            echo -e "${RED}✗ (symbols)${NC}"
+            return 1
+        fi
+    fi
+    
+    echo -e "${GREEN}✓${NC}"
+    return 0
 }
 
 # Generate goldens for compile-pass fixtures
@@ -109,8 +130,14 @@ echo
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo -e "${GREEN}Golden files generated successfully!${NC}"
 echo
+echo "Generated outputs:"
+echo "  - Tokens: compile-pass (${success_count}), run-pass (${run_success})"
+echo "  - AST: compile-pass (${success_count}), run-pass (${run_success})"
+echo "  - Symbols: compile-pass (${success_count}), run-pass (${run_success})"
+echo
 echo "Next steps:"
 echo "  1. Review golden files in ${GOLDENS_DIR}"
 echo "  2. Build aster1 (Stage 1 Aster compiler)"
-echo "  3. Run verify.sh to test differential equivalence"
+echo "  3. Run diff-test-tokens.sh, diff-test-ast.sh, diff-test-symbols.sh"
+echo "  4. Run verify.sh to test full differential equivalence"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

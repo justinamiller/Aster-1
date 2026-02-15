@@ -1,0 +1,22 @@
+{
+  "Declarations": [
+    {
+      "Span": {
+        "File": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/run-pass/hello_world.ast",
+        "Line": 6,
+        "Column": 1,
+        "Start": 128,
+        "Length": 41,
+        "End": 169
+      }
+    }
+  ],
+  "Span": {
+    "File": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/run-pass/hello_world.ast",
+    "Line": 6,
+    "Column": 1,
+    "Start": 128,
+    "Length": 2,
+    "End": 130
+  }
+}

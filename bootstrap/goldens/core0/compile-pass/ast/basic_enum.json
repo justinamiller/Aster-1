@@ -1,0 +1,42 @@
+{
+  "Declarations": [
+    {
+      "Span": {
+        "File": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/basic_enum.ast",
+        "Line": 5,
+        "Column": 1,
+        "Start": 113,
+        "Length": 39,
+        "End": 152
+      }
+    },
+    {
+      "Span": {
+        "File": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/basic_enum.ast",
+        "Line": 10,
+        "Column": 1,
+        "Start": 154,
+        "Length": 142,
+        "End": 296
+      }
+    },
+    {
+      "Span": {
+        "File": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/basic_enum.ast",
+        "Line": 17,
+        "Column": 1,
+        "Start": 298,
+        "Length": 114,
+        "End": 412
+      }
+    }
+  ],
+  "Span": {
+    "File": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/compile-pass/basic_enum.ast",
+    "Line": 5,
+    "Column": 1,
+    "Start": 113,
+    "Length": 4,
+    "End": 117
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "Declarations": [
+    {
+      "Span": {
+        "File": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/run-pass/sum_array.ast",
+        "Line": 6,
+        "Column": 1,
+        "Start": 109,
+        "Length": 184,
+        "End": 293
+      }
+    },
+    {
+      "Span": {
+        "File": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/run-pass/sum_array.ast",
+        "Line": 16,
+        "Column": 1,
+        "Start": 295,
+        "Length": 198,
+        "End": 493
+      }
+    }
+  ],
+  "Span": {
+    "File": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/run-pass/sum_array.ast",
+    "Line": 6,
+    "Column": 1,
+    "Start": 109,
+    "Length": 2,
+    "End": 111
+  }
+}
