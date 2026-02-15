@@ -1,0 +1,246 @@
+// AST - Abstract Syntax Tree data structures
+// Part of Aster Stage 1 (Core-0 implementation)
+//
+// This module defines the AST node types representing the parsed structure
+// of Aster source code. The AST is the direct representation of source syntax.
+//
+// Language Subset: Core-0
+// - Uses only: structs, enums, Vec, String, Box
+// - No traits, no async, no macros
+
+/// A complete module (source file)
+struct Module {
+    items: Vec<Item>
+}
+
+/// Top-level item in a module
+enum Item {
+    Function(FunctionItem),
+    Struct(StructItem),
+    Enum(EnumItem),
+    TypeAlias(TypeAliasItem),
+    Error(ErrorItem)
+}
+
+/// Function declaration
+struct FunctionItem {
+    name: String,
+    params: Vec<Parameter>,
+    return_type: Type,
+    body: Block,
+    span: Span
+}
+
+/// Struct declaration
+struct StructItem {
+    name: String,
+    fields: Vec<Field>,
+    span: Span
+}
+
+/// Enum declaration
+struct EnumItem {
+    name: String,
+    variants: Vec<Variant>,
+    span: Span
+}
+
+/// Type alias declaration
+struct TypeAliasItem {
+    name: String,
+    aliased_type: Type,
+    span: Span
+}
+
+/// Error item (for error recovery)
+struct ErrorItem {
+    span: Span
+}
+
+/// Function parameter
+struct Parameter {
+    name: String,
+    param_type: Type
+}
+
+/// Struct field
+struct Field {
+    name: String,
+    field_type: Type
+}
+
+/// Enum variant
+struct Variant {
+    name: String,
+    payload: Option<Type>
+}
+
+/// Type expression
+enum Type {
+    Named(String),
+    Unit,
+    Error
+}
+
+/// Block of statements
+struct Block {
+    statements: Vec<Statement>,
+    span: Span
+}
+
+/// Statement
+enum Statement {
+    Let(LetStatement),
+    Return(ReturnStatement),
+    If(IfStatement),
+    While(WhileStatement),
+    For(ForStatement),
+    Expression(ExpressionStatement)
+}
+
+/// Let binding statement
+struct LetStatement {
+    name: String,
+    mutable: bool,
+    type_annotation: Option<Type>,
+    initializer: Expression,
+    span: Span
+}
+
+/// Return statement
+struct ReturnStatement {
+    value: Option<Expression>,
+    span: Span
+}
+
+/// If statement
+struct IfStatement {
+    condition: Expression,
+    then_block: Block,
+    else_block: Option<Block>,
+    span: Span
+}
+
+/// While loop statement
+struct WhileStatement {
+    condition: Expression,
+    body: Block,
+    span: Span
+}
+
+/// For loop statement
+struct ForStatement {
+    variable: String,
+    iterable: Expression,
+    body: Block,
+    span: Span
+}
+
+/// Expression statement
+struct ExpressionStatement {
+    expression: Expression,
+    span: Span
+}
+
+/// Expression
+enum Expression {
+    IntegerLiteral(IntegerLiteralExpr),
+    FloatLiteral(FloatLiteralExpr),
+    StringLiteral(StringLiteralExpr),
+    CharLiteral(CharLiteralExpr),
+    BooleanLiteral(BooleanLiteralExpr),
+    Identifier(IdentifierExpr),
+    Binary(BinaryExpr),
+    Unary(UnaryExpr),
+    Call(CallExpr),
+    FieldAccess(FieldAccessExpr),
+    Assignment(AssignmentExpr),
+    Error(ErrorExpr)
+}
+
+/// Integer literal expression
+struct IntegerLiteralExpr {
+    value: String
+}
+
+/// Float literal expression
+struct FloatLiteralExpr {
+    value: String
+}
+
+/// String literal expression
+struct StringLiteralExpr {
+    value: String
+}
+
+/// Character literal expression
+struct CharLiteralExpr {
+    value: String
+}
+
+/// Boolean literal expression
+struct BooleanLiteralExpr {
+    value: bool
+}
+
+/// Identifier expression
+struct IdentifierExpr {
+    name: String
+}
+
+/// Binary expression
+struct BinaryExpr {
+    left: Box<Expression>,
+    op: BinaryOp,
+    right: Box<Expression>
+}
+
+/// Unary expression
+struct UnaryExpr {
+    op: UnaryOp,
+    operand: Box<Expression>
+}
+
+/// Call expression
+struct CallExpr {
+    callee: Box<Expression>,
+    arguments: Vec<Expression>
+}
+
+/// Field access expression
+struct FieldAccessExpr {
+    object: Box<Expression>,
+    field: String
+}
+
+/// Assignment expression
+struct AssignmentExpr {
+    target: Box<Expression>,
+    value: Box<Expression>
+}
+
+/// Error expression (for error recovery)
+struct ErrorExpr {}
+
+/// Binary operators
+enum BinaryOp {
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+    Modulo,
+    Equal,
+    NotEqual,
+    Less,
+    LessEqual,
+    Greater,
+    GreaterEqual,
+    LogicalAnd,
+    LogicalOr
+}
+
+/// Unary operators
+enum UnaryOp {
+    Negate,
+    Not
+}

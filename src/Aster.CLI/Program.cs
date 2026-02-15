@@ -71,55 +71,173 @@ public static class Program
     private static int Build(string[] args)
     {
         bool stage1Mode = false;
-        string? filePath = null;
+        string? outputPath = null;
+        var inputFiles = new List<string>();
 
         // Parse arguments
-        foreach (var arg in args)
+        for (int i = 0; i < args.Length; i++)
         {
-            if (arg == "--stage1")
+            if (args[i] == "--stage1")
             {
                 stage1Mode = true;
             }
-            else if (!arg.StartsWith("--") && filePath == null)
+            else if (args[i] == "-o" && i + 1 < args.Length)
             {
-                filePath = arg;
+                outputPath = args[i + 1];
+                i++; // Skip next argument
+            }
+            else if (!args[i].StartsWith("--") && !args[i].StartsWith("-"))
+            {
+                inputFiles.Add(args[i]);
             }
         }
 
-        if (filePath == null)
+        if (inputFiles.Count == 0)
         {
             Console.Error.WriteLine("error: no input file specified");
             return 1;
         }
 
-        if (!File.Exists(filePath))
+        // Verify all input files exist
+        foreach (var file in inputFiles)
         {
-            Console.Error.WriteLine($"error: file not found: {filePath}");
-            return 1;
+            if (!File.Exists(file))
+            {
+                Console.Error.WriteLine($"error: file not found: {file}");
+                return 1;
+            }
         }
 
-        var source = File.ReadAllText(filePath);
+        // For now, compile files individually and merge LLVM IR
+        // In a full implementation, we'd have a proper linker
+        var allLlvmIr = new List<string>();
         var driver = new CompilationDriver(stage1Mode);
-        var llvmIr = driver.Compile(source, filePath);
 
-        if (llvmIr == null)
+        foreach (var filePath in inputFiles)
         {
-            Console.Error.Write(driver.FormatDiagnostics());
-            return 1;
+            var source = File.ReadAllText(filePath);
+            var llvmIr = driver.Compile(source, filePath);
+
+            if (llvmIr == null)
+            {
+                Console.Error.Write(driver.FormatDiagnostics());
+                return 1;
+            }
+
+            allLlvmIr.Add(llvmIr);
         }
 
-        var outputPath = Path.ChangeExtension(filePath, ".ll");
-        File.WriteAllText(outputPath, llvmIr);
-        
-        if (stage1Mode)
+        // Merge LLVM IR (simplified - just concatenate for now)
+        var mergedLlvmIr = string.Join("\n\n", allLlvmIr);
+
+        // Determine output path
+        if (outputPath == null)
         {
-            Console.WriteLine($"Compiled {filePath} -> {outputPath} [Stage1 mode]");
+            // Default: use first input file name with .ll extension
+            outputPath = Path.ChangeExtension(inputFiles[0], ".ll");
+        }
+
+        // If output path doesn't have .ll extension, we want to create a native executable
+        bool createExecutable = !outputPath.EndsWith(".ll", StringComparison.OrdinalIgnoreCase);
+
+        if (createExecutable)
+        {
+            // Write LLVM IR to temporary file
+            var tempLlFile = Path.GetTempFileName() + ".ll";
+            File.WriteAllText(tempLlFile, mergedLlvmIr);
+
+            try
+            {
+                // Invoke clang to create native executable
+                var result = CompileToNative(tempLlFile, outputPath);
+                if (result != 0)
+                {
+                    Console.Error.WriteLine("error: failed to create native executable");
+                    Console.Error.WriteLine("Make sure clang is installed and in your PATH");
+                    return 1;
+                }
+
+                if (stage1Mode)
+                {
+                    Console.WriteLine($"Compiled {inputFiles.Count} file(s) -> {outputPath} [Stage1 mode]");
+                }
+                else
+                {
+                    Console.WriteLine($"Compiled {inputFiles.Count} file(s) -> {outputPath}");
+                }
+            }
+            finally
+            {
+                // Clean up temporary file
+                if (File.Exists(tempLlFile))
+                {
+                    try { File.Delete(tempLlFile); } catch { }
+                }
+            }
         }
         else
         {
-            Console.WriteLine($"Compiled {filePath} -> {outputPath}");
+            // Just write LLVM IR
+            File.WriteAllText(outputPath, mergedLlvmIr);
+            
+            if (stage1Mode)
+            {
+                Console.WriteLine($"Compiled {inputFiles.Count} file(s) -> {outputPath} [Stage1 mode]");
+            }
+            else
+            {
+                Console.WriteLine($"Compiled {inputFiles.Count} file(s) -> {outputPath}");
+            }
         }
+        
         return 0;
+    }
+
+    /// <summary>
+    /// Compile LLVM IR to native executable using clang.
+    /// </summary>
+    private static int CompileToNative(string llvmIrPath, string outputPath)
+    {
+        try
+        {
+            var startInfo = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "clang",
+                Arguments = $"\"{llvmIrPath}\" -o \"{outputPath}\" -Wno-override-module",
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true
+            };
+
+            using var process = System.Diagnostics.Process.Start(startInfo);
+            if (process == null)
+            {
+                Console.Error.WriteLine("error: failed to start clang process");
+                return 1;
+            }
+
+            var output = process.StandardOutput.ReadToEnd();
+            var error = process.StandardError.ReadToEnd();
+
+            process.WaitForExit();
+
+            if (process.ExitCode != 0)
+            {
+                if (!string.IsNullOrWhiteSpace(output))
+                    Console.Error.WriteLine(output);
+                if (!string.IsNullOrWhiteSpace(error))
+                    Console.Error.WriteLine(error);
+                return process.ExitCode;
+            }
+
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"error: {ex.Message}");
+            return 1;
+        }
     }
 
     private static int Check(string[] args)
