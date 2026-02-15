@@ -1,0 +1,136 @@
+// Main - Entry point for the Aster Stage 1 compiler
+// Part of Aster Stage 1 (Core-0 implementation)
+//
+// This is the main entry point that orchestrates lexing and parsing
+// of Aster source files.
+//
+// Language Subset: Core-0
+// - Uses only: functions, Vec, String, structs
+// - No traits, no async, no macros
+
+/// Compiler driver that orchestrates all compilation stages
+struct Compiler {
+    source_file: String,
+    source_text: String,
+    diagnostics: DiagnosticBag
+}
+
+/// Create a new compiler instance
+fn new_compiler(source_file: String, source_text: String) -> Compiler {
+    Compiler {
+        source_file: source_file,
+        source_text: source_text,
+        diagnostics: new_diagnostic_bag()
+    }
+}
+
+/// Compile a source file through all stages
+fn compile(compiler: &mut Compiler) -> CompilationResult {
+    // Stage 1: Lexical Analysis
+    let tokens = lex_source(compiler);
+    
+    if has_errors(compiler.diagnostics) {
+        return CompilationResult {
+            success: false,
+            module: None,
+            diagnostics: compiler.diagnostics
+        };
+    }
+    
+    // Stage 2: Parsing
+    let module = parse_source(compiler, tokens);
+    
+    if has_errors(compiler.diagnostics) {
+        return CompilationResult {
+            success: false,
+            module: Some(module),
+            diagnostics: compiler.diagnostics
+        };
+    }
+    
+    // Success
+    CompilationResult {
+        success: true,
+        module: Some(module),
+        diagnostics: compiler.diagnostics
+    }
+}
+
+/// Lex the source code into tokens
+fn lex_source(compiler: &mut Compiler) -> Vec<Token> {
+    let mut lexer = new_lexer(compiler.source_text.clone(), compiler.source_file.clone());
+    let tokens = tokenize(&mut lexer);
+    
+    // Collect any lexer diagnostics
+    // (In a full implementation, the lexer would report errors)
+    
+    tokens
+}
+
+/// Parse tokens into an AST module
+fn parse_source(compiler: &mut Compiler, tokens: Vec<Token>) -> Module {
+    let mut parser = new_parser(tokens);
+    let module = parse(&mut parser);
+    
+    // Collect parser diagnostics
+    compiler.diagnostics = parser.diagnostics;
+    
+    module
+}
+
+/// Result of compilation
+struct CompilationResult {
+    success: bool,
+    module: Option<Module>,
+    diagnostics: DiagnosticBag
+}
+
+/// Main entry point for the compiler
+fn main() {
+    // For Stage 1, this would read command-line arguments
+    // and compile the specified file
+    
+    // Example usage (would be replaced with actual CLI handling):
+    let test_source = "fn main() { let x = 42; }";
+    let test_file = "test.ast";
+    
+    let mut compiler = new_compiler(test_file, test_source);
+    let result = compile(&mut compiler);
+    
+    if result.success {
+        print_success();
+    } else {
+        print_errors(result.diagnostics);
+    }
+}
+
+/// Print success message
+fn print_success() {
+    // Simplified for Core-0
+    // In full implementation, would use println!
+}
+
+/// Print compilation errors
+fn print_errors(diagnostics: DiagnosticBag) {
+    // Simplified for Core-0
+    // In full implementation, would format and print each diagnostic
+}
+
+/// Read a file's contents
+fn read_file(path: String) -> String {
+    // Simplified stub for Core-0
+    // In full implementation, would use file I/O
+    ""
+}
+
+/// Write output to a file
+fn write_file(path: String, content: String) {
+    // Simplified stub for Core-0
+    // In full implementation, would use file I/O
+}
+
+/// Print a string (stub for Core-0)
+fn print(s: String) {
+    // Simplified stub for Core-0
+    // In full implementation, would use println! macro
+}

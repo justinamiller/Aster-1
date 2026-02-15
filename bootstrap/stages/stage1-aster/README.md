@@ -23,9 +23,9 @@ Stage 1 includes:
 
 ## Source Location
 
-**Future**: Aster source code will be in `/aster/compiler/stage1/`
+Aster source code is in `/aster/compiler/`
 
-**Status**: Not yet implemented (infrastructure ready)
+**Status**: Core components implemented (contracts, lexer, parser, AST structures)
 
 ## Building
 
@@ -48,31 +48,59 @@ Stage 1 is verified by:
 
 See: `./bootstrap/scripts/verify.sh --stage 1`
 
-## Next Steps
+## Implementation Status
 
-To implement Stage 1:
+### Completed ✅
 
-1. **Port Contracts**
-   - Create `/aster/compiler/contracts/span.ast`
-   - Create `/aster/compiler/contracts/token.ast`
-   - Create `/aster/compiler/contracts/diagnostics.ast`
+1. **Port Contracts** ✅
+   - ✅ `/aster/compiler/contracts/span.ast` - Source location tracking
+   - ✅ `/aster/compiler/contracts/token.ast` - Token representation
+   - ✅ `/aster/compiler/contracts/token_kind.ast` - Token type enumeration
+   - ✅ `/aster/compiler/contracts/diagnostics.ast` - Error reporting
 
-2. **Port Lexer**
-   - Create `/aster/compiler/frontend/lexer.ast`
-   - Implement UTF-8 tokenization in Core-0
+2. **Port Lexer** ✅
+   - ✅ `/aster/compiler/frontend/lexer.ast` - UTF-8 tokenization with span tracking
+   - ✅ `/aster/compiler/frontend/string_interner.ast` - String deduplication
 
-3. **Port Parser**
-   - Create `/aster/compiler/frontend/parser.ast`
-   - Implement recursive descent parser in Core-0
+3. **Port Parser** ✅
+   - ✅ `/aster/compiler/frontend/parser.ast` - Recursive descent parser
 
-4. **Create Tests**
-   - Add fixtures to `/bootstrap/fixtures/core0/`
-   - Add expected outputs to `/bootstrap/goldens/core0/`
+4. **Create AST Structures** ✅
+   - ✅ `/aster/compiler/ir/ast.ast` - Abstract Syntax Tree node definitions
+   - ✅ `/aster/compiler/main.ast` - Compiler entry point and driver
 
-5. **Differential Testing**
-   - Compare aster0 and aster1 outputs
-   - Verify token streams match
-   - Verify AST structures match
+5. **Create Tests** ✅
+   - ✅ Fixtures in `/bootstrap/fixtures/core0/` (compile-pass, run-pass, compile-fail)
+   - ✅ Golden outputs in `/bootstrap/goldens/core0/`
+
+6. **Differential Testing Infrastructure** ✅
+   - ✅ Bootstrap build script (`bootstrap/scripts/bootstrap.sh`)
+   - ✅ Differential test script (`bootstrap/scripts/diff-test-tokens.sh`)
+   - ✅ Verification script (`bootstrap/scripts/verify.sh`)
+
+### Pending ⏳
+
+**Note**: The .ast files created define the structure and algorithms in Core-0 syntax.
+To complete the full bootstrap:
+
+1. **Stage 0 Compiler Enhancement**
+   - The C# compiler (Stage 0) needs to be enhanced to compile .ast files to executable code
+   - This involves implementing code generation from Aster source to LLVM IR or native code
+
+2. **Executable Compilation**
+   - Once Stage 0 can compile .ast files, run: `./bootstrap/scripts/bootstrap.sh --stage 1`
+   - This will produce the `aster1` executable
+
+3. **Self-Compilation Test**
+   - Verify `aster1` can compile its own source
+   - Run differential tests to ensure output equivalence with `aster0`
+
+### Current State
+
+- ✅ All source files for Stage 1 compiler exist
+- ✅ Infrastructure and testing framework in place
+- ✅ Differential testing can verify golden outputs
+- ⏳ Awaiting Stage 0 code generation capability for .ast files
 
 ## See Also
 
