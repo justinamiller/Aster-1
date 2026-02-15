@@ -242,30 +242,166 @@ build_stage1() {
         return
     fi
     
-    # TODO: Implement Stage 1 compilation
-    # This will use aster0 (C# compiler) to compile Aster source code
-    log_warning "Stage 1 compilation not yet implemented"
-    log_info "Future: aster0 will compile ${ASTER_DIR}/compiler/stage1/*.ast → aster1"
+    # Check if Stage 0 is built
+    local ASTER0="${BUILD_DIR}/stage0/Aster.CLI.dll"
+    if [[ ! -f "$ASTER0" ]]; then
+        log_error "Stage 0 not found. Build Stage 0 first."
+        exit 1
+    fi
+    
+    # Check for main entry point
+    local MAIN_SOURCE="${ASTER_DIR}/compiler/main.ast"
+    if [[ ! -f "$MAIN_SOURCE" ]]; then
+        log_warning "No main.ast entry point found at ${MAIN_SOURCE}"
+        log_warning "Stage 1 requires a main entry point to build an executable"
+        log_info "Current status: Partial implementation (contracts and frontend started)"
+        log_info "Next steps:"
+        log_info "  1. Complete lexer and parser implementation"
+        log_info "  2. Create main.ast with entry point"
+        log_info "  3. Implement compiler driver logic"
+        return
+    fi
+    
+    log_info "Compiling Aster compiler source with aster0 (Stage 0)..."
+    
+    # Create Stage 1 build directory
+    mkdir -p "${BUILD_DIR}/stage1"
+    
+    # Collect all Aster source files
+    local AST_FILES=$(find "${ASTER_DIR}/compiler" -name "*.ast" -type f)
+    
+    if [[ -z "$AST_FILES" ]]; then
+        log_error "No .ast files found in ${ASTER_DIR}/compiler"
+        exit 1
+    fi
+    
+    log_info "Found $(echo "$AST_FILES" | wc -l) Aster source files"
+    
+    # Compile with aster0
+    log_info "Running: dotnet $ASTER0 build --stage1 -o ${BUILD_DIR}/stage1/aster1"
+    
+    if [[ $VERBOSE -eq 1 ]]; then
+        dotnet "$ASTER0" build $AST_FILES --stage1 -o "${BUILD_DIR}/stage1/aster1"
+    else
+        dotnet "$ASTER0" build $AST_FILES --stage1 -o "${BUILD_DIR}/stage1/aster1" > /dev/null 2>&1
+    fi
+    
+    # Check if build succeeded
+    if [[ -f "${BUILD_DIR}/stage1/aster1" ]] || [[ -f "${BUILD_DIR}/stage1/aster1.exe" ]]; then
+        log_success "Stage 1 built successfully"
+        log_info "Stage 1 binary: ${BUILD_DIR}/stage1/aster1"
+    else
+        log_warning "Stage 1 build did not produce binary (expected during partial implementation)"
+        log_info "This is normal if the compiler implementation is incomplete"
+    fi
 }
 
 # Build Stage 2 (Expanded Aster Compiler)
 build_stage2() {
     log_step "Building Stage 2: Expanded Aster Compiler"
     
-    # TODO: Implement Stage 2 compilation
-    # This will use aster1 to compile larger Aster compiler
-    log_warning "Stage 2 compilation not yet implemented"
-    log_info "Future: aster1 will compile ${ASTER_DIR}/compiler/stage2/*.ast → aster2"
+    # Check if Stage 1 is built
+    local ASTER1="${BUILD_DIR}/stage1/aster1"
+    if [[ ! -f "$ASTER1" ]] && [[ ! -f "${ASTER1}.exe" ]]; then
+        log_error "Stage 1 not found. Build Stage 1 first."
+        exit 1
+    fi
+    
+    # Check if Stage 2 source exists
+    if [[ ! -d "${ASTER_DIR}/compiler/stage2" ]]; then
+        log_warning "Stage 2 source not found at ${ASTER_DIR}/compiler/stage2"
+        log_warning "Stage 2 implementation pending"
+        log_info "Stage 2 will add:"
+        log_info "  - Name resolution"
+        log_info "  - Type inference (Hindley-Milner)"
+        log_info "  - Trait solver"
+        log_info "  - Effect system"
+        log_info "  - Ownership analysis"
+        return
+    fi
+    
+    log_info "Compiling Stage 2 with aster1..."
+    
+    # Create Stage 2 build directory
+    mkdir -p "${BUILD_DIR}/stage2"
+    
+    # Collect Stage 2 source files
+    local AST_FILES=$(find "${ASTER_DIR}/compiler/stage2" -name "*.ast" -type f)
+    
+    if [[ -z "$AST_FILES" ]]; then
+        log_error "No .ast files found in ${ASTER_DIR}/compiler/stage2"
+        exit 1
+    fi
+    
+    log_info "Found $(echo "$AST_FILES" | wc -l) Stage 2 source files"
+    
+    # Compile with aster1
+    if [[ $VERBOSE -eq 1 ]]; then
+        "$ASTER1" build $AST_FILES -o "${BUILD_DIR}/stage2/aster2"
+    else
+        "$ASTER1" build $AST_FILES -o "${BUILD_DIR}/stage2/aster2" > /dev/null 2>&1
+    fi
+    
+    if [[ -f "${BUILD_DIR}/stage2/aster2" ]] || [[ -f "${BUILD_DIR}/stage2/aster2.exe" ]]; then
+        log_success "Stage 2 built successfully"
+        log_info "Stage 2 binary: ${BUILD_DIR}/stage2/aster2"
+    else
+        log_warning "Stage 2 build did not produce binary (expected during partial implementation)"
+    fi
 }
 
 # Build Stage 3 (Full Aster Compiler)
 build_stage3() {
     log_step "Building Stage 3: Full Aster Compiler"
     
-    # TODO: Implement Stage 3 compilation
-    # This will use aster2 to compile full Aster compiler
-    log_warning "Stage 3 compilation not yet implemented"
-    log_info "Future: aster2 will compile ${ASTER_DIR}/compiler/stage3/*.ast → aster3"
+    # Check if Stage 2 is built
+    local ASTER2="${BUILD_DIR}/stage2/aster2"
+    if [[ ! -f "$ASTER2" ]] && [[ ! -f "${ASTER2}.exe" ]]; then
+        log_error "Stage 2 not found. Build Stage 2 first."
+        exit 1
+    fi
+    
+    # Check if Stage 3 source exists
+    if [[ ! -d "${ASTER_DIR}/compiler/stage3" ]]; then
+        log_warning "Stage 3 source not found at ${ASTER_DIR}/compiler/stage3"
+        log_warning "Stage 3 implementation pending"
+        log_info "Stage 3 will add:"
+        log_info "  - Borrow checker (non-lexical lifetimes)"
+        log_info "  - MIR builder"
+        log_info "  - Optimization passes"
+        log_info "  - LLVM backend"
+        log_info "  - Complete tooling (fmt, lint, doc, test)"
+        return
+    fi
+    
+    log_info "Compiling Stage 3 with aster2..."
+    
+    # Create Stage 3 build directory
+    mkdir -p "${BUILD_DIR}/stage3"
+    
+    # Collect Stage 3 source files
+    local AST_FILES=$(find "${ASTER_DIR}/compiler/stage3" -name "*.ast" -type f)
+    
+    if [[ -z "$AST_FILES" ]]; then
+        log_error "No .ast files found in ${ASTER_DIR}/compiler/stage3"
+        exit 1
+    fi
+    
+    log_info "Found $(echo "$AST_FILES" | wc -l) Stage 3 source files"
+    
+    # Compile with aster2
+    if [[ $VERBOSE -eq 1 ]]; then
+        "$ASTER2" build $AST_FILES -o "${BUILD_DIR}/stage3/aster3"
+    else
+        "$ASTER2" build $AST_FILES -o "${BUILD_DIR}/stage3/aster3" > /dev/null 2>&1
+    fi
+    
+    if [[ -f "${BUILD_DIR}/stage3/aster3" ]] || [[ -f "${BUILD_DIR}/stage3/aster3.exe" ]]; then
+        log_success "Stage 3 built successfully"
+        log_info "Stage 3 binary: ${BUILD_DIR}/stage3/aster3"
+    else
+        log_warning "Stage 3 build did not produce binary (expected during partial implementation)"
+    fi
 }
 
 # Main build function
