@@ -1,0 +1,242 @@
+// AST - Abstract Syntax Tree Definitions
+// Part of Aster Stage 1 (Core-0 implementation)
+//
+// This module defines the AST node types for the Aster compiler.
+// All nodes are immutable value types.
+//
+// Language Subset: Core-0
+// - Uses only: structs, enums, Vec, basic types
+// - No traits, no methods (use standalone functions)
+
+/// Unique identifier for AST nodes
+struct NodeId {
+    id: u32
+}
+
+/// Top-level program item
+enum Item {
+    Function(FunctionItem),
+    Struct(StructItem),
+    Enum(EnumItem)
+}
+
+/// Function definition
+struct FunctionItem {
+    id: NodeId,
+    name: String,
+    params: Vec<Param>,
+    return_type: Type,
+    body: Expr
+}
+
+/// Function parameter
+struct Param {
+    name: String,
+    param_type: Type
+}
+
+/// Struct definition
+struct StructItem {
+    id: NodeId,
+    name: String,
+    fields: Vec<FieldDef>
+}
+
+/// Struct field definition
+struct FieldDef {
+    name: String,
+    field_type: Type
+}
+
+/// Enum definition
+struct EnumItem {
+    id: NodeId,
+    name: String,
+    variants: Vec<VariantDef>
+}
+
+/// Enum variant definition
+struct VariantDef {
+    name: String,
+    // For now, only simple variants or single-field variants
+    has_data: bool,
+    data_type: Type  // Only valid if has_data is true
+}
+
+/// Type representation
+enum Type {
+    Named(String),              // i32, bool, String, etc.
+    Path(Vec<String>),          // Vec::String, Option::i32
+    Unit                        // () void type
+}
+
+/// Expression
+enum Expr {
+    Literal(Literal),
+    Var(String),
+    Call(CallExpr),
+    Binary(BinaryExpr),
+    Unary(UnaryExpr),
+    If(IfExpr),
+    While(WhileExpr),
+    Loop(LoopExpr),
+    Match(MatchExpr),
+    Block(BlockExpr),
+    Let(LetStmt),
+    Assign(AssignExpr),
+    Return(ReturnExpr),
+    Break,
+    Continue,
+    FieldAccess(FieldAccessExpr),
+    StructInit(StructInitExpr)
+}
+
+/// Literal value
+enum Literal {
+    Int(i32),
+    Float(f64),
+    Bool(bool),
+    String(String),
+    Char(char)
+}
+
+/// Function call expression
+struct CallExpr {
+    id: NodeId,
+    func: String,  // Function name or path
+    args: Vec<Expr>
+}
+
+/// Binary operation
+struct BinaryExpr {
+    id: NodeId,
+    op: BinaryOp,
+    left: Box<Expr>,
+    right: Box<Expr>
+}
+
+enum BinaryOp {
+    Add, Sub, Mul, Div, Mod,
+    Eq, Ne, Lt, Le, Gt, Ge,
+    And, Or,
+    BitAnd, BitOr, BitXor, Shl, Shr
+}
+
+/// Unary operation
+struct UnaryExpr {
+    id: NodeId,
+    op: UnaryOp,
+    expr: Box<Expr>
+}
+
+enum UnaryOp {
+    Neg,   // -x
+    Not    // !x
+}
+
+/// If expression
+struct IfExpr {
+    id: NodeId,
+    condition: Box<Expr>,
+    then_branch: Box<Expr>,
+    else_branch: Box<Expr>  // Use Block with empty vec for no else
+}
+
+/// While loop
+struct WhileExpr {
+    id: NodeId,
+    condition: Box<Expr>,
+    body: Box<Expr>
+}
+
+/// Infinite loop
+struct LoopExpr {
+    id: NodeId,
+    body: Box<Expr>
+}
+
+/// Match expression
+struct MatchExpr {
+    id: NodeId,
+    scrutinee: Box<Expr>,
+    arms: Vec<MatchArm>
+}
+
+struct MatchArm {
+    pattern: Pattern,
+    body: Expr
+}
+
+/// Pattern for match arms
+enum Pattern {
+    Wildcard,               // _
+    Literal(Literal),       // 42, true, "hello"
+    Var(String),            // x
+    EnumVariant(String, Box<Pattern>)  // Option::Some(x)
+}
+
+/// Block expression
+struct BlockExpr {
+    id: NodeId,
+    stmts: Vec<Expr>
+}
+
+/// Let binding
+struct LetStmt {
+    id: NodeId,
+    name: String,
+    mutable: bool,
+    value_type: Type,
+    value: Box<Expr>
+}
+
+/// Assignment
+struct AssignExpr {
+    id: NodeId,
+    target: String,
+    value: Box<Expr>
+}
+
+/// Return statement
+struct ReturnExpr {
+    id: NodeId,
+    value: Box<Expr>  // Use Literal(Unit) for return with no value
+}
+
+/// Field access (e.g., point.x)
+struct FieldAccessExpr {
+    id: NodeId,
+    object: Box<Expr>,
+    field: String
+}
+
+/// Struct initialization (e.g., Point { x: 10, y: 20 })
+struct StructInitExpr {
+    id: NodeId,
+    struct_name: String,
+    fields: Vec<FieldInit>
+}
+
+struct FieldInit {
+    name: String,
+    value: Expr
+}
+
+// AST Construction Functions (to be implemented)
+// These would be in a separate module in a real implementation
+
+fn new_node_id(counter: u32) -> NodeId {
+    NodeId { id: counter }
+}
+
+fn create_function_item(id: NodeId, name: String, params: Vec<Param>, return_type: Type, body: Expr) -> FunctionItem {
+    FunctionItem {
+        id: id,
+        name: name,
+        params: params,
+        return_type: return_type,
+        body: body
+    }
+}
+
+// Additional helper functions would go here...

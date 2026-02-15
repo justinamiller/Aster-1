@@ -1,0 +1,256 @@
+// IR - Intermediate Representation
+// Part of Aster Stage 1 (Core-0 implementation)
+//
+// This module defines a simple SSA-based IR for code generation.
+// The IR is lowered from typed AST and then emitted as LLVM IR.
+//
+// Language Subset: Core-0
+// - Uses only: structs, enums, Vec, basic types
+
+/// Unique identifier for IR values
+struct ValueId {
+    id: u32
+}
+
+/// Unique identifier for basic blocks
+struct BlockId {
+    id: u32
+}
+
+/// IR Module (entire program)
+struct Module {
+    functions: Vec<Function>,
+    structs: Vec<StructDef>,
+    enums: Vec<EnumDef>
+}
+
+/// IR Function
+struct Function {
+    name: String,
+    params: Vec<Param>,
+    return_type: IrType,
+    blocks: Vec<BasicBlock>,
+    next_value_id: u32,
+    next_block_id: u32
+}
+
+/// Function parameter
+struct Param {
+    name: String,
+    param_type: IrType
+}
+
+/// Basic block (for control flow)
+struct BasicBlock {
+    id: BlockId,
+    label: String,
+    instructions: Vec<Instruction>,
+    terminator: Terminator
+}
+
+/// IR Instruction
+enum Instruction {
+    Assign(AssignInst),
+    Call(CallInst),
+    Binary(BinaryInst),
+    Unary(UnaryInst),
+    Load(LoadInst),
+    Store(StoreInst),
+    GetField(GetFieldInst),
+    SetField(SetFieldInst)
+}
+
+struct AssignInst {
+    dest: ValueId,
+    value: Value
+}
+
+struct CallInst {
+    dest: ValueId,
+    func_name: String,
+    args: Vec<Value>
+}
+
+struct BinaryInst {
+    dest: ValueId,
+    op: BinaryOp,
+    left: Value,
+    right: Value
+}
+
+struct UnaryInst {
+    dest: ValueId,
+    op: UnaryOp,
+    operand: Value
+}
+
+struct LoadInst {
+    dest: ValueId,
+    addr: Value
+}
+
+struct StoreInst {
+    addr: Value,
+    value: Value
+}
+
+struct GetFieldInst {
+    dest: ValueId,
+    object: Value,
+    field_index: u32
+}
+
+struct SetFieldInst {
+    object: Value,
+    field_index: u32,
+    value: Value
+}
+
+/// Block terminator (end of basic block)
+enum Terminator {
+    Return(ReturnTerm),
+    Branch(BranchTerm),
+    CondBranch(CondBranchTerm),
+    Unreachable
+}
+
+struct ReturnTerm {
+    value: Value
+}
+
+struct BranchTerm {
+    target: BlockId
+}
+
+struct CondBranchTerm {
+    condition: Value,
+    then_block: BlockId,
+    else_block: BlockId
+}
+
+/// IR Value (operand)
+enum Value {
+    Constant(Constant),
+    Variable(ValueId)
+}
+
+/// Constant value
+enum Constant {
+    Int(i32),
+    Float(f64),
+    Bool(bool),
+    String(String)
+}
+
+/// IR Type system
+enum IrType {
+    I32,
+    I64,
+    F32,
+    F64,
+    Bool,
+    Ptr,
+    Struct(String),
+    Enum(String),
+    Void
+}
+
+/// Struct definition in IR
+struct StructDef {
+    name: String,
+    fields: Vec<IrType>
+}
+
+/// Enum definition in IR
+struct EnumDef {
+    name: String,
+    variants: Vec<String>
+}
+
+// IR Construction Functions
+
+fn new_module() -> Module {
+    Module {
+        functions: Vec::new(),
+        structs: Vec::new(),
+        enums: Vec::new()
+    }
+}
+
+fn add_function(module: Module, func: Function) -> Module {
+    let mut functions = module.functions;
+    functions.push(func);
+    
+    Module {
+        functions: functions,
+        structs: module.structs,
+        enums: module.enums
+    }
+}
+
+fn new_function(name: String, params: Vec<Param>, return_type: IrType) -> Function {
+    Function {
+        name: name,
+        params: params,
+        return_type: return_type,
+        blocks: Vec::new(),
+        next_value_id: 0,
+        next_block_id: 0
+    }
+}
+
+fn new_basic_block(func: Function, label: String) -> (Function, BlockId) {
+    let block_id = BlockId { id: func.next_block_id };
+    let block = BasicBlock {
+        id: block_id,
+        label: label,
+        instructions: Vec::new(),
+        terminator: Terminator::Unreachable
+    };
+    
+    let mut blocks = func.blocks;
+    blocks.push(block);
+    
+    let updated_func = Function {
+        name: func.name,
+        params: func.params,
+        return_type: func.return_type,
+        blocks: blocks,
+        next_value_id: func.next_value_id,
+        next_block_id: func.next_block_id + 1
+    };
+    
+    (updated_func, block_id)
+}
+
+fn new_value_id(func: Function) -> (Function, ValueId) {
+    let value_id = ValueId { id: func.next_value_id };
+    
+    let updated_func = Function {
+        name: func.name,
+        params: func.params,
+        return_type: func.return_type,
+        blocks: func.blocks,
+        next_value_id: func.next_value_id + 1,
+        next_block_id: func.next_block_id
+    };
+    
+    (updated_func, value_id)
+}
+
+// IR Building (lowering from AST)
+
+fn lower_ast_to_ir(items: Vec<Item>) -> Module {
+    // TODO: Convert AST items to IR module
+    new_module()
+}
+
+fn lower_function(func_item: FunctionItem) -> Function {
+    // TODO: Convert AST function to IR function
+    new_function("placeholder", Vec::new(), IrType::Void)
+}
+
+fn lower_expr(func: Function, expr: Expr, block_id: BlockId) -> (Function, Value) {
+    // TODO: Convert expression to IR instructions
+    (func, Value::Constant(Constant::Int(0)))
+}

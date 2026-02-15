@@ -1,0 +1,94 @@
+// Self-Hosting Test for Stage 1
+// This program tests that aster1 can compile itself
+//
+// Test procedure:
+// 1. Compile this file with aster0 → selfhost0.ll
+// 2. Compile this file with aster1 → selfhost1.ll  
+// 3. Normalize both outputs
+// 4. Compare - should be semantically equivalent
+//
+// This is a simplified version that tests core compiler features
+
+use std::fmt::*;
+
+// Simple struct to test struct compilation
+struct CompilerInfo {
+    name: String,
+    version: i32,
+    stage: i32
+}
+
+// Test function definitions
+fn create_compiler_info(name: String, version: i32, stage: i32) -> CompilerInfo {
+    CompilerInfo {
+        name: name,
+        version: version,
+        stage: stage
+    }
+}
+
+// Test control flow and arithmetic
+fn calculate_checksum(version: i32, stage: i32) -> i32 {
+    let mut result = 0;
+    result = result + version;
+    result = result * stage;
+    
+    if result < 0 {
+        result = 0;
+    } else {
+        result = result + 1000;
+    }
+    
+    result
+}
+
+// Test recursion
+fn factorial(n: i32) -> i32 {
+    if n <= 1 {
+        1
+    } else {
+        n * factorial(n - 1)
+    }
+}
+
+// Test while loops
+fn sum_to_n(n: i32) -> i32 {
+    let mut sum = 0;
+    let mut i = 1;
+    
+    while i <= n {
+        sum = sum + i;
+        i = i + 1;
+    }
+    
+    sum
+}
+
+// Test Vec operations
+fn test_vec_operations() -> i32 {
+    let mut numbers = Vec::new();
+    
+    numbers.push(10);
+    numbers.push(20);
+    numbers.push(30);
+    
+    numbers.len()
+}
+
+// Main entry point
+fn main() {
+    let compiler = create_compiler_info("aster1", 1, 1);
+    
+    let checksum = calculate_checksum(compiler.version, compiler.stage);
+    let fact5 = factorial(5);
+    let sum10 = sum_to_n(10);
+    let vec_len = test_vec_operations();
+    
+    // Simple output
+    println("Self-hosting test complete");
+}
+
+// Expected behavior:
+// - All functions should compile without errors
+// - aster0 and aster1 should produce equivalent IR
+// - When executed, program should output "Self-hosting test complete"
