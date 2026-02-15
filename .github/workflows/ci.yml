@@ -11,13 +11,38 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
+      
       - name: Restore
         run: dotnet restore
+      
       - name: Build
         run: dotnet build --no-restore
+      
       - name: Test
         run: dotnet test --no-build --verbosity normal
+      
+      - name: Compile example to LLVM IR
+        run: dotnet run --project src/Aster.CLI -- build examples/simple_hello.ast --emit-llvm
+      
+      - name: Verify LLVM IR output exists
+        run: |
+          if [ ! -f examples/simple_hello.ll ]; then
+            echo "ERROR: LLVM IR file not generated"
+            exit 1
+          fi
+          echo "✓ LLVM IR file generated successfully"
+      
+      - name: Verify LLVM IR content
+        run: |
+          if ! grep -q "define void @main()" examples/simple_hello.ll; then
+            echo "ERROR: LLVM IR does not contain expected main function"
+            exit 1
+          fi
+          echo "✓ LLVM IR contains valid main function"
+          cat examples/simple_hello.ll
+

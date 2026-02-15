@@ -2,6 +2,9 @@
 
 A production-grade ahead-of-time compiler for the **ASTER** programming language, written in C# (.NET 10).
 
+**Current Status**: Stage 0 (C# Seed Compiler) — Emits LLVM IR  
+**Bootstrap Progress**: 🚧 Working towards self-hosting (see [STATUS.md](STATUS.md))
+
 ## Architecture
 
 ```
@@ -28,7 +31,8 @@ Source → Lexer → Parser → AST → Name Resolution → HIR → Type Check �
 - **Pass Manager** — Multi-level optimization pipeline (O0-O3)
 
 ### Backend
-- **LLVM** — Text IR emission with runtime ABI declarations
+- **LLVM IR Emission** — Generates LLVM Intermediate Representation (text format `.ll`)
+- **Note**: Stage 0 does NOT emit native executables directly. Use LLVM/clang to compile IR to native code (see [TOOLCHAIN.md](TOOLCHAIN.md))
 
 ### Standard Library
 - **12 Layered Modules** — Complete stdlib implementation (see `/aster/stdlib/`)
@@ -42,15 +46,19 @@ Source → Lexer → Parser → AST → Name Resolution → HIR → Type Check �
 # Build the compiler
 dotnet build Aster.slnx
 
-# Compile an ASTER source file
-dotnet run --project src/Aster.CLI -- build hello.ast
+# Compile an ASTER source file to LLVM IR
+dotnet run --project src/Aster.CLI -- build hello.ast --emit-llvm
+# Output: hello.ll (LLVM IR text format)
 
-# Type-check only
+# Type-check only (no code generation)
 dotnet run --project src/Aster.CLI -- check hello.ast
 
-# Emit LLVM IR to stdout
-dotnet run --project src/Aster.CLI -- emit-llvm hello.ast
+# Compile LLVM IR to native executable (requires LLVM/clang)
+clang hello.ll -o hello
+./hello
 ```
+
+**Complete Toolchain Guide**: See [TOOLCHAIN.md](TOOLCHAIN.md) for detailed compilation instructions.
 
 ## Hello World
 
@@ -100,8 +108,24 @@ See [examples/](/examples/) directory for sample programs:
 - Basic examples: `simple_hello.ast`, `type_inference_success.ast`
 - Stdlib examples: `stdlib_hello.ast`, `stdlib_collections.ast`, `stdlib_complete.ast`
 
+## Bootstrap Status
+
+Aster is being bootstrapped through multiple stages toward self-hosting:
+
+| Stage | Status | Description |
+|-------|--------|-------------|
+| **Stage 0** | ✅ Complete | C# compiler (current) — emits LLVM IR |
+| **Stage 1** | 🚧 20% | Minimal Aster compiler (Core-0 subset) |
+| **Stage 2** | ⚙️ Ready | Expanded Aster compiler (generics, traits) |
+| **Stage 3** | ⚙️ Ready | Full self-hosted compiler |
+
+See [STATUS.md](STATUS.md) for detailed feature tracking and [README_BOOTSTRAP.md](README_BOOTSTRAP.md) for the bootstrap plan.
+
 ## Documentation
 
+- **[TOOLCHAIN.md](TOOLCHAIN.md)** — Complete guide for compiling `.ast` → LLVM IR → native executable
+- **[STATUS.md](STATUS.md)** — Feature status across all bootstrap stages
+- **[README_BOOTSTRAP.md](README_BOOTSTRAP.md)** — Bootstrap process and roadmap
 - [Mid-End Architecture](docs/MidEndArchitecture.md) — Incremental compilation, parallel compilation, MIR analysis
 - [Standard Library](aster/stdlib/README.md) — Complete stdlib documentation
 - [Stdlib Summary](STDLIB_IMPLEMENTATION.md) — Implementation details
