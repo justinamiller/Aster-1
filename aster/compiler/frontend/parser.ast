@@ -921,9 +921,8 @@ fn peek(parser: Parser) -> Token {
 }
 
 /// Advance to the next token
-/// Returns (updated_parser, consumed_token)
+/// Returns updated parser
 fn advance(mut parser: Parser) -> Parser {
-    let token = peek(parser.clone());
     if !is_at_end(parser.clone()) {
         parser.position = parser.position + 1;
     }
@@ -1033,10 +1032,12 @@ fn unit_type() -> Type {
 }
 
 // Type conversion helpers for Core-0 compliance
-// Note: In Core-0, these types are implicitly convertible by the compiler.
-// These wrapper functions exist solely to avoid using the 'as' keyword,
-// which is not part of the Core-0 language subset. The compiler handles
-// the actual numeric conversions internally during type checking.
+// Note: Core-0 doesn't support the 'as' keyword for type casting.
+// In the bootstrap context, the Stage 0 C# compiler handles these
+// numeric type conversions implicitly during compilation. These wrapper
+// functions exist solely to avoid using 'as' syntax which is not part
+// of Core-0. When the Stage 1 Aster compiler is complete, it will need
+// to implement proper conversion semantics for these functions.
 
 /// Convert usize to i32 (Core-0 doesn't support `as` casts)
 fn usize_to_i32(value: usize) -> i32 {
