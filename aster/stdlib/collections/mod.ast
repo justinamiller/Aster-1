@@ -1,0 +1,17 @@
+// Collections Module
+// Part of Aster Standard Library
+//
+// Provides collection data structures beyond the basic Vec and String.
+//
+// Stability: @experimental
+// Effects: @alloc (all collections perform heap allocation)
+// Dependencies: core, alloc
+
+// Re-export HashMap
+pub use hashmap::*;
+
+// Re-export HashSet
+pub use hashset::*;
+
+// Re-export LinkedList
+pub use list::*;

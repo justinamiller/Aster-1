@@ -1,0 +1,91 @@
+// Example: Collections in Aster
+// Demonstrates HashMap, HashSet, and LinkedList
+
+use std::collections::*;
+use std::fmt::*;
+
+fn main() {
+    println("=== Collections Examples ===");
+    
+    // HashMap example
+    println("\n1. HashMap:");
+    let mut scores = new_hashmap();
+    
+    hashmap_insert(&mut scores, "Alice", 100);
+    hashmap_insert(&mut scores, "Bob", 85);
+    hashmap_insert(&mut scores, "Charlie", 92);
+    
+    print("HashMap size: ");
+    println(string_as_str(&format_u32(hashmap_len(&scores) as u32)));
+    
+    match hashmap_get(&scores, &"Alice") {
+        Option::Some(score) => {
+            print("Alice's score: ");
+            println(string_as_str(&format_i32(*score)));
+        }
+        Option::None => {
+            println("Alice not found");
+        }
+    }
+    
+    print("Contains 'Bob': ");
+    if hashmap_contains_key(&scores, &"Bob") {
+        println("yes");
+    } else {
+        println("no");
+    }
+    
+    // HashSet example
+    println("\n2. HashSet:");
+    let mut tags = new_hashset();
+    
+    hashset_insert(&mut tags, "rust");
+    hashset_insert(&mut tags, "programming");
+    hashset_insert(&mut tags, "compiler");
+    hashset_insert(&mut tags, "rust"); // Duplicate, won't be added
+    
+    print("HashSet size: ");
+    println(string_as_str(&format_u32(hashset_len(&tags) as u32)));
+    
+    print("Contains 'rust': ");
+    if hashset_contains(&tags, &"rust") {
+        println("yes");
+    } else {
+        println("no");
+    }
+    
+    // LinkedList example
+    println("\n3. LinkedList:");
+    let mut list = new_list();
+    
+    list_push_back(&mut list, 10);
+    list_push_back(&mut list, 20);
+    list_push_back(&mut list, 30);
+    list_push_front(&mut list, 5);
+    
+    print("LinkedList size: ");
+    println(string_as_str(&format_u32(list_len(&list) as u32)));
+    
+    match list_front(&list) {
+        Option::Some(value) => {
+            print("Front element: ");
+            println(string_as_str(&format_i32(*value)));
+        }
+        Option::None => {
+            println("List is empty");
+        }
+    }
+    
+    print("Popping front: ");
+    match list_pop_front(&mut list) {
+        Option::Some(value) => {
+            println(string_as_str(&format_i32(value)));
+        }
+        Option::None => {
+            println("none");
+        }
+    }
+    
+    print("New list size: ");
+    println(string_as_str(&format_u32(list_len(&list) as u32)));
+}

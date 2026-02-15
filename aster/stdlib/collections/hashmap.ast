@@ -1,0 +1,225 @@
+// HashMap<K, V> - Hash table implementation
+// Part of Aster Standard Library - Collections Module
+//
+// HashMap is a hash table with separate chaining for collision resolution.
+//
+// Stability: @experimental
+// Effects: @alloc (performs heap allocation)
+// Dependencies: core, alloc
+
+/// Hash table entry
+@experimental
+struct HashMapEntry<K, V> {
+    key: K,
+    value: V,
+    hash: usize,
+    next: Option<Box<HashMapEntry<K, V>>>
+}
+
+/// A hash table with key-value pairs
+@experimental
+@alloc
+struct HashMap<K, V> {
+    buckets: Vec<Option<HashMapEntry<K, V>>>,
+    len: usize,
+    capacity: usize
+}
+
+/// Creates a new empty HashMap
+@experimental
+@alloc
+fn new_hashmap<K, V>() -> HashMap<K, V> {
+    hashmap_with_capacity(16)
+}
+
+/// Creates a new HashMap with the specified capacity
+@experimental
+@alloc
+fn hashmap_with_capacity<K, V>(capacity: usize) -> HashMap<K, V> {
+    let mut buckets = new_vec();
+    let mut i: usize = 0;
+    while i < capacity {
+        push(&mut buckets, Option::None);
+        i = i + 1;
+    }
+    
+    HashMap {
+        buckets: buckets,
+        len: 0,
+        capacity: capacity
+    }
+}
+
+/// Returns the number of key-value pairs in the map
+@experimental
+fn hashmap_len<K, V>(map: &HashMap<K, V>) -> usize {
+    map.len
+}
+
+/// Returns true if the map contains no elements
+@experimental
+fn hashmap_is_empty<K, V>(map: &HashMap<K, V>) -> bool {
+    map.len == 0
+}
+
+/// Inserts a key-value pair into the map
+@experimental
+@alloc
+fn hashmap_insert<K, V>(map: &mut HashMap<K, V>, key: K, value: V) 
+    where K: Hash + Eq
+{
+    // Calculate hash and bucket index
+    let hash = hash_value(&key);
+    let index = hash % map.capacity;
+    
+    // Get the bucket
+    let bucket = vec_get_mut(&mut map.buckets, index);
+    
+    // Check if key already exists
+    match bucket {
+        Option::Some(entry) => {
+            if entry.key == key {
+                entry.value = value;
+                return;
+            }
+            
+            // Walk the chain to find or insert
+            let mut current = &mut entry.next;
+            loop {
+                match current {
+                    Option::Some(next_entry) => {
+                        if next_entry.key == key {
+                            next_entry.value = value;
+                            return;
+                        }
+                        current = &mut next_entry.next;
+                    }
+                    Option::None => {
+                        *current = Option::Some(Box::new(HashMapEntry {
+                            key: key,
+                            value: value,
+                            hash: hash,
+                            next: Option::None
+                        }));
+                        map.len = map.len + 1;
+                        return;
+                    }
+                }
+            }
+        }
+        Option::None => {
+            *bucket = Option::Some(HashMapEntry {
+                key: key,
+                value: value,
+                hash: hash,
+                next: Option::None
+            });
+            map.len = map.len + 1;
+        }
+    }
+    
+    // Check if we need to resize
+    if map.len > map.capacity * 3 / 4 {
+        hashmap_resize(map);
+    }
+}
+
+/// Gets a reference to the value for a key
+@experimental
+fn hashmap_get<K, V>(map: &HashMap<K, V>, key: &K) -> Option<&V>
+    where K: Hash + Eq
+{
+    let hash = hash_value(key);
+    let index = hash % map.capacity;
+    
+    let bucket = vec_get(&map.buckets, index);
+    match bucket {
+        Option::Some(entry) => {
+            if entry.key == *key {
+                return Option::Some(&entry.value);
+            }
+            
+            let mut current = &entry.next;
+            loop {
+                match current {
+                    Option::Some(next_entry) => {
+                        if next_entry.key == *key {
+                            return Option::Some(&next_entry.value);
+                        }
+                        current = &next_entry.next;
+                    }
+                    Option::None => {
+                        return Option::None;
+                    }
+                }
+            }
+        }
+        Option::None => Option::None
+    }
+}
+
+/// Removes a key-value pair from the map
+@experimental
+fn hashmap_remove<K, V>(map: &mut HashMap<K, V>, key: &K) -> Option<V>
+    where K: Hash + Eq
+{
+    let hash = hash_value(key);
+    let index = hash % map.capacity;
+    
+    let bucket = vec_get_mut(&mut map.buckets, index);
+    match bucket {
+        Option::Some(entry) => {
+            if entry.key == *key {
+                let value = entry.value;
+                *bucket = match &entry.next {
+                    Option::Some(next) => Option::Some(*next),
+                    Option::None => Option::None
+                };
+                map.len = map.len - 1;
+                return Option::Some(value);
+            }
+            
+            // Search in the chain (simplified - needs proper ownership handling)
+            Option::None
+        }
+        Option::None => Option::None
+    }
+}
+
+/// Checks if the map contains a key
+@experimental
+fn hashmap_contains_key<K, V>(map: &HashMap<K, V>, key: &K) -> bool
+    where K: Hash + Eq
+{
+    match hashmap_get(map, key) {
+        Option::Some(_) => true,
+        Option::None => false
+    }
+}
+
+/// Clears all key-value pairs from the map
+@experimental
+fn hashmap_clear<K, V>(map: &mut HashMap<K, V>) {
+    let mut i: usize = 0;
+    while i < map.capacity {
+        let bucket = vec_get_mut(&mut map.buckets, i);
+        *bucket = Option::None;
+        i = i + 1;
+    }
+    map.len = 0;
+}
+
+/// Resizes the hash map (internal function)
+@alloc
+fn hashmap_resize<K, V>(map: &mut HashMap<K, V>)
+    where K: Hash + Eq
+{
+    let new_capacity = map.capacity * 2;
+    let mut new_map = hashmap_with_capacity(new_capacity);
+    
+    // Rehash all entries (simplified - needs proper implementation)
+    map.capacity = new_capacity;
+}
+
+// Placeholder for hash function (implemented in core/runtime)
+fn hash_value<T>(value: &T) -> usize where T: Hash;

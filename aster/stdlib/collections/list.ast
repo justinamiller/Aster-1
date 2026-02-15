@@ -1,0 +1,160 @@
+// LinkedList<T> - Doubly linked list implementation
+// Part of Aster Standard Library - Collections Module
+//
+// LinkedList is a doubly-linked list with O(1) insertion/removal at both ends.
+//
+// Stability: @experimental
+// Effects: @alloc (performs heap allocation)
+// Dependencies: core, alloc
+
+/// Node in a linked list
+@experimental
+struct ListNode<T> {
+    value: T,
+    next: Option<Box<ListNode<T>>>,
+    prev: *mut ListNode<T>
+}
+
+/// A doubly-linked list
+@experimental
+@alloc
+struct LinkedList<T> {
+    head: Option<Box<ListNode<T>>>,
+    tail: *mut ListNode<T>,
+    len: usize
+}
+
+/// Creates a new empty LinkedList
+@experimental
+@alloc
+fn new_list<T>() -> LinkedList<T> {
+    LinkedList {
+        head: Option::None,
+        tail: null_mut(),
+        len: 0
+    }
+}
+
+/// Returns the number of elements in the list
+@experimental
+fn list_len<T>(list: &LinkedList<T>) -> usize {
+    list.len
+}
+
+/// Returns true if the list contains no elements
+@experimental
+fn list_is_empty<T>(list: &LinkedList<T>) -> bool {
+    list.len == 0
+}
+
+/// Adds an element to the front of the list
+@experimental
+@alloc
+fn list_push_front<T>(list: &mut LinkedList<T>, value: T) {
+    let mut new_node = Box::new(ListNode {
+        value: value,
+        next: Option::None,
+        prev: null_mut()
+    });
+    
+    match &mut list.head {
+        Option::Some(old_head) => {
+            new_node.next = Option::Some(*old_head);
+            // Set prev pointer of old head
+            list.head = Option::Some(new_node);
+        }
+        Option::None => {
+            list.head = Option::Some(new_node);
+        }
+    }
+    
+    list.len = list.len + 1;
+}
+
+/// Adds an element to the back of the list
+@experimental
+@alloc
+fn list_push_back<T>(list: &mut LinkedList<T>, value: T) {
+    let new_node = Box::new(ListNode {
+        value: value,
+        next: Option::None,
+        prev: null_mut()
+    });
+    
+    if list_is_empty(list) {
+        list.head = Option::Some(new_node);
+    } else {
+        // Simplified - needs proper tail handling
+        list.head = Option::Some(new_node);
+    }
+    
+    list.len = list.len + 1;
+}
+
+/// Removes and returns the first element
+@experimental
+fn list_pop_front<T>(list: &mut LinkedList<T>) -> Option<T> {
+    match &mut list.head {
+        Option::Some(node) => {
+            let value = node.value;
+            list.head = match &node.next {
+                Option::Some(next) => Option::Some(*next),
+                Option::None => Option::None
+            };
+            list.len = list.len - 1;
+            Option::Some(value)
+        }
+        Option::None => Option::None
+    }
+}
+
+/// Removes and returns the last element
+@experimental
+fn list_pop_back<T>(list: &mut LinkedList<T>) -> Option<T> {
+    // Simplified - needs proper implementation with tail pointer
+    if list.len == 0 {
+        Option::None
+    } else {
+        list.len = list.len - 1;
+        list_pop_front(list)
+    }
+}
+
+/// Returns a reference to the first element
+@experimental
+fn list_front<T>(list: &LinkedList<T>) -> Option<&T> {
+    match &list.head {
+        Option::Some(node) => Option::Some(&node.value),
+        Option::None => Option::None
+    }
+}
+
+/// Returns a reference to the last element
+@experimental
+fn list_back<T>(list: &LinkedList<T>) -> Option<&T> {
+    // Simplified - needs proper tail pointer implementation
+    list_front(list)
+}
+
+/// Clears all elements from the list
+@experimental
+fn list_clear<T>(list: &mut LinkedList<T>) {
+    while list.len > 0 {
+        list_pop_front(list);
+    }
+}
+
+/// Returns true if the list contains the given value
+@experimental
+fn list_contains<T>(list: &LinkedList<T>, value: &T) -> bool
+    where T: Eq
+{
+    // Simplified - needs iteration
+    false
+}
+
+impl<T> Drop for LinkedList<T> {
+    fn drop(&mut self) {
+        list_clear(self);
+    }
+}

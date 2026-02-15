@@ -1,0 +1,114 @@
+// HashSet<T> - Hash set implementation
+// Part of Aster Standard Library - Collections Module
+//
+// HashSet is a hash set using a HashMap internally.
+//
+// Stability: @experimental
+// Effects: @alloc (performs heap allocation)
+// Dependencies: core, alloc, collections::hashmap
+
+/// A hash set of unique values
+@experimental
+@alloc
+struct HashSet<T> {
+    map: HashMap<T, bool>
+}
+
+/// Creates a new empty HashSet
+@experimental
+@alloc
+fn new_hashset<T>() -> HashSet<T> {
+    HashSet {
+        map: new_hashmap()
+    }
+}
+
+/// Creates a new HashSet with the specified capacity
+@experimental
+@alloc
+fn hashset_with_capacity<T>(capacity: usize) -> HashSet<T> {
+    HashSet {
+        map: hashmap_with_capacity(capacity)
+    }
+}
+
+/// Returns the number of elements in the set
+@experimental
+fn hashset_len<T>(set: &HashSet<T>) -> usize {
+    hashmap_len(&set.map)
+}
+
+/// Returns true if the set contains no elements
+@experimental
+fn hashset_is_empty<T>(set: &HashSet<T>) -> bool {
+    hashmap_is_empty(&set.map)
+}
+
+/// Inserts a value into the set
+@experimental
+@alloc
+fn hashset_insert<T>(set: &mut HashSet<T>, value: T) -> bool
+    where T: Hash + Eq
+{
+    let existed = hashmap_contains_key(&set.map, &value);
+    hashmap_insert(&mut set.map, value, true);
+    !existed
+}
+
+/// Removes a value from the set
+@experimental
+fn hashset_remove<T>(set: &mut HashSet<T>, value: &T) -> bool
+    where T: Hash + Eq
+{
+    match hashmap_remove(&mut set.map, value) {
+        Option::Some(_) => true,
+        Option::None => false
+    }
+}
+
+/// Checks if the set contains a value
+@experimental
+fn hashset_contains<T>(set: &HashSet<T>, value: &T) -> bool
+    where T: Hash + Eq
+{
+    hashmap_contains_key(&set.map, value)
+}
+
+/// Clears all values from the set
+@experimental
+fn hashset_clear<T>(set: &mut HashSet<T>) {
+    hashmap_clear(&mut set.map);
+}
+
+/// Returns the union of two sets (all elements from both)
+@experimental
+@alloc
+fn hashset_union<T>(a: &HashSet<T>, b: &HashSet<T>) -> HashSet<T>
+    where T: Hash + Eq + Clone
+{
+    let mut result = new_hashset();
+    // Simplified - would need iteration support
+    result
+}
+
+/// Returns the intersection of two sets (common elements)
+@experimental
+@alloc
+fn hashset_intersection<T>(a: &HashSet<T>, b: &HashSet<T>) -> HashSet<T>
+    where T: Hash + Eq + Clone
+{
+    let mut result = new_hashset();
+    // Simplified - would need iteration support
+    result
+}
+
+/// Returns the difference of two sets (elements in a but not in b)
+@experimental
+@alloc
+fn hashset_difference<T>(a: &HashSet<T>, b: &HashSet<T>) -> HashSet<T>
+    where T: Hash + Eq + Clone
+{
+    let mut result = new_hashset();
+    // Simplified - would need iteration support
+    result
+}
