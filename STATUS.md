@@ -201,25 +201,29 @@ This document tracks the implementation status of features across all bootstrap 
 
 Features to be added after Stage 3 bootstrap is complete:
 
-| Feature | Priority | Spec | Tests | Status |
-|---------|----------|------|-------|--------|
-| Methods | High | ⚙️ Planned | ⚙️ Planned | ⚙️ After Stage 2 |
-| Struct impl blocks | High | ⚙️ Planned | ⚙️ Planned | ⚙️ After Stage 2 |
-| Generics | High | ⚙️ Planned | ⚙️ Planned | ⚙️ After Stage 2 |
-| Traits | High | ⚙️ Planned | ⚙️ Planned | ⚙️ After Stage 2 |
-| Borrow checker | High | ⚙️ Planned | ⚙️ Planned | ⚙️ After Stage 3 |
-| Associated types | Medium | ⚙️ Planned | ⚙️ Planned | ⚙️ After Stage 3 |
-| Async/await | Medium | ⚙️ Planned | ⚙️ Planned | ⚙️ After Stage 3 |
-| Macros | Low | ⚙️ Planned | ⚙️ Planned | ⚙️ Future |
-| Procedural macros | Low | ⚙️ Planned | ⚙️ Planned | ⚙️ Future |
+| Feature | Priority | Spec | Tests | Status | Timeline |
+|---------|----------|------|-------|--------|----------|
+| Methods | High | ⚙️ Planned | ⚙️ Planned | ⚙️ After Stage 3 | 2-3 weeks |
+| Struct impl blocks | High | ⚙️ Planned | ⚙️ Planned | ⚙️ After Stage 3 | 1-2 weeks |
+| Generics | High | ⚙️ Planned | ⚙️ Planned | ⚙️ After Stage 3 | 3-4 weeks |
+| Traits | High | ⚙️ Planned | ⚙️ Planned | ⚙️ After Stage 3 | 4-5 weeks |
+| Borrow checker | High | ⚙️ Planned | ⚙️ Planned | ⚙️ After Stage 3 | 4-6 weeks |
+| Associated types | Medium | ⚙️ Planned | ⚙️ Planned | ⚙️ After Stage 3 | 2-3 weeks |
+| Async/await | Medium | ⚙️ Planned | ⚙️ Planned | ⚙️ After Stage 3 | 6-8 weeks |
+| Macros | Low | ⚙️ Planned | ⚙️ Planned | ⚙️ Future | 8-10 weeks |
+| Procedural macros | Low | ⚙️ Planned | ⚙️ Planned | ⚙️ Future | 10-12 weeks |
+
+**See [PHASE4_ROADMAP.md](PHASE4_ROADMAP.md) for detailed feature specifications and implementation plan.**
 
 ## Native Distribution (Phase 3)
 
-| Approach | Status | Evidence |
-|----------|--------|----------|
-| .NET NativeAOT (Fast Path) | ⚙️ Planned | Produces standalone binary |
-| Self-Hosted (Purist Path) | ⚙️ Planned | Stage 3 compiles itself |
-| Selected Approach | 🚧 TBD | Will be documented when chosen |
+| Approach | Status | Timeline | Evidence |
+|----------|--------|----------|----------|
+| .NET NativeAOT (Fast Path) | ⚙️ Planned | 1-2 weeks | [NATIVE_DISTRIBUTION.md](NATIVE_DISTRIBUTION.md) |
+| Self-Hosted (Purist Path) | 🚧 In Progress | 12-15 months | Stage 1 at 20%, [STATUS.md](STATUS.md) |
+| **Selected Approach** | **Hybrid** | Both A then B | [NATIVE_DISTRIBUTION.md](NATIVE_DISTRIBUTION.md) |
+
+**Hybrid Strategy**: Implement NativeAOT first for immediate standalone distribution, then transition to self-hosted compiler once Stage 3 is complete.
 
 ## Dependencies
 
