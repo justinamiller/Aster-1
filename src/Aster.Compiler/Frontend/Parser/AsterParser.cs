@@ -439,6 +439,12 @@ public sealed class AsterParser
             UnaryOperator op;
             if (opKind == TokenKind.Ampersand)
             {
+                if (_stage1Mode)
+                {
+                    ReportError("E9004", "References (&T, &mut T) are not allowed in Stage1 (Core-0) mode. Use value semantics instead.");
+                    // Continue parsing but mark as error
+                }
+                
                 if (Check(TokenKind.Mut))
                 {
                     Advance();
@@ -519,6 +525,24 @@ public sealed class AsterParser
     private AstNode ParsePrimaryExpression()
     {
         var span = Current.Span;
+
+        // Check for closure syntax: |params| expr
+        if (Check(TokenKind.Pipe))
+        {
+            if (_stage1Mode)
+            {
+                ReportError("E9005", "Closures (|x| expr) are not allowed in Stage1 (Core-0) mode. Use named functions instead.");
+                // Skip to avoid parse errors
+                Advance();
+                while (!IsAtEnd && !Check(TokenKind.Pipe))
+                {
+                    Advance();
+                }
+                if (Check(TokenKind.Pipe)) Advance();
+                // Return error placeholder
+                return new LiteralExprNode(0L, LiteralKind.Integer, span);
+            }
+        }
 
         // Literals
         if (Check(TokenKind.IntegerLiteral))
@@ -868,6 +892,25 @@ public sealed class AsterParser
     private TypeAnnotationNode ParseTypeAnnotation()
     {
         var span = Current.Span;
+        
+        // Check for reference type prefix (&, &mut)
+        if (Check(TokenKind.Ampersand))
+        {
+            if (_stage1Mode)
+            {
+                ReportError("E9004", "Reference types (&T, &mut T) are not allowed in Stage1 (Core-0) mode. Use value types instead.");
+            }
+            Advance();
+            
+            // Skip 'mut' if present
+            if (Check(TokenKind.Mut))
+            {
+                Advance();
+            }
+            
+            // Continue parsing the inner type
+        }
+        
         var name = ExpectIdentifier("Expected type name");
 
         var typeArgs = new List<TypeAnnotationNode>();

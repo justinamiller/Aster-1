@@ -1,0 +1,16 @@
+// Test file for --stage1 flag
+// This uses references which should be rejected in Stage1 mode
+
+fn read_value(x: &i32) -> i32 {
+    *x
+}
+
+fn modify_value(x: &mut i32) {
+    *x = 42;
+}
+
+fn main() {
+    let mut y = 10;
+    let a = read_value(&y);
+    modify_value(&mut y);
+}
