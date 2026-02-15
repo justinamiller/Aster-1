@@ -14,6 +14,48 @@ public sealed class NameResolver
     private Scope _currentScope;
     public DiagnosticBag Diagnostics { get; } = new();
 
+    private static readonly Dictionary<string, (string Name, SymbolKind Kind)[]> StdlibExports =
+        new(StringComparer.Ordinal)
+        {
+            ["std::fmt"] = new[] {
+                ("print", SymbolKind.Function),
+                ("println", SymbolKind.Function),
+                ("eprint", SymbolKind.Function),
+                ("eprintln", SymbolKind.Function),
+                ("format", SymbolKind.Function),
+            },
+            ["std::alloc"] = new[] {
+                ("new_vec", SymbolKind.Function),
+                ("push", SymbolKind.Function),
+                ("len", SymbolKind.Function),
+                ("get", SymbolKind.Function),
+                ("new_string", SymbolKind.Function),
+                ("concat", SymbolKind.Function),
+                ("box_new", SymbolKind.Function),
+            },
+            ["std::core"] = new[] {
+                ("Option", SymbolKind.Type),
+                ("Result", SymbolKind.Type),
+            },
+            ["std::io"] = new[] {
+                ("stdin", SymbolKind.Function),
+                ("stdout", SymbolKind.Function),
+                ("stderr", SymbolKind.Function),
+                ("read_line", SymbolKind.Function),
+            },
+            ["std::math"] = new[] {
+                ("abs", SymbolKind.Function),
+                ("min", SymbolKind.Function),
+                ("max", SymbolKind.Function),
+                ("sqrt", SymbolKind.Function),
+            },
+            ["std::env"] = new[] {
+                ("args", SymbolKind.Function),
+                ("var", SymbolKind.Function),
+                ("set_var", SymbolKind.Function),
+            },
+        };
+
     public NameResolver()
     {
         _currentScope = new Scope(ScopeKind.Module);
@@ -95,81 +137,37 @@ public sealed class NameResolver
 
     private void ResolveUseDeclaration(UseDeclNode use)
     {
-        var modulePath = string.Join("::", use.Path);
-
-        // Map known stdlib modules to their exported symbols
-        var stdlibExports = new Dictionary<string, (string Name, SymbolKind Kind)[]>(StringComparer.Ordinal)
+        if (use.IsGlob)
         {
-            ["std::fmt"] = new[] {
-                ("print", SymbolKind.Function),
-                ("println", SymbolKind.Function),
-                ("eprint", SymbolKind.Function),
-                ("eprintln", SymbolKind.Function),
-                ("format", SymbolKind.Function),
-            },
-            ["std::alloc"] = new[] {
-                ("new_vec", SymbolKind.Function),
-                ("push", SymbolKind.Function),
-                ("len", SymbolKind.Function),
-                ("get", SymbolKind.Function),
-                ("new_string", SymbolKind.Function),
-                ("concat", SymbolKind.Function),
-                ("box_new", SymbolKind.Function),
-            },
-            ["std::core"] = new[] {
-                ("Option", SymbolKind.Type),
-                ("Result", SymbolKind.Type),
-            },
-            ["std::io"] = new[] {
-                ("stdin", SymbolKind.Function),
-                ("stdout", SymbolKind.Function),
-                ("stderr", SymbolKind.Function),
-                ("read_line", SymbolKind.Function),
-            },
-            ["std::math"] = new[] {
-                ("abs", SymbolKind.Function),
-                ("min", SymbolKind.Function),
-                ("max", SymbolKind.Function),
-                ("sqrt", SymbolKind.Function),
-            },
-            ["std::env"] = new[] {
-                ("args", SymbolKind.Function),
-                ("var", SymbolKind.Function),
-                ("set_var", SymbolKind.Function),
-            },
-        };
-
-        if (use.IsGlob && stdlibExports.TryGetValue(modulePath, out var exports))
-        {
-            foreach (var (name, kind) in exports)
+            var modulePath = string.Join("::", use.Path);
+            if (StdlibExports.TryGetValue(modulePath, out var exports))
             {
-                _currentScope.Define(new Symbol(name, kind));
+                foreach (var (name, kind) in exports)
+                {
+                    _currentScope.Define(new Symbol(name, kind));
+                }
             }
         }
-        else if (!use.IsGlob)
+        else if (use.Path.Count >= 2)
         {
-            // For non-glob imports like `use std::fmt::println;`, import the specific symbol
-            if (use.Path.Count >= 2)
-            {
-                var parentPath = string.Join("::", use.Path.Take(use.Path.Count - 1));
-                var symbolName = use.Path[use.Path.Count - 1];
+            var parentPath = string.Join("::", use.Path.Take(use.Path.Count - 1));
+            var symbolName = use.Path[use.Path.Count - 1];
 
-                if (stdlibExports.TryGetValue(parentPath, out var parentExports))
+            if (StdlibExports.TryGetValue(parentPath, out var parentExports))
+            {
+                var found = false;
+                foreach (var (name, kind) in parentExports)
                 {
-                    var found = false;
-                    foreach (var (name, kind) in parentExports)
+                    if (name == symbolName)
                     {
-                        if (name == symbolName)
-                        {
-                            _currentScope.Define(new Symbol(name, kind));
-                            found = true;
-                            break;
-                        }
+                        _currentScope.Define(new Symbol(name, kind));
+                        found = true;
+                        break;
                     }
-                    if (!found)
-                    {
-                        Diagnostics.ReportWarning("W0010", $"Symbol '{symbolName}' not found in module '{parentPath}'", use.Span);
-                    }
+                }
+                if (!found)
+                {
+                    Diagnostics.ReportWarning("W0010", $"Symbol '{symbolName}' not found in module '{parentPath}'", use.Span);
                 }
             }
         }
