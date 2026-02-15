@@ -28,21 +28,184 @@ fn new_parser(tokens: Vec<Token>) -> Parser {
     }
 }
 
+// ========== Token Navigation Helpers ==========
+
+/// Check if we're at the end of the token stream
+fn is_at_end(parser: &Parser) -> bool {
+    if parser.current < 0 {
+        return true;
+    }
+    let pos = parser.current as usize;
+    if pos >= parser.tokens.len() {
+        return true;
+    }
+    // Also check if current token is EOF
+    let token = &parser.tokens[pos];
+    token_kind_equals(token.kind, TokenKind::Eof)
+}
+
+/// Peek at the current token without consuming it
+fn peek(parser: &Parser) -> Token {
+    if parser.current < 0 {
+        return make_eof_token("", 0);
+    }
+    let pos = parser.current as usize;
+    if pos >= parser.tokens.len() {
+        return make_eof_token("", 0);
+    }
+    parser.tokens[pos].clone()
+}
+
+/// Peek ahead n tokens (0 = current, 1 = next, etc.)
+fn peek_ahead(parser: &Parser, n: i32) -> Token {
+    let target = parser.current + n;
+    if target < 0 {
+        return make_eof_token("", 0);
+    }
+    let pos = target as usize;
+    if pos >= parser.tokens.len() {
+        return make_eof_token("", 0);
+    }
+    parser.tokens[pos].clone()
+}
+
+/// Get the previous token
+fn previous(parser: &Parser) -> Token {
+    if parser.current <= 0 {
+        return make_eof_token("", 0);
+    }
+    let pos = (parser.current - 1) as usize;
+    if pos >= parser.tokens.len() {
+        return make_eof_token("", 0);
+    }
+    parser.tokens[pos].clone()
+}
+
+/// Advance to the next token and return the current one
+fn advance(parser: &mut Parser) -> Token {
+    let current = peek(parser);
+    if !is_at_end(parser) {
+        parser.current = parser.current + 1;
+    }
+    current
+}
+
+/// Check if the current token is of the given kind
+fn check(parser: &Parser, kind: TokenKind) -> bool {
+    if is_at_end(parser) {
+        return false;
+    }
+    let current = peek(parser);
+    token_kind_equals(current.kind, kind)
+}
+
+/// Check if the current token matches any of the given kinds
+fn match_any(parser: &mut Parser, kinds: &Vec<TokenKind>) -> bool {
+    let mut i = 0;
+    while i < kinds.len() {
+        if check(parser, kinds[i].clone()) {
+            advance(parser);
+            return true;
+        }
+        i = i + 1;
+    }
+    false
+}
+
+/// Consume the current token if it matches the expected kind
+/// Returns true if matched, false otherwise
+fn match_token(parser: &mut Parser, kind: TokenKind) -> bool {
+    if check(parser, kind) {
+        advance(parser);
+        return true;
+    }
+    false
+}
+
+/// Expect the current token to be of the given kind, or report error
+/// Returns the consumed token
+fn expect(parser: &mut Parser, kind: TokenKind, message: String) -> Token {
+    if check(parser, kind) {
+        return advance(parser);
+    }
+    // Error: expected token not found
+    // For now, return an error token
+    // In a real implementation, we'd report the error to diagnostics
+    let current = peek(parser);
+    make_error_token(current.span, message)
+}
+
+// ========== Node ID Generation ==========
+
+/// Generate a new unique node ID
+fn new_node_id(parser: &mut Parser) -> NodeId {
+    let id = parser.node_counter;
+    parser.node_counter = parser.node_counter + 1;
+    NodeId { id: id }
+}
+
+// ========== Error Recovery ==========
+
+/// Synchronize the parser after an error
+/// Advances to the next statement boundary
+fn synchronize(parser: &mut Parser) {
+    advance(parser);
+    
+    while !is_at_end(parser) {
+        // If we just passed a semicolon, we're at a statement boundary
+        let prev = previous(parser);
+        if token_kind_equals(prev.kind, TokenKind::Semicolon) {
+            return;
+        }
+        
+        // Check if we're at the start of a new declaration
+        let current = peek(parser);
+        if token_kind_equals(current.kind, TokenKind::Fn) {
+            return;
+        }
+        if token_kind_equals(current.kind, TokenKind::Struct) {
+            return;
+        }
+        if token_kind_equals(current.kind, TokenKind::Enum) {
+            return;
+        }
+        if token_kind_equals(current.kind, TokenKind::Let) {
+            return;
+        }
+        if token_kind_equals(current.kind, TokenKind::Return) {
+            return;
+        }
+        
+        advance(parser);
+    }
+}
+
+// ========== Parse Entry Point ==========
+
 /// Parse a complete program
-fn parse_program(parser: Parser) -> Vec<Item> {
+fn parse_program(parser: &mut Parser) -> ProgramNode {
     let mut items = Vec::new();
     
     // TODO: Implement program parsing
     // while !is_at_end(parser) {
-    //     let item = parse_item(parser);
+    //     let item = parse_declaration(parser);
     //     items.push(item);
     // }
     
-    items
+    let start_span = if parser.tokens.len() > 0 {
+        parser.tokens[0].span.clone()
+    } else {
+        new_span("", 0, 0, 0, 0)
+    };
+    
+    ProgramNode {
+        declarations: items,
+        span: start_span
+    }
 }
 
 /// Parse a top-level item (function, struct, or enum)
-fn parse_item(parser: Parser) -> Item {
+fn parse_declaration(parser: &mut Parser) -> Item {
     // TODO: Implement based on current token
     // - fn keyword → parse_function
     // - struct keyword → parse_struct
@@ -50,7 +213,7 @@ fn parse_item(parser: Parser) -> Item {
     
     // Placeholder
     Item::Function(FunctionItem {
-        id: NodeId { id: 0 },
+        id: new_node_id(parser),
         name: "placeholder",
         params: Vec::new(),
         return_type: Type::Unit,
@@ -59,7 +222,7 @@ fn parse_item(parser: Parser) -> Item {
 }
 
 /// Parse a function definition
-fn parse_function(parser: Parser) -> FunctionItem {
+fn parse_function(parser: &mut Parser) -> FunctionItem {
     // TODO: Implement function parsing
     // 1. Expect 'fn' keyword
     // 2. Parse function name
@@ -68,52 +231,52 @@ fn parse_function(parser: Parser) -> FunctionItem {
     // 5. Parse function body
     
     FunctionItem {
-        id: new_node_id(parser.node_counter),
+        id: new_node_id(parser),
         name: "todo",
         params: Vec::new(),
         return_type: Type::Unit,
         body: Expr::Block(BlockExpr {
-            id: new_node_id(parser.node_counter + 1),
+            id: new_node_id(parser),
             stmts: Vec::new()
         })
     }
 }
 
 /// Parse a struct definition
-fn parse_struct(parser: Parser) -> StructItem {
+fn parse_struct(parser: &mut Parser) -> StructItem {
     // TODO: Implement struct parsing
     // 1. Expect 'struct' keyword
     // 2. Parse struct name
     // 3. Parse field list
     
     StructItem {
-        id: new_node_id(parser.node_counter),
+        id: new_node_id(parser),
         name: "todo",
         fields: Vec::new()
     }
 }
 
 /// Parse an enum definition
-fn parse_enum(parser: Parser) -> EnumItem {
+fn parse_enum(parser: &mut Parser) -> EnumItem {
     // TODO: Implement enum parsing
     // 1. Expect 'enum' keyword
     // 2. Parse enum name
     // 3. Parse variant list
     
     EnumItem {
-        id: new_node_id(parser.node_counter),
+        id: new_node_id(parser),
         name: "todo",
         variants: Vec::new()
     }
 }
 
 /// Parse an expression (Pratt parser)
-fn parse_expr(parser: Parser) -> Expr {
+fn parse_expr(parser: &mut Parser) -> Expr {
     parse_expr_bp(parser, 0)
 }
 
 /// Parse expression with binding power (Pratt parsing)
-fn parse_expr_bp(parser: Parser, min_bp: i32) -> Expr {
+fn parse_expr_bp(parser: &mut Parser, min_bp: i32) -> Expr {
     // TODO: Implement Pratt parser for expressions
     // This handles operator precedence correctly
     
@@ -126,7 +289,7 @@ fn parse_expr_bp(parser: Parser, min_bp: i32) -> Expr {
 }
 
 /// Parse a primary expression (literal, variable, grouped expr, etc.)
-fn parse_primary(parser: Parser) -> Expr {
+fn parse_primary(parser: &mut Parser) -> Expr {
     // TODO: Implement based on current token
     // - Number → Literal::Int
     // - String → Literal::String
@@ -141,20 +304,20 @@ fn parse_primary(parser: Parser) -> Expr {
 }
 
 /// Parse a block expression
-fn parse_block(parser: Parser) -> BlockExpr {
+fn parse_block(parser: &mut Parser) -> BlockExpr {
     // TODO: Implement block parsing
     // 1. Expect '{'
     // 2. Parse statements/expressions
     // 3. Expect '}'
     
     BlockExpr {
-        id: new_node_id(parser.node_counter),
+        id: new_node_id(parser),
         stmts: Vec::new()
     }
 }
 
 /// Parse an if expression
-fn parse_if(parser: Parser) -> IfExpr {
+fn parse_if(parser: &mut Parser) -> IfExpr {
     // TODO: Implement if parsing
     // 1. Expect 'if'
     // 2. Parse condition
@@ -162,49 +325,46 @@ fn parse_if(parser: Parser) -> IfExpr {
     // 4. Optionally parse else block
     
     IfExpr {
-        id: new_node_id(parser.node_counter),
+        id: new_node_id(parser),
         condition: Box::new(Expr::Literal(Literal::Bool(true))),
         then_branch: Box::new(Expr::Block(BlockExpr {
-            id: new_node_id(parser.node_counter + 1),
+            id: new_node_id(parser),
             stmts: Vec::new()
         })),
-        else_branch: Box::new(Expr::Block(BlockExpr {
-            id: new_node_id(parser.node_counter + 2),
-            stmts: Vec::new()
-        }))
+        else_branch: None
     }
 }
 
 /// Parse a while loop
-fn parse_while(parser: Parser) -> WhileExpr {
+fn parse_while(parser: &mut Parser) -> WhileExpr {
     // TODO: Implement while parsing
     
     WhileExpr {
-        id: new_node_id(parser.node_counter),
+        id: new_node_id(parser),
         condition: Box::new(Expr::Literal(Literal::Bool(true))),
         body: Box::new(Expr::Block(BlockExpr {
-            id: new_node_id(parser.node_counter + 1),
+            id: new_node_id(parser),
             stmts: Vec::new()
         }))
     }
 }
 
 /// Parse a match expression
-fn parse_match(parser: Parser) -> MatchExpr {
+fn parse_match(parser: &mut Parser) -> MatchExpr {
     // TODO: Implement match parsing
     // 1. Expect 'match'
     // 2. Parse scrutinee
     // 3. Parse match arms
     
     MatchExpr {
-        id: new_node_id(parser.node_counter),
+        id: new_node_id(parser),
         scrutinee: Box::new(Expr::Literal(Literal::Int(0))),
         arms: Vec::new()
     }
 }
 
 /// Parse a pattern
-fn parse_pattern(parser: Parser) -> Pattern {
+fn parse_pattern(parser: &mut Parser) -> Pattern {
     // TODO: Implement pattern parsing
     // - _ → Wildcard
     // - Literal → Literal pattern
@@ -215,7 +375,7 @@ fn parse_pattern(parser: Parser) -> Pattern {
 }
 
 /// Parse a type annotation
-fn parse_type(parser: Parser) -> Type {
+fn parse_type(parser: &mut Parser) -> Type {
     // TODO: Implement type parsing
     // - Simple name → Named
     // - Path::Name → Path
@@ -224,36 +384,3 @@ fn parse_type(parser: Parser) -> Type {
     Type::Unit
 }
 
-// Helper functions
-
-fn is_at_end(parser: Parser) -> bool {
-    parser.current >= 0  // TODO: compare with tokens.len()
-}
-
-fn peek(parser: Parser) -> Token {
-    // TODO: Return current token
-    Token {
-        kind: TokenKind::Eof,
-        span: Span {
-            file: "",
-            line: 0,
-            column: 0,
-            start: 0,
-            length: 0
-        },
-        text: ""
-    }
-}
-
-fn advance(parser: Parser) -> Token {
-    // TODO: Return current token and increment position
-    let token = peek(parser);
-    // parser.current += 1;
-    token
-}
-
-fn expect(parser: Parser, kind: TokenKind) -> bool {
-    // TODO: Check if current token matches expected kind
-    // Advance if match, error if not
-    true
-}
