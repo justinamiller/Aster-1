@@ -77,6 +77,47 @@ bootstrap/
 ./bootstrap/scripts/bootstrap.sh --clean --stage 3
 ```
 
+### Checking and Advancing Bootstrap Stages
+
+The `check-and-advance` script automatically detects the current bootstrap stage and advances to the next stage if ready:
+
+**Unix/Linux/macOS:**
+```bash
+# Check current stage and advance to next
+./bootstrap/scripts/check-and-advance.sh
+
+# Only check current stage (don't build)
+./bootstrap/scripts/check-and-advance.sh --check-only
+
+# Force build a specific stage
+./bootstrap/scripts/check-and-advance.sh --force-stage 0
+
+# Verbose output
+./bootstrap/scripts/check-and-advance.sh --verbose
+```
+
+**Windows (PowerShell):**
+```powershell
+# Check current stage and advance to next
+.\bootstrap\scripts\check-and-advance.ps1
+
+# Only check current stage (don't build)
+.\bootstrap\scripts\check-and-advance.ps1 -CheckOnly
+
+# Force build a specific stage
+.\bootstrap\scripts\check-and-advance.ps1 -ForceStage 0
+
+# Verbose output
+.\bootstrap\scripts\check-and-advance.ps1 -Verbose
+```
+
+This script:
+- Automatically detects which stage is currently built
+- Determines the next stage to build
+- Shows a detailed status report of all stages
+- Builds the next stage if source is available
+- Handles each stage appropriately (Stage 0 via .NET, Stages 1-3 via bootstrap.sh)
+
 ### Verifying the Build
 
 ```bash
@@ -344,6 +385,8 @@ Specifications in `/bootstrap/spec/` are **living documents**:
 ### Scripts
 - [bootstrap.sh](scripts/bootstrap.sh) - Unix/Linux/Mac build script
 - [bootstrap.ps1](scripts/bootstrap.ps1) - Windows PowerShell script
+- [check-and-advance.sh](scripts/check-and-advance.sh) - Stage detection and auto-advance script (Unix/Linux/Mac)
+- [check-and-advance.ps1](scripts/check-and-advance.ps1) - Stage detection and auto-advance script (Windows)
 - [verify.sh](scripts/verify.sh) - Unix verification script
 - [verify.ps1](scripts/verify.ps1) - Windows verification script
 
