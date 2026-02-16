@@ -1464,11 +1464,11 @@ fn parse_primary(mut parser: Parser) -> ParserExpressionResult {
 fn peek(parser: Parser) -> Token {
     let len = vec_len(parser.tokens);
     if parser.position < len {
-        return parser.tokens[parser.position];
+        parser.tokens[parser.position]
     } else {
         // Return EOF token
         let empty = "";
-        return make_eof_token(empty, 0);
+        make_eof_token(empty, 0)
     }
 }
 
