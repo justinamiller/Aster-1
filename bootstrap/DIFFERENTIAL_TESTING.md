@@ -130,8 +130,7 @@ Testing compile-pass fixtures...
 Testing run-pass fixtures...
   ✓ hello_world
   ✓ fibonacci
-  ✓ sum_array
-  Result: 3/3 passed
+  Result: 2/2 passed
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 All differential tests passed!
