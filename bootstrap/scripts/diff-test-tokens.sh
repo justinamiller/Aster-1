@@ -71,13 +71,20 @@ fi
 chmod +x "${ASTER0}"
 
 # Function to normalize file paths in JSON
-# Converts absolute paths to relative paths starting from bootstrap/
+# Converts absolute paths to relative paths by removing the repository root
+# Example: /home/runner/work/Aster-1/Aster-1/bootstrap/... -> bootstrap/...
 normalize_paths() {
     local input_file="$1"
     local output_file="$2"
     
+    # Validate REPO_ROOT is set and not empty
+    if [ -z "${REPO_ROOT}" ]; then
+        echo "Error: REPO_ROOT is not set" >&2
+        return 1
+    fi
+    
     # Use sed to replace absolute paths with relative paths
-    # This handles paths like /home/runner/work/Aster-1/Aster-1/bootstrap/... -> bootstrap/...
+    # This handles paths like ${REPO_ROOT}/bootstrap/... -> bootstrap/...
     sed "s|${REPO_ROOT}/||g" "${input_file}" > "${output_file}"
 }
 
