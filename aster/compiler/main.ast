@@ -6,13 +6,29 @@
 //
 // Language Subset: Core-0
 // - Uses only: functions, Vec, String, structs
-// - No traits, no async, no macros
+// - No traits, no async, no macros, no tuples
 
 /// Compiler driver that orchestrates all compilation stages
 struct Compiler {
     source_file: String,
     source_text: String,
     diagnostics: DiagnosticBag
+}
+
+/// Result types for compiler functions (Core-0 doesn't support tuple returns)
+struct CompileResult {
+    compiler: Compiler,
+    result: CompilationResult
+}
+
+struct LexResult {
+    compiler: Compiler,
+    tokens: Vec<Token>
+}
+
+struct ParseResult {
+    compiler: Compiler,
+    module: Module
 }
 
 /// Create a new compiler instance
@@ -25,12 +41,12 @@ fn new_compiler(source_file: String, source_text: String) -> Compiler {
 }
 
 /// Compile a source file through all stages
-/// Returns (updated_compiler, result)
-fn compile(mut compiler: Compiler) -> (Compiler, CompilationResult) {
+/// Returns CompileResult with updated compiler and compilation result
+fn compile(mut compiler: Compiler) -> CompileResult {
     // Stage 1: Lexical Analysis
     let lex_result = lex_source(compiler);
-    compiler = lex_result.0;
-    let tokens = lex_result.1;
+    compiler = lex_result.compiler;
+    let tokens = lex_result.tokens;
     
     if has_errors(compiler.diagnostics.clone()) {
         let result = CompilationResult {
@@ -38,13 +54,16 @@ fn compile(mut compiler: Compiler) -> (Compiler, CompilationResult) {
             module: None,
             diagnostics: compiler.diagnostics.clone()
         };
-        return (compiler, result);
+        return CompileResult {
+            compiler: compiler,
+            result: result
+        };
     }
     
     // Stage 2: Parsing
     let parse_result = parse_source(compiler, tokens);
-    compiler = parse_result.0;
-    let module = parse_result.1;
+    compiler = parse_result.compiler;
+    let module = parse_result.module;
     
     if has_errors(compiler.diagnostics.clone()) {
         let result = CompilationResult {
@@ -52,7 +71,10 @@ fn compile(mut compiler: Compiler) -> (Compiler, CompilationResult) {
             module: Some(module),
             diagnostics: compiler.diagnostics.clone()
         };
-        return (compiler, result);
+        return CompileResult {
+            compiler: compiler,
+            result: result
+        };
     }
     
     // Success
@@ -61,33 +83,42 @@ fn compile(mut compiler: Compiler) -> (Compiler, CompilationResult) {
         module: Some(module),
         diagnostics: compiler.diagnostics.clone()
     };
-    (compiler, result)
+    CompileResult {
+        compiler: compiler,
+        result: result
+    }
 }
 
 /// Lex the source code into tokens
-/// Returns (updated_compiler, tokens)
-fn lex_source(compiler: Compiler) -> (Compiler, Vec<Token>) {
+/// Returns LexResult with updated compiler and tokens
+fn lex_source(compiler: Compiler) -> LexResult {
     let lexer = new_lexer(compiler.source_text.clone(), compiler.source_file.clone());
     let tokens = tokenize(lexer);
     
     // Collect any lexer diagnostics
     // (In a full implementation, the lexer would report errors)
     
-    (compiler, tokens)
+    LexResult {
+        compiler: compiler,
+        tokens: tokens
+    }
 }
 
 /// Parse tokens into an AST module
-/// Returns (updated_compiler, module)
-fn parse_source(mut compiler: Compiler, tokens: Vec<Token>) -> (Compiler, Module) {
+/// Returns ParseResult with updated compiler and module
+fn parse_source(mut compiler: Compiler, tokens: Vec<Token>) -> ParseResult {
     let parser = new_parser(tokens);
     let parse_result = parse(parser);
-    let final_parser = parse_result.0;
-    let module = parse_result.1;
+    let final_parser = parse_result.parser;
+    let module = parse_result.module;
     
     // Collect parser diagnostics
     compiler.diagnostics = final_parser.diagnostics;
     
-    (compiler, module)
+    ParseResult {
+        compiler: compiler,
+        module: module
+    }
 }
 
 /// Result of compilation
@@ -108,8 +139,8 @@ fn main() {
     
     let compiler = new_compiler(test_file, test_source);
     let compile_result = compile(compiler);
-    let final_compiler = compile_result.0;
-    let result = compile_result.1;
+    let final_compiler = compile_result.compiler;
+    let result = compile_result.result;
     
     if result.success {
         print_success();

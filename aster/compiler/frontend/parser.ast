@@ -6,13 +6,89 @@
 //
 // Language Subset: Core-0
 // - Uses only: structs, enums, Vec, functions, while loops, match
-// - No traits, no closures, no async
+// - No traits, no closures, no async, no tuples
 
 /// Parser state for converting tokens to AST
 struct Parser {
     tokens: Vec<Token>,
     position: i32,
     diagnostics: DiagnosticBag
+}
+
+/// Result types for parser functions (Core-0 doesn't support tuple returns)
+struct ParserModuleResult {
+    parser: Parser,
+    module: Module
+}
+
+struct ParserItemResult {
+    parser: Parser,
+    item: Item
+}
+
+struct ParserParameterResult {
+    parser: Parser,
+    parameter: Parameter
+}
+
+struct ParserParametersResult {
+    parser: Parser,
+    parameters: Vec<Parameter>
+}
+
+struct ParserFieldResult {
+    parser: Parser,
+    field: Field
+}
+
+struct ParserFieldsResult {
+    parser: Parser,
+    fields: Vec<Field>
+}
+
+struct ParserVariantResult {
+    parser: Parser,
+    variant: Variant
+}
+
+struct ParserVariantsResult {
+    parser: Parser,
+    variants: Vec<Variant>
+}
+
+struct ParserTypeResult {
+    parser: Parser,
+    type_value: Type
+}
+
+struct ParserBlockResult {
+    parser: Parser,
+    block: Block
+}
+
+struct ParserStatementResult {
+    parser: Parser,
+    statement: Statement
+}
+
+struct ParserExpressionResult {
+    parser: Parser,
+    expression: Expression
+}
+
+struct ParserExpressionsResult {
+    parser: Parser,
+    expressions: Vec<Expression>
+}
+
+struct ParserTokenResult {
+    parser: Parser,
+    token: Token
+}
+
+struct ParserStringResult {
+    parser: Parser,
+    value: String
 }
 
 /// Create a new parser from a token stream
@@ -26,25 +102,25 @@ fn new_parser(tokens: Vec<Token>) -> Parser {
 
 /// Parse a complete source file into an AST
 /// Returns (updated_parser, module)
-fn parse(mut parser: Parser) -> (Parser, Module) {
+fn parse(mut parser: Parser) -> ParserModuleResult {
     let mut items = Vec::new();
     
     while !is_at_end(parser.clone()) {
         let result = parse_item(parser);
-        parser = result.0;
-        let item = result.1;
+        parser = result.parser;
+        let item = result.item;
         items.push(item);
     }
     
     let module = Module {
         items: items
     };
-    (parser, module)
+    ParserModuleResult { parser: parser, module: module }
 }
 
 /// Parse a top-level item (function, struct, enum, etc.)
 /// Returns (updated_parser, item)
-fn parse_item(mut parser: Parser) -> (Parser, Item) {
+fn parse_item(mut parser: Parser) -> ParserItemResult {
     let token = peek(parser.clone());
     
     match token.kind {
@@ -57,45 +133,45 @@ fn parse_item(mut parser: Parser) -> (Parser, Item) {
             parser = report_error(parser, msg, token.span);
             // Skip to next item
             parser = synchronize(parser);
-            (parser, error_item())
+            ParserItemResult { parser: parser, item: error_item() }
         }
     }
 }
 
 /// Parse a function declaration
 /// Returns (updated_parser, item)
-fn parse_function(mut parser: Parser) -> (Parser, Item) {
+fn parse_function(mut parser: Parser) -> ParserItemResult {
     let start = current_span(parser.clone());
     
     // fn keyword
-    parser = expect(parser, TokenKind::Fn).0;
+    parser = expect(parser, TokenKind::Fn).parser;
     
     // Function name
     let name_result = expect_identifier(parser);
-    parser = name_result.0;
-    let name = name_result.1;
+    parser = name_result.parser;
+    let name = name_result.value;
     
     // Parameters
-    parser = expect(parser, TokenKind::LeftParen).0;
+    parser = expect(parser, TokenKind::LeftParen).parser;
     let params_result = parse_parameter_list(parser);
-    parser = params_result.0;
-    let params = params_result.1;
-    parser = expect(parser, TokenKind::RightParen).0;
+    parser = params_result.parser;
+    let params = params_result.parameters;
+    parser = expect(parser, TokenKind::RightParen).parser;
     
     // Return type (optional)
     let return_type = if check(parser.clone(), TokenKind::Arrow) {
         parser = advance(parser);
         let type_result = parse_type(parser);
-        parser = type_result.0;
-        type_result.1
+        parser = type_result.parser;
+        type_result.type_value
     } else {
         unit_type()
     };
     
     // Body
     let body_result = parse_block(parser);
-    parser = body_result.0;
-    let body = body_result.1;
+    parser = body_result.parser;
+    let body = body_result.block;
     
     let item = Item::Function(FunctionItem {
         name: name,
@@ -104,107 +180,107 @@ fn parse_function(mut parser: Parser) -> (Parser, Item) {
         body: body,
         span: start
     });
-    (parser, item)
+    ParserItemResult { parser: parser, item: item }
 }
 
 /// Parse a struct declaration
 /// Returns (updated_parser, item)
-fn parse_struct(mut parser: Parser) -> (Parser, Item) {
+fn parse_struct(mut parser: Parser) -> ParserItemResult {
     let start = current_span(parser.clone());
     
     // struct keyword
-    parser = expect(parser, TokenKind::Struct).0;
+    parser = expect(parser, TokenKind::Struct).parser;
     
     // Struct name
     let name_result = expect_identifier(parser);
-    parser = name_result.0;
-    let name = name_result.1;
+    parser = name_result.parser;
+    let name = name_result.value;
     
     // Fields
-    parser = expect(parser, TokenKind::LeftBrace).0;
+    parser = expect(parser, TokenKind::LeftBrace).parser;
     let fields_result = parse_field_list(parser);
-    parser = fields_result.0;
-    let fields = fields_result.1;
-    parser = expect(parser, TokenKind::RightBrace).0;
+    parser = fields_result.parser;
+    let fields = fields_result.fields;
+    parser = expect(parser, TokenKind::RightBrace).parser;
     
     let item = Item::Struct(StructItem {
         name: name,
         fields: fields,
         span: start
     });
-    (parser, item)
+    ParserItemResult { parser: parser, item: item }
 }
 
 /// Parse an enum declaration
 /// Returns (updated_parser, item)
-fn parse_enum(mut parser: Parser) -> (Parser, Item) {
+fn parse_enum(mut parser: Parser) -> ParserItemResult {
     let start = current_span(parser.clone());
     
     // enum keyword
-    parser = expect(parser, TokenKind::Enum).0;
+    parser = expect(parser, TokenKind::Enum).parser;
     
     // Enum name
     let name_result = expect_identifier(parser);
-    parser = name_result.0;
-    let name = name_result.1;
+    parser = name_result.parser;
+    let name = name_result.value;
     
     // Variants
-    parser = expect(parser, TokenKind::LeftBrace).0;
+    parser = expect(parser, TokenKind::LeftBrace).parser;
     let variants_result = parse_variant_list(parser);
-    parser = variants_result.0;
-    let variants = variants_result.1;
-    parser = expect(parser, TokenKind::RightBrace).0;
+    parser = variants_result.parser;
+    let variants = variants_result.variants;
+    parser = expect(parser, TokenKind::RightBrace).parser;
     
     let item = Item::Enum(EnumItem {
         name: name,
         variants: variants,
         span: start
     });
-    (parser, item)
+    ParserItemResult { parser: parser, item: item }
 }
 
 /// Parse a type alias
 /// Returns (updated_parser, item)
-fn parse_type_alias(mut parser: Parser) -> (Parser, Item) {
+fn parse_type_alias(mut parser: Parser) -> ParserItemResult {
     let start = current_span(parser.clone());
     
     // type keyword
-    parser = expect(parser, TokenKind::Type).0;
+    parser = expect(parser, TokenKind::Type).parser;
     
     // Type name
     let name_result = expect_identifier(parser);
-    parser = name_result.0;
-    let name = name_result.1;
+    parser = name_result.parser;
+    let name = name_result.value;
     
     // Equals
-    parser = expect(parser, TokenKind::Equals).0;
+    parser = expect(parser, TokenKind::Equals).parser;
     
     // Aliased type
     let type_result = parse_type(parser);
-    parser = type_result.0;
-    let aliased = type_result.1;
+    parser = type_result.parser;
+    let aliased = type_result.type_value;
     
     // Semicolon
-    parser = expect(parser, TokenKind::Semicolon).0;
+    parser = expect(parser, TokenKind::Semicolon).parser;
     
     let item = Item::TypeAlias(TypeAliasItem {
         name: name,
         aliased_type: aliased,
         span: start
     });
-    (parser, item)
+    ParserItemResult { parser: parser, item: item }
 }
 
 /// Parse a parameter list
 /// Returns (updated_parser, parameters)
-fn parse_parameter_list(mut parser: Parser) -> (Parser, Vec<Parameter>) {
+fn parse_parameter_list(mut parser: Parser) -> ParserParametersResult {
     let mut params = Vec::new();
     
     if !check(parser.clone(), TokenKind::RightParen) {
         loop {
             let param_result = parse_parameter(parser);
-            parser = param_result.0;
-            let param = param_result.1;
+            parser = param_result.parser;
+            let param = param_result.parameter;
             params.push(param);
             
             if !check(parser.clone(), TokenKind::Comma) {
@@ -214,38 +290,38 @@ fn parse_parameter_list(mut parser: Parser) -> (Parser, Vec<Parameter>) {
         }
     }
     
-    (parser, params)
+    ParserParametersResult { parser: parser, parameters: params }
 }
 
 /// Parse a single parameter
 /// Returns (updated_parser, parameter)
-fn parse_parameter(mut parser: Parser) -> (Parser, Parameter) {
+fn parse_parameter(mut parser: Parser) -> ParserParameterResult {
     let name_result = expect_identifier(parser);
-    parser = name_result.0;
-    let name = name_result.1;
+    parser = name_result.parser;
+    let name = name_result.value;
     
-    parser = expect(parser, TokenKind::Colon).0;
+    parser = expect(parser, TokenKind::Colon).parser;
     
     let type_result = parse_type(parser);
-    parser = type_result.0;
-    let param_type = type_result.1;
+    parser = type_result.parser;
+    let param_type = type_result.type_value;
     
     let param = Parameter {
         name: name,
         param_type: param_type
     };
-    (parser, param)
+    ParserParameterResult { parser: parser, parameter: param }
 }
 
 /// Parse a field list (for structs)
 /// Returns (updated_parser, fields)
-fn parse_field_list(mut parser: Parser) -> (Parser, Vec<Field>) {
+fn parse_field_list(mut parser: Parser) -> ParserFieldsResult {
     let mut fields = Vec::new();
     
     while !check(parser.clone(), TokenKind::RightBrace) && !is_at_end(parser.clone()) {
         let field_result = parse_field(parser);
-        parser = field_result.0;
-        let field = field_result.1;
+        parser = field_result.parser;
+        let field = field_result.field;
         fields.push(field);
         
         if check(parser.clone(), TokenKind::Comma) {
@@ -253,38 +329,38 @@ fn parse_field_list(mut parser: Parser) -> (Parser, Vec<Field>) {
         }
     }
     
-    (parser, fields)
+    ParserFieldsResult { parser: parser, fields: fields }
 }
 
 /// Parse a single field
 /// Returns (updated_parser, field)
-fn parse_field(mut parser: Parser) -> (Parser, Field) {
+fn parse_field(mut parser: Parser) -> ParserFieldResult {
     let name_result = expect_identifier(parser);
-    parser = name_result.0;
-    let name = name_result.1;
+    parser = name_result.parser;
+    let name = name_result.value;
     
-    parser = expect(parser, TokenKind::Colon).0;
+    parser = expect(parser, TokenKind::Colon).parser;
     
     let type_result = parse_type(parser);
-    parser = type_result.0;
-    let field_type = type_result.1;
+    parser = type_result.parser;
+    let field_type = type_result.type_value;
     
     let field = Field {
         name: name,
         field_type: field_type
     };
-    (parser, field)
+    ParserFieldResult { parser: parser, field: field }
 }
 
 /// Parse a variant list (for enums)
 /// Returns (updated_parser, variants)
-fn parse_variant_list(mut parser: Parser) -> (Parser, Vec<Variant>) {
+fn parse_variant_list(mut parser: Parser) -> ParserVariantsResult {
     let mut variants = Vec::new();
     
     while !check(parser.clone(), TokenKind::RightBrace) && !is_at_end(parser.clone()) {
         let variant_result = parse_variant(parser);
-        parser = variant_result.0;
-        let variant = variant_result.1;
+        parser = variant_result.parser;
+        let variant = variant_result.variant;
         variants.push(variant);
         
         if check(parser.clone(), TokenKind::Comma) {
@@ -292,23 +368,23 @@ fn parse_variant_list(mut parser: Parser) -> (Parser, Vec<Variant>) {
         }
     }
     
-    (parser, variants)
+    ParserVariantsResult { parser: parser, variants: variants }
 }
 
 /// Parse a single variant
 /// Returns (updated_parser, variant)
-fn parse_variant(mut parser: Parser) -> (Parser, Variant) {
+fn parse_variant(mut parser: Parser) -> ParserVariantResult {
     let name_result = expect_identifier(parser);
-    parser = name_result.0;
-    let name = name_result.1;
+    parser = name_result.parser;
+    let name = name_result.value;
     
     // Optional payload type
     let payload = if check(parser.clone(), TokenKind::LeftParen) {
         parser = advance(parser);
         let type_result = parse_type(parser);
-        parser = type_result.0;
-        let ty = type_result.1;
-        parser = expect(parser, TokenKind::RightParen).0;
+        parser = type_result.parser;
+        let ty = type_result.type_value;
+        parser = expect(parser, TokenKind::RightParen).parser;
         Some(ty)
     } else {
         None
@@ -318,56 +394,56 @@ fn parse_variant(mut parser: Parser) -> (Parser, Variant) {
         name: name,
         payload: payload
     };
-    (parser, variant)
+    ParserVariantResult { parser: parser, variant: variant }
 }
 
 /// Parse a type expression
 /// Returns (updated_parser, type)
-fn parse_type(mut parser: Parser) -> (Parser, Type) {
+fn parse_type(mut parser: Parser) -> ParserTypeResult {
     let token = peek(parser.clone());
     
     match token.kind {
         TokenKind::Identifier => {
             let name_result = expect_identifier(parser);
-            parser = name_result.0;
-            let name = name_result.1;
-            (parser, Type::Named(name))
+            parser = name_result.parser;
+            let name = name_result.value;
+            ParserTypeResult { parser: parser, type_value: Type::Named(name) }
         },
         _ => {
             let msg = String::from("Expected type");
             parser = report_error(parser, msg, token.span);
-            (parser, error_type())
+            ParserTypeResult { parser: parser, type_value: error_type() }
         }
     }
 }
 
 /// Parse a block statement
 /// Returns (updated_parser, block)
-fn parse_block(mut parser: Parser) -> (Parser, Block) {
+fn parse_block(mut parser: Parser) -> ParserBlockResult {
     let start = current_span(parser.clone());
-    parser = expect(parser, TokenKind::LeftBrace).0;
+    parser = expect(parser, TokenKind::LeftBrace).parser;
     
     let mut statements = Vec::new();
     
     while !check(parser.clone(), TokenKind::RightBrace) && !is_at_end(parser.clone()) {
         let stmt_result = parse_statement(parser);
-        parser = stmt_result.0;
-        let stmt = stmt_result.1;
+        parser = stmt_result.parser;
+        let stmt = stmt_result.statement;
         statements.push(stmt);
     }
     
-    parser = expect(parser, TokenKind::RightBrace).0;
+    parser = expect(parser, TokenKind::RightBrace).parser;
     
     let block = Block {
         statements: statements,
         span: start
     };
-    (parser, block)
+    ParserBlockResult { parser: parser, block: block }
 }
 
 /// Parse a statement
 /// Returns (updated_parser, statement)
-fn parse_statement(parser: Parser) -> (Parser, Statement) {
+fn parse_statement(parser: Parser) -> ParserStatementResult {
     let token = peek(parser.clone());
     
     match token.kind {
@@ -382,9 +458,9 @@ fn parse_statement(parser: Parser) -> (Parser, Statement) {
 
 /// Parse a let statement
 /// Returns (updated_parser, statement)
-fn parse_let_statement(mut parser: Parser) -> (Parser, Statement) {
+fn parse_let_statement(mut parser: Parser) -> ParserStatementResult {
     let start = current_span(parser.clone());
-    parser = expect(parser, TokenKind::Let).0;
+    parser = expect(parser, TokenKind::Let).parser;
     
     let mutable = if check(parser.clone(), TokenKind::Mut) {
         parser = advance(parser);
@@ -394,23 +470,23 @@ fn parse_let_statement(mut parser: Parser) -> (Parser, Statement) {
     };
     
     let name_result = expect_identifier(parser);
-    parser = name_result.0;
-    let name = name_result.1;
+    parser = name_result.parser;
+    let name = name_result.value;
     
     let type_annotation = if check(parser.clone(), TokenKind::Colon) {
         parser = advance(parser);
         let type_result = parse_type(parser);
-        parser = type_result.0;
-        Some(type_result.1)
+        parser = type_result.parser;
+        Some(type_result.type_value)
     } else {
         None
     };
     
-    parser = expect(parser, TokenKind::Equals).0;
+    parser = expect(parser, TokenKind::Equals).parser;
     let expr_result = parse_expression(parser);
-    parser = expr_result.0;
-    let initializer = expr_result.1;
-    parser = expect(parser, TokenKind::Semicolon).0;
+    parser = expr_result.parser;
+    let initializer = expr_result.expression;
+    parser = expect(parser, TokenKind::Semicolon).parser;
     
     let stmt = Statement::Let(LetStatement {
         name: name,
@@ -419,51 +495,51 @@ fn parse_let_statement(mut parser: Parser) -> (Parser, Statement) {
         initializer: initializer,
         span: start
     });
-    (parser, stmt)
+    ParserStatementResult { parser: parser, statement: stmt }
 }
 
 /// Parse a return statement
 /// Returns (updated_parser, statement)
-fn parse_return_statement(mut parser: Parser) -> (Parser, Statement) {
+fn parse_return_statement(mut parser: Parser) -> ParserStatementResult {
     let start = current_span(parser.clone());
-    parser = expect(parser, TokenKind::Return).0;
+    parser = expect(parser, TokenKind::Return).parser;
     
     let value = if !check(parser.clone(), TokenKind::Semicolon) {
         let expr_result = parse_expression(parser);
-        parser = expr_result.0;
-        Some(expr_result.1)
+        parser = expr_result.parser;
+        Some(expr_result.expression)
     } else {
         None
     };
     
-    parser = expect(parser, TokenKind::Semicolon).0;
+    parser = expect(parser, TokenKind::Semicolon).parser;
     
     let stmt = Statement::Return(ReturnStatement {
         value: value,
         span: start
     });
-    (parser, stmt)
+    ParserStatementResult { parser: parser, statement: stmt }
 }
 
 /// Parse an if statement
 /// Returns (updated_parser, statement)
-fn parse_if_statement(mut parser: Parser) -> (Parser, Statement) {
+fn parse_if_statement(mut parser: Parser) -> ParserStatementResult {
     let start = current_span(parser.clone());
-    parser = expect(parser, TokenKind::If).0;
+    parser = expect(parser, TokenKind::If).parser;
     
     let cond_result = parse_expression(parser);
-    parser = cond_result.0;
-    let condition = cond_result.1;
+    parser = cond_result.parser;
+    let condition = cond_result.expression;
     
     let then_result = parse_block(parser);
-    parser = then_result.0;
-    let then_block = then_result.1;
+    parser = then_result.parser;
+    let then_block = then_result.block;
     
     let else_block = if check(parser.clone(), TokenKind::Else) {
         parser = advance(parser);
         let else_result = parse_block(parser);
-        parser = else_result.0;
-        Some(else_result.1)
+        parser = else_result.parser;
+        Some(else_result.block)
     } else {
         None
     };
@@ -474,52 +550,52 @@ fn parse_if_statement(mut parser: Parser) -> (Parser, Statement) {
         else_block: else_block,
         span: start
     });
-    (parser, stmt)
+    ParserStatementResult { parser: parser, statement: stmt }
 }
 
 /// Parse a while statement
 /// Returns (updated_parser, statement)
-fn parse_while_statement(mut parser: Parser) -> (Parser, Statement) {
+fn parse_while_statement(mut parser: Parser) -> ParserStatementResult {
     let start = current_span(parser.clone());
-    parser = expect(parser, TokenKind::While).0;
+    parser = expect(parser, TokenKind::While).parser;
     
     let cond_result = parse_expression(parser);
-    parser = cond_result.0;
-    let condition = cond_result.1;
+    parser = cond_result.parser;
+    let condition = cond_result.expression;
     
     let body_result = parse_block(parser);
-    parser = body_result.0;
-    let body = body_result.1;
+    parser = body_result.parser;
+    let body = body_result.block;
     
     let stmt = Statement::While(WhileStatement {
         condition: condition,
         body: body,
         span: start
     });
-    (parser, stmt)
+    ParserStatementResult { parser: parser, statement: stmt }
 }
 
 /// Parse a for statement
 /// Returns (updated_parser, statement)
-fn parse_for_statement(mut parser: Parser) -> (Parser, Statement) {
+fn parse_for_statement(mut parser: Parser) -> ParserStatementResult {
     let start = current_span(parser.clone());
-    parser = expect(parser, TokenKind::For).0;
+    parser = expect(parser, TokenKind::For).parser;
     
     let var_result = expect_identifier(parser);
-    parser = var_result.0;
-    let variable = var_result.1;
+    parser = var_result.parser;
+    let variable = var_result.value;
     
     // Expect 'in' keyword (not in TokenKind, so we check for identifier "in")
     let in_token = peek(parser.clone());
     parser = advance(parser);
     
     let iter_result = parse_expression(parser);
-    parser = iter_result.0;
-    let iterable = iter_result.1;
+    parser = iter_result.parser;
+    let iterable = iter_result.expression;
     
     let body_result = parse_block(parser);
-    parser = body_result.0;
-    let body = body_result.1;
+    parser = body_result.parser;
+    let body = body_result.block;
     
     let stmt = Statement::For(ForStatement {
         variable: variable,
@@ -527,65 +603,65 @@ fn parse_for_statement(mut parser: Parser) -> (Parser, Statement) {
         body: body,
         span: start
     });
-    (parser, stmt)
+    ParserStatementResult { parser: parser, statement: stmt }
 }
 
 /// Parse an expression statement
 /// Returns (updated_parser, statement)
-fn parse_expression_statement(mut parser: Parser) -> (Parser, Statement) {
+fn parse_expression_statement(mut parser: Parser) -> ParserStatementResult {
     let start = current_span(parser.clone());
     let expr_result = parse_expression(parser);
-    parser = expr_result.0;
-    let expr = expr_result.1;
-    parser = expect(parser, TokenKind::Semicolon).0;
+    parser = expr_result.parser;
+    let expr = expr_result.expression;
+    parser = expect(parser, TokenKind::Semicolon).parser;
     
     let stmt = Statement::Expression(ExpressionStatement {
         expression: expr,
         span: start
     });
-    (parser, stmt)
+    ParserStatementResult { parser: parser, statement: stmt }
 }
 
 /// Parse an expression
 /// Returns (updated_parser, expression)
-fn parse_expression(parser: Parser) -> (Parser, Expression) {
+fn parse_expression(parser: Parser) -> ParserExpressionResult {
     parse_assignment(parser)
 }
 
 /// Parse an assignment expression
 /// Returns (updated_parser, expression)
-fn parse_assignment(mut parser: Parser) -> (Parser, Expression) {
+fn parse_assignment(mut parser: Parser) -> ParserExpressionResult {
     let expr_result = parse_logical_or(parser);
-    parser = expr_result.0;
-    let expr = expr_result.1;
+    parser = expr_result.parser;
+    let expr = expr_result.expression;
     
     if check(parser.clone(), TokenKind::Equals) {
         parser = advance(parser);
         let value_result = parse_assignment(parser);
-        parser = value_result.0;
-        let value = value_result.1;
+        parser = value_result.parser;
+        let value = value_result.expression;
         let assign_expr = Expression::Assignment(AssignmentExpr {
             target: Box::new(expr),
             value: Box::new(value)
         });
-        return (parser, assign_expr);
+        return ParserExpressionResult { parser: parser, expression: assign_expr };
     }
     
-    (parser, expr)
+    ParserExpressionResult { parser: parser, expression: expr }
 }
 
 /// Parse a logical OR expression
 /// Returns (updated_parser, expression)
-fn parse_logical_or(mut parser: Parser) -> (Parser, Expression) {
+fn parse_logical_or(mut parser: Parser) -> ParserExpressionResult {
     let left_result = parse_logical_and(parser);
-    parser = left_result.0;
-    let mut left = left_result.1;
+    parser = left_result.parser;
+    let mut left = left_result.expression;
     
     while check(parser.clone(), TokenKind::PipePipe) {
         parser = advance(parser);
         let right_result = parse_logical_and(parser);
-        parser = right_result.0;
-        let right = right_result.1;
+        parser = right_result.parser;
+        let right = right_result.expression;
         left = Expression::Binary(BinaryExpr {
             left: Box::new(left),
             op: BinaryOp::LogicalOr,
@@ -598,16 +674,16 @@ fn parse_logical_or(mut parser: Parser) -> (Parser, Expression) {
 
 /// Parse a logical AND expression
 /// Returns (updated_parser, expression)
-fn parse_logical_and(mut parser: Parser) -> (Parser, Expression) {
+fn parse_logical_and(mut parser: Parser) -> ParserExpressionResult {
     let left_result = parse_equality(parser);
-    parser = left_result.0;
-    let mut left = left_result.1;
+    parser = left_result.parser;
+    let mut left = left_result.expression;
     
     while check(parser.clone(), TokenKind::AmpersandAmpersand) {
         parser = advance(parser);
         let right_result = parse_equality(parser);
-        parser = right_result.0;
-        let right = right_result.1;
+        parser = right_result.parser;
+        let right = right_result.expression;
         left = Expression::Binary(BinaryExpr {
             left: Box::new(left),
             op: BinaryOp::LogicalAnd,
@@ -615,15 +691,15 @@ fn parse_logical_and(mut parser: Parser) -> (Parser, Expression) {
         });
     }
     
-    (parser, left)
+    ParserExpressionResult { parser: parser, expression: left }
 }
 
 /// Parse an equality expression
 /// Returns (updated_parser, expression)
-fn parse_equality(mut parser: Parser) -> (Parser, Expression) {
+fn parse_equality(mut parser: Parser) -> ParserExpressionResult {
     let left_result = parse_comparison(parser);
-    parser = left_result.0;
-    let mut left = left_result.1;
+    parser = left_result.parser;
+    let mut left = left_result.expression;
     
     while check(parser.clone(), TokenKind::EqualsEquals) || check(parser.clone(), TokenKind::BangEquals) {
         let op = if check(parser.clone(), TokenKind::EqualsEquals) {
@@ -635,8 +711,8 @@ fn parse_equality(mut parser: Parser) -> (Parser, Expression) {
         };
         
         let right_result = parse_comparison(parser);
-        parser = right_result.0;
-        let right = right_result.1;
+        parser = right_result.parser;
+        let right = right_result.expression;
         left = Expression::Binary(BinaryExpr {
             left: Box::new(left),
             op: op,
@@ -644,15 +720,15 @@ fn parse_equality(mut parser: Parser) -> (Parser, Expression) {
         });
     }
     
-    (parser, left)
+    ParserExpressionResult { parser: parser, expression: left }
 }
 
 /// Parse a comparison expression
 /// Returns (updated_parser, expression)
-fn parse_comparison(mut parser: Parser) -> (Parser, Expression) {
+fn parse_comparison(mut parser: Parser) -> ParserExpressionResult {
     let left_result = parse_term(parser);
-    parser = left_result.0;
-    let mut left = left_result.1;
+    parser = left_result.parser;
+    let mut left = left_result.expression;
     
     loop {
         let op = if check(parser.clone(), TokenKind::Less) {
@@ -672,8 +748,8 @@ fn parse_comparison(mut parser: Parser) -> (Parser, Expression) {
         };
         
         let right_result = parse_term(parser);
-        parser = right_result.0;
-        let right = right_result.1;
+        parser = right_result.parser;
+        let right = right_result.expression;
         left = Expression::Binary(BinaryExpr {
             left: Box::new(left),
             op: op,
@@ -681,15 +757,15 @@ fn parse_comparison(mut parser: Parser) -> (Parser, Expression) {
         });
     }
     
-    (parser, left)
+    ParserExpressionResult { parser: parser, expression: left }
 }
 
 /// Parse a term expression (addition, subtraction)
 /// Returns (updated_parser, expression)
-fn parse_term(mut parser: Parser) -> (Parser, Expression) {
+fn parse_term(mut parser: Parser) -> ParserExpressionResult {
     let left_result = parse_factor(parser);
-    parser = left_result.0;
-    let mut left = left_result.1;
+    parser = left_result.parser;
+    let mut left = left_result.expression;
     
     while check(parser.clone(), TokenKind::Plus) || check(parser.clone(), TokenKind::Minus) {
         let op = if check(parser.clone(), TokenKind::Plus) {
@@ -701,8 +777,8 @@ fn parse_term(mut parser: Parser) -> (Parser, Expression) {
         };
         
         let right_result = parse_factor(parser);
-        parser = right_result.0;
-        let right = right_result.1;
+        parser = right_result.parser;
+        let right = right_result.expression;
         left = Expression::Binary(BinaryExpr {
             left: Box::new(left),
             op: op,
@@ -710,15 +786,15 @@ fn parse_term(mut parser: Parser) -> (Parser, Expression) {
         });
     }
     
-    (parser, left)
+    ParserExpressionResult { parser: parser, expression: left }
 }
 
 /// Parse a factor expression (multiplication, division, modulo)
 /// Returns (updated_parser, expression)
-fn parse_factor(mut parser: Parser) -> (Parser, Expression) {
+fn parse_factor(mut parser: Parser) -> ParserExpressionResult {
     let left_result = parse_unary(parser);
-    parser = left_result.0;
-    let mut left = left_result.1;
+    parser = left_result.parser;
+    let mut left = left_result.expression;
     
     loop {
         let op = if check(parser.clone(), TokenKind::Star) {
@@ -735,8 +811,8 @@ fn parse_factor(mut parser: Parser) -> (Parser, Expression) {
         };
         
         let right_result = parse_unary(parser);
-        parser = right_result.0;
-        let right = right_result.1;
+        parser = right_result.parser;
+        let right = right_result.expression;
         left = Expression::Binary(BinaryExpr {
             left: Box::new(left),
             op: op,
@@ -749,29 +825,29 @@ fn parse_factor(mut parser: Parser) -> (Parser, Expression) {
 
 /// Parse a unary expression
 /// Returns (updated_parser, expression)
-fn parse_unary(mut parser: Parser) -> (Parser, Expression) {
+fn parse_unary(mut parser: Parser) -> ParserExpressionResult {
     if check(parser.clone(), TokenKind::Minus) {
         parser = advance(parser);
         let operand_result = parse_unary(parser);
-        parser = operand_result.0;
-        let operand = operand_result.1;
+        parser = operand_result.parser;
+        let operand = operand_result.expression;
         let unary_expr = Expression::Unary(UnaryExpr {
             op: UnaryOp::Negate,
             operand: Box::new(operand)
         });
-        return (parser, unary_expr);
+        return ParserExpressionResult { parser: parser, expression: unary_expr };
     }
     
     if check(parser.clone(), TokenKind::Bang) {
         parser = advance(parser);
         let operand_result = parse_unary(parser);
-        parser = operand_result.0;
-        let operand = operand_result.1;
+        parser = operand_result.parser;
+        let operand = operand_result.expression;
         let unary_expr = Expression::Unary(UnaryExpr {
             op: UnaryOp::Not,
             operand: Box::new(operand)
         });
-        return (parser, unary_expr);
+        return ParserExpressionResult { parser: parser, expression: unary_expr };
     }
     
     parse_call(parser)
@@ -779,18 +855,18 @@ fn parse_unary(mut parser: Parser) -> (Parser, Expression) {
 
 /// Parse a call expression
 /// Returns (updated_parser, expression)
-fn parse_call(mut parser: Parser) -> (Parser, Expression) {
+fn parse_call(mut parser: Parser) -> ParserExpressionResult {
     let expr_result = parse_primary(parser);
-    parser = expr_result.0;
-    let mut expr = expr_result.1;
+    parser = expr_result.parser;
+    let mut expr = expr_result.expression;
     
     loop {
         if check(parser.clone(), TokenKind::LeftParen) {
             parser = advance(parser);
             let args_result = parse_argument_list(parser);
-            parser = args_result.0;
-            let args = args_result.1;
-            parser = expect(parser, TokenKind::RightParen).0;
+            parser = args_result.parser;
+            let args = args_result.expressions;
+            parser = expect(parser, TokenKind::RightParen).parser;
             expr = Expression::Call(CallExpr {
                 callee: Box::new(expr),
                 arguments: args
@@ -798,8 +874,8 @@ fn parse_call(mut parser: Parser) -> (Parser, Expression) {
         } else if check(parser.clone(), TokenKind::Dot) {
             parser = advance(parser);
             let field_result = expect_identifier(parser);
-            parser = field_result.0;
-            let field = field_result.1;
+            parser = field_result.parser;
+            let field = field_result.value;
             expr = Expression::FieldAccess(FieldAccessExpr {
                 object: Box::new(expr),
                 field: field
@@ -809,19 +885,19 @@ fn parse_call(mut parser: Parser) -> (Parser, Expression) {
         }
     }
     
-    (parser, expr)
+    ParserExpressionResult { parser: parser, expression: expr }
 }
 
 /// Parse argument list
 /// Returns (updated_parser, arguments)
-fn parse_argument_list(mut parser: Parser) -> (Parser, Vec<Expression>) {
+fn parse_argument_list(mut parser: Parser) -> ParserExpressionsResult {
     let mut args = Vec::new();
     
     if !check(parser.clone(), TokenKind::RightParen) {
         loop {
             let arg_result = parse_expression(parser);
-            parser = arg_result.0;
-            let arg = arg_result.1;
+            parser = arg_result.parser;
+            let arg = arg_result.expression;
             args.push(arg);
             
             if !check(parser.clone(), TokenKind::Comma) {
@@ -831,12 +907,12 @@ fn parse_argument_list(mut parser: Parser) -> (Parser, Vec<Expression>) {
         }
     }
     
-    (parser, args)
+    ParserExpressionsResult { parser: parser, expressions: args }
 }
 
 /// Parse a primary expression
 /// Returns (updated_parser, expression)
-fn parse_primary(mut parser: Parser) -> (Parser, Expression) {
+fn parse_primary(mut parser: Parser) -> ParserExpressionResult {
     let token = peek(parser.clone());
     
     match token.kind {
@@ -845,62 +921,62 @@ fn parse_primary(mut parser: Parser) -> (Parser, Expression) {
             let expr = Expression::IntegerLiteral(IntegerLiteralExpr {
                 value: token.value
             });
-            (parser, expr)
+            ParserExpressionResult { parser: parser, expression: expr }
         },
         TokenKind::FloatLiteral => {
             parser = advance(parser);
             let expr = Expression::FloatLiteral(FloatLiteralExpr {
                 value: token.value
             });
-            (parser, expr)
+            ParserExpressionResult { parser: parser, expression: expr }
         },
         TokenKind::StringLiteral => {
             parser = advance(parser);
             let expr = Expression::StringLiteral(StringLiteralExpr {
                 value: token.value
             });
-            (parser, expr)
+            ParserExpressionResult { parser: parser, expression: expr }
         },
         TokenKind::CharLiteral => {
             parser = advance(parser);
             let expr = Expression::CharLiteral(CharLiteralExpr {
                 value: token.value
             });
-            (parser, expr)
+            ParserExpressionResult { parser: parser, expression: expr }
         },
         TokenKind::True => {
             parser = advance(parser);
             let expr = Expression::BooleanLiteral(BooleanLiteralExpr {
                 value: true
             });
-            (parser, expr)
+            ParserExpressionResult { parser: parser, expression: expr }
         },
         TokenKind::False => {
             parser = advance(parser);
             let expr = Expression::BooleanLiteral(BooleanLiteralExpr {
                 value: false
             });
-            (parser, expr)
+            ParserExpressionResult { parser: parser, expression: expr }
         },
         TokenKind::Identifier => {
             parser = advance(parser);
             let expr = Expression::Identifier(IdentifierExpr {
                 name: token.value
             });
-            (parser, expr)
+            ParserExpressionResult { parser: parser, expression: expr }
         },
         TokenKind::LeftParen => {
             parser = advance(parser);
             let expr_result = parse_expression(parser);
-            parser = expr_result.0;
-            let expr = expr_result.1;
-            parser = expect(parser, TokenKind::RightParen).0;
-            (parser, expr)
+            parser = expr_result.parser;
+            let expr = expr_result.expression;
+            parser = expect(parser, TokenKind::RightParen).parser;
+            ParserExpressionResult { parser: parser, expression: expr }
         },
         _ => {
             let msg = String::from("Expected expression");
             parser = report_error(parser, msg, token.span);
-            (parser, error_expression())
+            ParserExpressionResult { parser: parser, expression: error_expression() }
         }
     }
 }
@@ -941,26 +1017,26 @@ fn check(parser: Parser, kind: TokenKind) -> bool {
 
 /// Expect a specific token kind
 /// Returns (updated_parser, consumed_token)
-fn expect(mut parser: Parser, kind: TokenKind) -> (Parser, Token) {
+fn expect(mut parser: Parser, kind: TokenKind) -> ParserTokenResult {
     if check(parser.clone(), kind) {
         let token = peek(parser.clone());
         parser = advance(parser);
-        (parser, token)
+        ParserTokenResult { parser: parser, token: token }
     } else {
         let token = peek(parser.clone());
         let msg = String::from("Unexpected token");
         parser = report_error(parser, msg, token.span);
-        (parser, token)
+        ParserTokenResult { parser: parser, token: token }
     }
 }
 
 /// Expect an identifier token
 /// Returns (updated_parser, identifier_string)
-fn expect_identifier(mut parser: Parser) -> (Parser, String) {
+fn expect_identifier(mut parser: Parser) -> ParserStringResult {
     let expect_result = expect(parser, TokenKind::Identifier);
-    parser = expect_result.0;
-    let token = expect_result.1;
-    (parser, token.value)
+    parser = expect_result.parser;
+    let token = expect_result.token;
+    ParserStringResult { parser: parser, value: token.value }
 }
 
 /// Check if we're at the end of the token stream

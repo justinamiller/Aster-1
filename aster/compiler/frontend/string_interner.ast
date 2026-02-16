@@ -8,11 +8,19 @@
 // - Uses only: Vec, String, functions
 // - No HashMap (not available in Core-0)
 // - Linear search acceptable for bootstrap performance
+// - No tuples (use result structs instead)
 
 /// String interner that deduplicates string identifiers.
 /// Uses a Vec-based pool since HashMap requires Hash trait (not in Core-0).
 struct StringInterner {
     pool: Vec<String>
+}
+
+/// Result of string interning operation
+/// (Core-0 doesn't support tuple returns)
+struct InternResult {
+    interner: StringInterner,
+    value: String
 }
 
 /// Create a new empty string interner.
@@ -22,13 +30,13 @@ fn new_interner() -> StringInterner {
     }
 }
 
-/// Intern a string. Returns (updated_interner, interned_string).
+/// Intern a string. Returns InternResult with updated interner and interned string.
 /// If the string is already in the pool, returns the existing instance.
 /// Otherwise, adds it to the pool and returns it.
 ///
 /// Note: In Core-0, we use linear search since HashMap is not available.
 /// This is acceptable for bootstrap performance.
-fn intern(mut interner: StringInterner, value: String) -> (StringInterner, String) {
+fn intern(mut interner: StringInterner, value: String) -> InternResult {
     // Search for existing string in pool
     let mut i = 0;
     let pool_len = usize_to_i32(interner.pool.len());
@@ -36,20 +44,26 @@ fn intern(mut interner: StringInterner, value: String) -> (StringInterner, Strin
         let idx = i32_to_usize(i);
         if interner.pool[idx] == value {
             let result = interner.pool[idx].clone();
-            return (interner, result);
+            return InternResult {
+                interner: interner,
+                value: result
+            };
         }
         i = i + 1;
     }
     
     // Not found, add to pool
     interner.pool.push(value.clone());
-    (interner, value)
+    InternResult {
+        interner: interner,
+        value: value
+    }
 }
 
 /// Intern a substring from source text.
 /// Creates a String from the specified range and interns it.
-/// Returns (updated_interner, interned_string).
-fn intern_substring(interner: StringInterner, source: String, start: i32, end: i32) -> (StringInterner, String) {
+/// Returns InternResult with updated interner and interned string.
+fn intern_substring(interner: StringInterner, source: String, start: i32, end: i32) -> InternResult {
     let substring = string_substring(source, start, end);
     intern(interner, substring)
 }
