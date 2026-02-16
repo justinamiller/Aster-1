@@ -367,6 +367,10 @@ build_stage3() {
         log_warning "Stage 2 binary not found. Cannot build Stage 3 yet."
         log_info "Stage 2 must be completed before Stage 3 can be built"
         log_info "This is expected during the phased bootstrap implementation"
+        
+        # Create stub for testing self-hosting validation infrastructure
+        log_info "Creating Stage 3 stub for testing bootstrap infrastructure..."
+        create_stage3_stub
         return
     fi
     
@@ -380,13 +384,11 @@ build_stage3() {
         log_info "  - Optimization passes"
         log_info "  - LLVM backend"
         log_info "  - Complete tooling (fmt, lint, doc, test)"
+        create_stage3_stub
         return
     fi
     
     log_info "Compiling Stage 3 with aster2..."
-    
-    # Create Stage 3 build directory
-    mkdir -p "${BUILD_DIR}/stage3"
     
     # Collect Stage 3 source files
     local AST_FILES=$(find "${ASTER_DIR}/compiler/stage3" -name "*.ast" -type f)
@@ -400,6 +402,7 @@ build_stage3() {
         log_info "  - Optimization passes"
         log_info "  - LLVM backend"
         log_info "  - Complete tooling (fmt, lint, doc, test)"
+        create_stage3_stub
         return
     fi
     
@@ -417,7 +420,50 @@ build_stage3() {
         log_info "Stage 3 binary: ${BUILD_DIR}/stage3/aster3"
     else
         log_warning "Stage 3 build did not produce binary (expected during partial implementation)"
+        create_stage3_stub
     fi
+}
+
+# Create Stage 3 stub for testing bootstrap infrastructure
+create_stage3_stub() {
+    local stub="${BUILD_DIR}/stage3/aster3"
+    local stage1="${BUILD_DIR}/stage1/aster1"
+    
+    # Don't overwrite if real Stage 3 already exists
+    if [[ -f "$stub" ]] && ! grep -q "Stage 3 Stub" "$stub" 2>/dev/null; then
+        log_info "Real Stage 3 binary exists, not creating stub"
+        return
+    fi
+    
+    log_info "Creating Stage 3 stub at ${stub}"
+    
+    cat > "$stub" << 'EOFSTUB'
+#!/usr/bin/env bash
+# Stage 3 Stub - Placeholder for testing bootstrap infrastructure
+# This is NOT a real Stage 3 compiler - it's a wrapper for testing.
+# Real Stage 3 will be built once Stage 2 is complete.
+
+echo "WARNING: This is a Stage 3 stub for testing bootstrap infrastructure" >&2
+echo "Real Stage 3 compiler is not yet implemented" >&2
+echo "" >&2
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+STAGE1="${SCRIPT_DIR}/../stage1/aster1"
+
+if [[ ! -f "$STAGE1" ]]; then
+    echo "Error: Stage 1 binary not found at $STAGE1" >&2
+    exit 1
+fi
+
+# For now, delegate to Stage 1 for testing purposes
+exec "$STAGE1" "$@"
+EOFSTUB
+    
+    chmod +x "$stub"
+    
+    log_success "Stage 3 stub created for testing"
+    log_info "Self-hosting validation can now test infrastructure"
+    log_info "Stub will be replaced when real Stage 3 is built"
 }
 
 # Main build function
