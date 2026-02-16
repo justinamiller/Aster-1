@@ -557,8 +557,8 @@ public sealed class LlvmBackend : IBackend
         _output.AppendLine("; ============================================================================");
         _output.AppendLine();
 
-        // String literals for help message and error messages
-        var helpMsg = GetStringLiteral(@"ASTER Stage 1 Compiler (Bootstrap)
+        // String literals - emit them directly since main collections are done
+        var helpMsg = @"ASTER Stage 1 Compiler (Bootstrap)
 
 Usage: aster1 <command> [options]
 
@@ -567,15 +567,29 @@ Commands:
   emit-tokens <file>  Emit token stream as JSON
 
 Stage 1 is the minimal bootstrap compiler.
-For full compiler features, use aster2 or aster3.");
+For full compiler features, use aster2 or aster3.";
 
-        var errorNoCmd = GetStringLiteral("error: no command specified");
-        var errorUnknownCmd = GetStringLiteral("error: unknown command");
-        var errorNoFile = GetStringLiteral("error: no input file specified for emit-tokens");
-        var errorFileNotFound = GetStringLiteral("error: file not found");
-        var errorTokenize = GetStringLiteral("error: tokenization failed");
-        var helpCmd = GetStringLiteral("--help");
-        var emitTokensCmd = GetStringLiteral("emit-tokens");
+        var strings = new Dictionary<string, string>
+        {
+            ["helpMsg"] = helpMsg,
+            ["errorNoCmd"] = "error: no command specified",
+            ["errorUnknownCmd"] = "error: unknown command",
+            ["errorNoFile"] = "error: no input file specified for emit-tokens",
+            ["errorFileNotFound"] = "error: file not found",
+            ["helpCmd"] = "--help",
+            ["emitTokensCmd"] = "emit-tokens",
+            ["jsonOpen"] = "[",
+            ["jsonClose"] = "]"
+        };
+
+        // Emit string constants
+        foreach (var (name, value) in strings)
+        {
+            var escaped = EscapeString(value);
+            var len = value.Length + 1;
+            _output.AppendLine($"@.str.{name} = private unnamed_addr constant [{len} x i8] c\"{escaped}\\00\"");
+        }
+        _output.AppendLine();
 
         _output.AppendLine("define i32 @main(i32 %argc, ptr %argv) {");
         _output.AppendLine("entry:");
@@ -591,18 +605,18 @@ For full compiler features, use aster2 or aster3.");
         _output.AppendLine("  %cmd_ptr = call ptr @aster_get_argv(i32 1)");
         _output.AppendLine();
         _output.AppendLine("  ; Check if command is --help");
-        _output.AppendLine($"  %is_help = call i32 @strcmp(ptr %cmd_ptr, ptr @{helpCmd})");
+        _output.AppendLine("  %is_help = call i32 @strcmp(ptr %cmd_ptr, ptr @.str.helpCmd)");
         _output.AppendLine("  %is_help_zero = icmp eq i32 %is_help, 0");
         _output.AppendLine("  br i1 %is_help_zero, label %handle_help, label %check_emit_tokens");
         _output.AppendLine();
         _output.AppendLine("check_emit_tokens:");
         _output.AppendLine("  ; Check if command is emit-tokens");
-        _output.AppendLine($"  %is_emit = call i32 @strcmp(ptr %cmd_ptr, ptr @{emitTokensCmd})");
+        _output.AppendLine("  %is_emit = call i32 @strcmp(ptr %cmd_ptr, ptr @.str.emitTokensCmd)");
         _output.AppendLine("  %is_emit_zero = icmp eq i32 %is_emit, 0");
         _output.AppendLine("  br i1 %is_emit_zero, label %handle_emit_tokens, label %error_unknown_cmd");
         _output.AppendLine();
         _output.AppendLine("handle_help:");
-        _output.AppendLine($"  call i32 @puts(ptr @{helpMsg})");
+        _output.AppendLine("  call i32 @puts(ptr @.str.helpMsg)");
         _output.AppendLine("  ret i32 0");
         _output.AppendLine();
         _output.AppendLine("handle_emit_tokens:");
@@ -630,38 +644,31 @@ For full compiler features, use aster2 or aster3.");
         _output.AppendLine("  %tokens = call ptr @tokenize(ptr %lexer)");
         _output.AppendLine();
         _output.AppendLine("  ; TODO: Emit tokens as JSON");
-        _output.AppendLine("  ; For now, just return success (tokens will be implemented later)");
+        _output.AppendLine("  ; For now, just return empty JSON array");
         _output.AppendLine("  ; The actual tokenize function needs to be implemented in main.ast");
         _output.AppendLine();
-        _output.AppendLine("  ; Print JSON array opening");
-        _output.AppendLine("  call i32 @printf(ptr @.str.json_open, i32 0)");
-        _output.AppendLine();
-        _output.AppendLine("  ; Print JSON array closing");
-        _output.AppendLine("  call i32 @printf(ptr @.str.json_close, i32 0)");
+        _output.AppendLine("  ; Print JSON array");
+        _output.AppendLine("  call i32 @puts(ptr @.str.jsonOpen)");
+        _output.AppendLine("  call i32 @puts(ptr @.str.jsonClose)");
         _output.AppendLine();
         _output.AppendLine("  ret i32 0");
         _output.AppendLine();
         _output.AppendLine("error_no_cmd:");
-        _output.AppendLine($"  call i32 @puts(ptr @{errorNoCmd})");
+        _output.AppendLine("  call i32 @puts(ptr @.str.errorNoCmd)");
         _output.AppendLine("  ret i32 1");
         _output.AppendLine();
         _output.AppendLine("error_unknown_cmd:");
-        _output.AppendLine($"  call i32 @puts(ptr @{errorUnknownCmd})");
+        _output.AppendLine("  call i32 @puts(ptr @.str.errorUnknownCmd)");
         _output.AppendLine("  ret i32 1");
         _output.AppendLine();
         _output.AppendLine("error_no_file:");
-        _output.AppendLine($"  call i32 @puts(ptr @{errorNoFile})");
+        _output.AppendLine("  call i32 @puts(ptr @.str.errorNoFile)");
         _output.AppendLine("  ret i32 1");
         _output.AppendLine();
         _output.AppendLine("error_file_not_found:");
-        _output.AppendLine($"  call i32 @puts(ptr @{errorFileNotFound})");
-        _output.AppendLine("  call void @free(ptr %file_content)");
+        _output.AppendLine("  call i32 @puts(ptr @.str.errorFileNotFound)");
         _output.AppendLine("  ret i32 1");
         _output.AppendLine("}");
         _output.AppendLine();
-
-        // Add JSON format strings
-        _stringLiterals.Add((".str.json_open", "["));
-        _stringLiterals.Add((".str.json_close", "]"));
     }
 }

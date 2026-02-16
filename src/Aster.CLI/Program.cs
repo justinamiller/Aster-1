@@ -210,17 +210,44 @@ public static class Program
             string arguments;
             if (stage1Mode)
             {
-                // Find runtime library path (relative to executable)
-                var runtimePath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "runtime", "aster_runtime.c");
+                // Try multiple paths to find the runtime library
+                string? runtimePath = null;
                 
-                // If runtime doesn't exist at that location, try project root
-                if (!File.Exists(runtimePath))
+                // Option 1: Relative to current directory (for project development)
+                var path1 = Path.Combine(Directory.GetCurrentDirectory(), "runtime", "aster_runtime.c");
+                if (File.Exists(path1))
                 {
-                    var projectRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
-                    runtimePath = Path.Combine(projectRoot, "runtime", "aster_runtime.c");
+                    runtimePath = path1;
+                }
+                else
+                {
+                    // Option 2: Relative to executable location
+                    var exeDir = AppContext.BaseDirectory;
+                    var path2 = Path.GetFullPath(Path.Combine(exeDir, "..", "..", "..", "..", "runtime", "aster_runtime.c"));
+                    if (File.Exists(path2))
+                    {
+                        runtimePath = path2;
+                    }
+                    else
+                    {
+                        // Option 3: Search up directory tree for runtime/
+                        var searchDir = Directory.GetCurrentDirectory();
+                        for (int i = 0; i < 5; i++)
+                        {
+                            var path3 = Path.Combine(searchDir, "runtime", "aster_runtime.c");
+                            if (File.Exists(path3))
+                            {
+                                runtimePath = path3;
+                                break;
+                            }
+                            var parent = Directory.GetParent(searchDir);
+                            if (parent == null) break;
+                            searchDir = parent.FullName;
+                        }
+                    }
                 }
                 
-                if (File.Exists(runtimePath))
+                if (runtimePath != null)
                 {
                     arguments = $"\"{llvmIrPath}\" \"{runtimePath}\" -o \"{outputPath}\" -Wno-override-module";
                 }
