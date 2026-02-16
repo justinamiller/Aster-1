@@ -66,12 +66,13 @@ fn note(message: String, span: Span) -> Diagnostic {
 }
 
 /// Add a note to a diagnostic
-fn add_note(diagnostic: &mut Diagnostic, message: String, span: Span) {
+fn add_note(mut diagnostic: Diagnostic, message: String, span: Span) -> Diagnostic {
     let note = DiagnosticNote {
         message: message,
         span: span
     };
     diagnostic.notes.push(note);
+    diagnostic
 }
 
 /// Format a diagnostic for display
@@ -124,7 +125,7 @@ fn new_diagnostic_bag() -> DiagnosticBag {
 }
 
 /// Add a diagnostic to the bag
-fn add_diagnostic(bag: &mut DiagnosticBag, diagnostic: Diagnostic) {
+fn add_diagnostic(mut bag: DiagnosticBag, diagnostic: Diagnostic) -> DiagnosticBag {
     if is_error(diagnostic) {
         bag.error_count = bag.error_count + 1;
     }
@@ -132,6 +133,7 @@ fn add_diagnostic(bag: &mut DiagnosticBag, diagnostic: Diagnostic) {
         bag.warning_count = bag.warning_count + 1;
     }
     bag.diagnostics.push(diagnostic);
+    bag
 }
 
 /// Check if the bag has any errors
@@ -150,8 +152,9 @@ fn warning_count(bag: DiagnosticBag) -> i32 {
 }
 
 /// Clear all diagnostics from the bag
-fn clear_diagnostics(bag: &mut DiagnosticBag) {
+fn clear_diagnostics(mut bag: DiagnosticBag) -> DiagnosticBag {
     bag.diagnostics = Vec::new();
     bag.error_count = 0;
     bag.warning_count = 0;
+    bag
 }
