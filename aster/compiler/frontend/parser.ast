@@ -20,6 +20,13 @@
 /// Generic vector type (provided by runtime)
 struct Vec<T> {}
 
+/// Get length of a Vec (helper for opaque Vec type)
+/// C# runtime provides actual implementation
+fn vec_len(v: Vec<Token>) -> i32 {
+    // Stub - actual implementation provided by C# runtime
+    0
+}
+
 /// Boxed pointer type (provided by runtime)
 struct Box<T> {}
 
@@ -1451,7 +1458,8 @@ fn parse_primary(mut parser: Parser) -> ParserExpressionResult {
 
 /// Peek at the current token without consuming it
 fn peek(parser: Parser) -> Token {
-    if parser.position < parser.tokens.len() {
+    let len = vec_len(parser.tokens);
+    if parser.position < len {
         parser.tokens[parser.position]
     } else {
         // Return EOF token
