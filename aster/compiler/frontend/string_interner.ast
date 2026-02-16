@@ -75,15 +75,6 @@ fn string_length(s: String) -> i32 {
     len
 }
 
-/// Convert byte to char (Core-0 helper)
-/// The C# compiler handles the u8 to char conversion during bootstrap
-fn byte_to_char(byte: u8) -> char {
-    // In Core-0, we rely on implicit conversion
-    // The function body needs to explicitly type-match the return
-    let c: char = byte;
-    c
-}
-
 /// Extract substring from String
 /// In Core-0, we don't have string slicing methods, so we do it manually
 fn string_substring(s: String, start: i32, end: i32) -> String {
@@ -94,7 +85,8 @@ fn string_substring(s: String, start: i32, end: i32) -> String {
     let bytes_len = string_length(s.clone());
     while i < end && i < bytes_len {
         let byte = bytes[i];
-        result.push(byte_to_char(byte));
+        // Push byte directly - the C# compiler handles byte-to-char during bootstrap
+        result.push(byte);
         i = i + 1;
     }
     
