@@ -76,8 +76,12 @@ fn string_length(s: String) -> i32 {
 }
 
 /// Convert byte to char (Core-0 helper)
+/// The C# compiler handles the u8 to char conversion during bootstrap
 fn byte_to_char(byte: u8) -> char {
-    byte
+    // In Core-0, we rely on implicit conversion
+    // The function body needs to explicitly type-match the return
+    let c: char = byte;
+    c
 }
 
 /// Extract substring from String
