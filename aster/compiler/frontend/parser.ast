@@ -23,9 +23,12 @@ struct Vec<T> {}
 /// Boxed pointer type (provided by runtime)
 struct Box<T> {}
 
-// Note: Box_new() constructor is provided by C# runtime
-// Core-0 doesn't support generic function syntax, so we can't declare it here
-// The actual Box_new() calls will be handled by the runtime
+/// Create a new boxed expression (stub for Core-0)
+/// The C# runtime provides the actual boxing implementation
+fn Box_new(value: Expression) -> Box<Expression> {
+    // Opaque stub - actual implementation provided by C# runtime
+    Box {}
+}
 
 // ============================================================================
 // EMBEDDED DEPENDENCIES (for self-contained compilation)
