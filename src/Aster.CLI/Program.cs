@@ -153,7 +153,8 @@ public static class Program
             try
             {
                 // Invoke clang to create native executable
-                var result = CompileToNative(tempLlFile, outputPath);
+                // In Stage1 mode, link the runtime library
+                var result = CompileToNative(tempLlFile, outputPath, stage1Mode);
                 if (result != 0)
                 {
                     Console.Error.WriteLine("error: failed to create native executable");
@@ -201,14 +202,44 @@ public static class Program
     /// <summary>
     /// Compile LLVM IR to native executable using clang.
     /// </summary>
-    private static int CompileToNative(string llvmIrPath, string outputPath)
+    private static int CompileToNative(string llvmIrPath, string outputPath, bool stage1Mode = false)
     {
         try
         {
+            // In Stage1 mode, we need to link the runtime library
+            string arguments;
+            if (stage1Mode)
+            {
+                // Find runtime library path (relative to executable)
+                var runtimePath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "runtime", "aster_runtime.c");
+                
+                // If runtime doesn't exist at that location, try project root
+                if (!File.Exists(runtimePath))
+                {
+                    var projectRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+                    runtimePath = Path.Combine(projectRoot, "runtime", "aster_runtime.c");
+                }
+                
+                if (File.Exists(runtimePath))
+                {
+                    arguments = $"\"{llvmIrPath}\" \"{runtimePath}\" -o \"{outputPath}\" -Wno-override-module";
+                }
+                else
+                {
+                    // Fallback: try without runtime (will fail if runtime functions are needed)
+                    Console.Error.WriteLine($"warning: runtime library not found, linking without it");
+                    arguments = $"\"{llvmIrPath}\" -o \"{outputPath}\" -Wno-override-module";
+                }
+            }
+            else
+            {
+                arguments = $"\"{llvmIrPath}\" -o \"{outputPath}\" -Wno-override-module";
+            }
+            
             var startInfo = new System.Diagnostics.ProcessStartInfo
             {
                 FileName = "clang",
-                Arguments = $"\"{llvmIrPath}\" -o \"{outputPath}\" -Wno-override-module",
+                Arguments = arguments,
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,

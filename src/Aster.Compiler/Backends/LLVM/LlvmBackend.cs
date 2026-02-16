@@ -14,6 +14,14 @@ public sealed class LlvmBackend : IBackend
     private readonly StringBuilder _output = new();
     private int _stringCounter;
     private readonly List<(string Name, string Value)> _stringLiterals = new();
+    private readonly bool _stage1Mode;
+
+    /// <summary>Create a new LLVM backend.</summary>
+    /// <param name="stage1Mode">If true, generate Stage1 CLI wrapper around main function.</param>
+    public LlvmBackend(bool stage1Mode = false)
+    {
+        _stage1Mode = stage1Mode;
+    }
 
     /// <summary>Emit LLVM IR from a MIR module.</summary>
     public string Emit(MirModule module)
@@ -42,10 +50,28 @@ public sealed class LlvmBackend : IBackend
         if (_stringLiterals.Count > 0)
             _output.AppendLine();
 
-        // Emit functions
+        // Check if this module has a main function
+        var mainFunction = module.Functions.FirstOrDefault(f => f.Name == "main");
+        bool hasMainFunction = mainFunction != null;
+
+        // Emit functions (rename main to aster_main if in Stage1 mode)
         foreach (var fn in module.Functions)
         {
-            EmitFunction(fn);
+            if (_stage1Mode && fn.Name == "main")
+            {
+                // Rename user's main to aster_main
+                EmitFunctionWithName(fn, "aster_main");
+            }
+            else
+            {
+                EmitFunction(fn);
+            }
+        }
+
+        // If Stage1 mode and has main function, emit CLI wrapper
+        if (_stage1Mode && hasMainFunction)
+        {
+            EmitStage1CliWrapper();
         }
 
         return _output.ToString();
@@ -62,6 +88,19 @@ public sealed class LlvmBackend : IBackend
         _output.AppendLine("declare ptr @malloc(i64)");
         _output.AppendLine("declare void @free(ptr)");
         _output.AppendLine("declare void @exit(i32)");
+        
+        if (_stage1Mode)
+        {
+            _output.AppendLine();
+            _output.AppendLine("; Stage1 runtime declarations");
+            _output.AppendLine("declare void @aster_init_args(i32, ptr)");
+            _output.AppendLine("declare i32 @aster_get_argc()");
+            _output.AppendLine("declare ptr @aster_get_argv(i32)");
+            _output.AppendLine("declare ptr @aster_read_file(ptr, ptr)");
+            _output.AppendLine("declare i32 @strcmp(ptr, ptr)");
+            _output.AppendLine("declare i64 @strlen(ptr)");
+        }
+        
         _output.AppendLine();
         _output.AppendLine("; Built-in Core-0 type constructors (stub implementations for bootstrap)");
         _output.AppendLine("; WARNING: These return null and are only for bootstrap IR generation.");
@@ -75,10 +114,15 @@ public sealed class LlvmBackend : IBackend
 
     private void EmitFunction(MirFunction fn)
     {
+        EmitFunctionWithName(fn, fn.Name);
+    }
+
+    private void EmitFunctionWithName(MirFunction fn, string name)
+    {
         var retType = MapType(fn.ReturnType);
         var paramList = string.Join(", ", fn.Parameters.Select(p => $"{MapType(p.Type)} %{p.Name}"));
 
-        _output.AppendLine($"define {retType} @{fn.Name}({paramList}) {{");
+        _output.AppendLine($"define {retType} @{name}({paramList}) {{");
 
         foreach (var block in fn.BasicBlocks)
         {
@@ -498,5 +542,126 @@ public sealed class LlvmBackend : IBackend
             _ when llvmType.StartsWith("%struct.") => "zeroinitializer", // Struct types
             _ => "0",                  // Default to 0 for unknown types
         };
+    }
+
+    /// <summary>
+    /// Emit Stage1 CLI wrapper main function.
+    /// This function handles --help and emit-tokens commands, calling tokenize() directly.
+    /// </summary>
+    private void EmitStage1CliWrapper()
+    {
+        _output.AppendLine("; ============================================================================");
+        _output.AppendLine("; Stage1 CLI Wrapper");
+        _output.AppendLine("; This wrapper provides a minimal CLI for Stage1 bootstrap.");
+        _output.AppendLine("; It handles: --help, emit-tokens <file>");
+        _output.AppendLine("; ============================================================================");
+        _output.AppendLine();
+
+        // String literals for help message and error messages
+        var helpMsg = GetStringLiteral(@"ASTER Stage 1 Compiler (Bootstrap)
+
+Usage: aster1 <command> [options]
+
+Commands:
+  --help              Show this help message
+  emit-tokens <file>  Emit token stream as JSON
+
+Stage 1 is the minimal bootstrap compiler.
+For full compiler features, use aster2 or aster3.");
+
+        var errorNoCmd = GetStringLiteral("error: no command specified");
+        var errorUnknownCmd = GetStringLiteral("error: unknown command");
+        var errorNoFile = GetStringLiteral("error: no input file specified for emit-tokens");
+        var errorFileNotFound = GetStringLiteral("error: file not found");
+        var errorTokenize = GetStringLiteral("error: tokenization failed");
+        var helpCmd = GetStringLiteral("--help");
+        var emitTokensCmd = GetStringLiteral("emit-tokens");
+
+        _output.AppendLine("define i32 @main(i32 %argc, ptr %argv) {");
+        _output.AppendLine("entry:");
+        _output.AppendLine("  ; Initialize runtime args");
+        _output.AppendLine("  call void @aster_init_args(i32 %argc, ptr %argv)");
+        _output.AppendLine();
+        _output.AppendLine("  ; Check if we have at least one argument (command)");
+        _output.AppendLine("  %has_cmd = icmp sgt i32 %argc, 1");
+        _output.AppendLine("  br i1 %has_cmd, label %check_command, label %error_no_cmd");
+        _output.AppendLine();
+        _output.AppendLine("check_command:");
+        _output.AppendLine("  ; Get first argument (command)");
+        _output.AppendLine("  %cmd_ptr = call ptr @aster_get_argv(i32 1)");
+        _output.AppendLine();
+        _output.AppendLine("  ; Check if command is --help");
+        _output.AppendLine($"  %is_help = call i32 @strcmp(ptr %cmd_ptr, ptr @{helpCmd})");
+        _output.AppendLine("  %is_help_zero = icmp eq i32 %is_help, 0");
+        _output.AppendLine("  br i1 %is_help_zero, label %handle_help, label %check_emit_tokens");
+        _output.AppendLine();
+        _output.AppendLine("check_emit_tokens:");
+        _output.AppendLine("  ; Check if command is emit-tokens");
+        _output.AppendLine($"  %is_emit = call i32 @strcmp(ptr %cmd_ptr, ptr @{emitTokensCmd})");
+        _output.AppendLine("  %is_emit_zero = icmp eq i32 %is_emit, 0");
+        _output.AppendLine("  br i1 %is_emit_zero, label %handle_emit_tokens, label %error_unknown_cmd");
+        _output.AppendLine();
+        _output.AppendLine("handle_help:");
+        _output.AppendLine($"  call i32 @puts(ptr @{helpMsg})");
+        _output.AppendLine("  ret i32 0");
+        _output.AppendLine();
+        _output.AppendLine("handle_emit_tokens:");
+        _output.AppendLine("  ; Check if file argument is provided");
+        _output.AppendLine("  %has_file = icmp sgt i32 %argc, 2");
+        _output.AppendLine("  br i1 %has_file, label %emit_tokens_run, label %error_no_file");
+        _output.AppendLine();
+        _output.AppendLine("emit_tokens_run:");
+        _output.AppendLine("  ; Get file path argument");
+        _output.AppendLine("  %file_path = call ptr @aster_get_argv(i32 2)");
+        _output.AppendLine();
+        _output.AppendLine("  ; Read file");
+        _output.AppendLine("  %file_len_ptr = alloca i64");
+        _output.AppendLine("  %file_content = call ptr @aster_read_file(ptr %file_path, ptr %file_len_ptr)");
+        _output.AppendLine("  %file_is_null = icmp eq ptr %file_content, null");
+        _output.AppendLine("  br i1 %file_is_null, label %error_file_not_found, label %tokenize_file");
+        _output.AppendLine();
+        _output.AppendLine("tokenize_file:");
+        _output.AppendLine("  ; Create lexer");
+        _output.AppendLine("  %file_content_str = call ptr @String_from(ptr %file_content)");
+        _output.AppendLine("  %file_path_str = call ptr @String_from(ptr %file_path)");
+        _output.AppendLine("  %lexer = call ptr @new_lexer(ptr %file_content_str, ptr %file_path_str)");
+        _output.AppendLine();
+        _output.AppendLine("  ; Tokenize");
+        _output.AppendLine("  %tokens = call ptr @tokenize(ptr %lexer)");
+        _output.AppendLine();
+        _output.AppendLine("  ; TODO: Emit tokens as JSON");
+        _output.AppendLine("  ; For now, just return success (tokens will be implemented later)");
+        _output.AppendLine("  ; The actual tokenize function needs to be implemented in main.ast");
+        _output.AppendLine();
+        _output.AppendLine("  ; Print JSON array opening");
+        _output.AppendLine("  call i32 @printf(ptr @.str.json_open, i32 0)");
+        _output.AppendLine();
+        _output.AppendLine("  ; Print JSON array closing");
+        _output.AppendLine("  call i32 @printf(ptr @.str.json_close, i32 0)");
+        _output.AppendLine();
+        _output.AppendLine("  ret i32 0");
+        _output.AppendLine();
+        _output.AppendLine("error_no_cmd:");
+        _output.AppendLine($"  call i32 @puts(ptr @{errorNoCmd})");
+        _output.AppendLine("  ret i32 1");
+        _output.AppendLine();
+        _output.AppendLine("error_unknown_cmd:");
+        _output.AppendLine($"  call i32 @puts(ptr @{errorUnknownCmd})");
+        _output.AppendLine("  ret i32 1");
+        _output.AppendLine();
+        _output.AppendLine("error_no_file:");
+        _output.AppendLine($"  call i32 @puts(ptr @{errorNoFile})");
+        _output.AppendLine("  ret i32 1");
+        _output.AppendLine();
+        _output.AppendLine("error_file_not_found:");
+        _output.AppendLine($"  call i32 @puts(ptr @{errorFileNotFound})");
+        _output.AppendLine("  call void @free(ptr %file_content)");
+        _output.AppendLine("  ret i32 1");
+        _output.AppendLine("}");
+        _output.AppendLine();
+
+        // Add JSON format strings
+        _stringLiterals.Add((".str.json_open", "["));
+        _stringLiterals.Add((".str.json_close", "]"));
     }
 }

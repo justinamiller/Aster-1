@@ -94,3 +94,75 @@ void aster_println(void) {
     putchar('\n');
     fflush(stdout);
 }
+
+/* Global storage for command-line arguments */
+static int g_argc = 0;
+static char** g_argv = NULL;
+
+/**
+ * Initialize command-line arguments
+ */
+void aster_init_args(int argc, char** argv) {
+    g_argc = argc;
+    g_argv = argv;
+}
+
+/**
+ * Get command-line argument count
+ */
+int aster_get_argc(void) {
+    return g_argc;
+}
+
+/**
+ * Get command-line argument by index
+ */
+const char* aster_get_argv(int index) {
+    if (index < 0 || index >= g_argc) {
+        return NULL;
+    }
+    return g_argv[index];
+}
+
+/**
+ * Read entire file into memory
+ */
+char* aster_read_file(const char* path, size_t* out_length) {
+    FILE* file = fopen(path, "rb");
+    if (!file) {
+        return NULL;
+    }
+    
+    // Get file size
+    fseek(file, 0, SEEK_END);
+    long size = ftell(file);
+    fseek(file, 0, SEEK_SET);
+    
+    if (size < 0) {
+        fclose(file);
+        return NULL;
+    }
+    
+    // Allocate buffer
+    char* buffer = (char*)malloc(size + 1);
+    if (!buffer) {
+        fclose(file);
+        return NULL;
+    }
+    
+    // Read file
+    size_t bytes_read = fread(buffer, 1, size, file);
+    fclose(file);
+    
+    if (bytes_read != (size_t)size) {
+        free(buffer);
+        return NULL;
+    }
+    
+    buffer[size] = '\0';  // Null terminate
+    if (out_length) {
+        *out_length = (size_t)size;
+    }
+    
+    return buffer;
+}
