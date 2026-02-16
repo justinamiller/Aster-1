@@ -326,8 +326,15 @@ build_stage2() {
     local AST_FILES=$(find "${ASTER_DIR}/compiler/stage2" -name "*.ast" -type f)
     
     if [[ -z "$AST_FILES" ]]; then
-        log_error "No .ast files found in ${ASTER_DIR}/compiler/stage2"
-        exit 1
+        log_warning "No .ast files found in ${ASTER_DIR}/compiler/stage2"
+        log_warning "Stage 2 implementation pending"
+        log_info "Stage 2 will add:"
+        log_info "  - Name resolution"
+        log_info "  - Type inference (Hindley-Milner)"
+        log_info "  - Trait solver"
+        log_info "  - Effect system"
+        log_info "  - Ownership analysis"
+        return
     fi
     
     log_info "Found $(echo "$AST_FILES" | wc -l) Stage 2 source files"
@@ -354,8 +361,10 @@ build_stage3() {
     # Check if Stage 2 is built
     local ASTER2="${BUILD_DIR}/stage2/aster2"
     if [[ ! -f "$ASTER2" ]] && [[ ! -f "${ASTER2}.exe" ]]; then
-        log_error "Stage 2 not found. Build Stage 2 first."
-        exit 1
+        log_warning "Stage 2 binary not found. Cannot build Stage 3 yet."
+        log_info "Stage 2 must be completed before Stage 3 can be built"
+        log_info "This is expected during the phased bootstrap implementation"
+        return
     fi
     
     # Check if Stage 3 source exists
@@ -380,8 +389,15 @@ build_stage3() {
     local AST_FILES=$(find "${ASTER_DIR}/compiler/stage3" -name "*.ast" -type f)
     
     if [[ -z "$AST_FILES" ]]; then
-        log_error "No .ast files found in ${ASTER_DIR}/compiler/stage3"
-        exit 1
+        log_warning "No .ast files found in ${ASTER_DIR}/compiler/stage3"
+        log_warning "Stage 3 implementation pending"
+        log_info "Stage 3 will add:"
+        log_info "  - Borrow checker (non-lexical lifetimes)"
+        log_info "  - MIR builder"
+        log_info "  - Optimization passes"
+        log_info "  - LLVM backend"
+        log_info "  - Complete tooling (fmt, lint, doc, test)"
+        return
     fi
     
     log_info "Found $(echo "$AST_FILES" | wc -l) Stage 3 source files"

@@ -1,0 +1,4 @@
+# This file ensures the stage3 directory is tracked by git
+# even when it's empty during early development.
+#
+# Stage 3 source files will be added here once Stage 2 is complete.
