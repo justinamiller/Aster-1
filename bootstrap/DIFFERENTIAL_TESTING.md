@@ -130,8 +130,7 @@ Testing compile-pass fixtures...
 Testing run-pass fixtures...
   ✓ hello_world
   ✓ fibonacci
-  ✓ sum_array
-  Result: 3/3 passed
+  Result: 2/2 passed
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 All differential tests passed!
@@ -345,7 +344,7 @@ Add to `.github/workflows/bootstrap.yml`:
 
 All differential tests must pass:
 - 5/5 compile-pass fixtures ✓
-- 3/3 run-pass fixtures ✓
+- 2/2 run-pass fixtures ✓
 - 0 failures
 
 ## Maintenance

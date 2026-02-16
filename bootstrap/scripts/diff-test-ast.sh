@@ -49,6 +49,23 @@ total_tests=0
 total_passed=0
 total_failed=0
 
+# Normalize file paths in JSON before comparison
+normalize_paths() {
+    local input_file="$1"
+    local output_file="$2"
+
+    if [ -z "${REPO_ROOT}" ]; then
+        echo "Error: REPO_ROOT is not set" >&2
+        return 1
+    fi
+
+    sed -E \
+        -e "s|${REPO_ROOT}/||g" \
+        -e 's|/home/runner/work/[^/]*/[^/]*/||g' \
+        -e 's|.*/bootstrap/|bootstrap/|g' \
+        "${input_file}" > "${output_file}"
+}
+
 # Function to test a single file
 test_file() {
     local fixture=$1
@@ -78,20 +95,27 @@ test_file() {
         return 1
     fi
     
+    # Normalize paths in both files before comparison
+    local normalized_golden=$(mktemp)
+    local normalized_output=$(mktemp)
+
+    normalize_paths "$golden" "$normalized_golden"
+    normalize_paths "$test_output" "$normalized_output"
+
     # Compare with golden
-    if diff -q "$golden" "$test_output" > /dev/null 2>&1; then
+    if diff -q "$normalized_golden" "$normalized_output" > /dev/null 2>&1; then
         echo -e "  ${GREEN}✓${NC} $filename"
         total_passed=$((total_passed + 1))
-        rm -f "$test_output"
+        rm -f "$test_output" "$normalized_golden" "$normalized_output"
         return 0
     else
         echo -e "  ${RED}✗${NC} $filename: AST mismatch"
         if [ -n "$VERBOSE" ]; then
             echo "    Differences:"
-            diff -u "$golden" "$test_output" | head -20
+            diff -u "$normalized_golden" "$normalized_output" | head -20
         fi
         total_failed=$((total_failed + 1))
-        rm -f "$test_output"
+        rm -f "$test_output" "$normalized_golden" "$normalized_output"
         return 1
     fi
 }

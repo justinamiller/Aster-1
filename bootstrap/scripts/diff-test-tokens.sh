@@ -83,9 +83,15 @@ normalize_paths() {
         return 1
     fi
     
-    # Use sed to replace absolute paths with relative paths
-    # This handles paths like ${REPO_ROOT}/bootstrap/... -> bootstrap/...
-    sed "s|${REPO_ROOT}/||g" "${input_file}" > "${output_file}"
+    # Normalize to repository-relative paths:
+    # 1) local absolute paths: ${REPO_ROOT}/bootstrap/... -> bootstrap/...
+    # 2) CI absolute paths:    /home/runner/work/.../Aster-1/bootstrap/... -> bootstrap/...
+    # 3) any remaining absolute prefixes before /bootstrap/... -> bootstrap/...
+    sed -E \
+        -e "s|${REPO_ROOT}/||g" \
+        -e 's|/home/runner/work/[^/]*/[^/]*/||g' \
+        -e 's|.*/bootstrap/|bootstrap/|g' \
+        "${input_file}" > "${output_file}"
 }
 
 # Function to compare two JSON token files
