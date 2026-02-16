@@ -344,7 +344,7 @@ Add to `.github/workflows/bootstrap.yml`:
 
 All differential tests must pass:
 - 5/5 compile-pass fixtures ✓
-- 3/3 run-pass fixtures ✓
+- 2/2 run-pass fixtures ✓
 - 0 failures
 
 ## Maintenance
