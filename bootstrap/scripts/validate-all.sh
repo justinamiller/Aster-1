@@ -66,11 +66,23 @@ echo "═══ Section 1: Environment Checks ═══"
 echo ""
 
 log_check "Checking .NET SDK"
+# Try to find dotnet in PATH or common installation locations
+DOTNET_CMD=""
 if command -v dotnet &> /dev/null; then
-    DOTNET_VERSION=$(dotnet --version)
+    DOTNET_CMD="dotnet"
+elif [[ -f "/usr/local/share/dotnet/dotnet" ]]; then
+    DOTNET_CMD="/usr/local/share/dotnet/dotnet"
+elif [[ -f "$HOME/.dotnet/dotnet" ]]; then
+    DOTNET_CMD="$HOME/.dotnet/dotnet"
+elif [[ -f "/usr/share/dotnet/dotnet" ]]; then
+    DOTNET_CMD="/usr/share/dotnet/dotnet"
+fi
+
+if [[ -n "$DOTNET_CMD" ]]; then
+    DOTNET_VERSION=$($DOTNET_CMD --version 2>/dev/null || echo "unknown")
     check_pass ".NET SDK found: $DOTNET_VERSION"
 else
-    check_fail ".NET SDK not found"
+    check_fail ".NET SDK not found (checked PATH and common locations)"
 fi
 
 log_check "Checking Git"
@@ -82,7 +94,8 @@ else
 fi
 
 log_check "Checking Bash version"
-BASH_VERSION_NUM=$(bash --version | head -1 | grep -oP '\d+\.\d+\.\d+' | head -1)
+# Use BSD-compatible grep instead of grep -P (Perl regex not available on macOS)
+BASH_VERSION_NUM=$(bash --version | head -1 | sed -E 's/.*version ([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
 check_pass "Bash version: $BASH_VERSION_NUM"
 
 log_check "Checking LLVM (optional)"
