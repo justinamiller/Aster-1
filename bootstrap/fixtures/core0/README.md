@@ -35,9 +35,10 @@ Test fixtures for **Aster Core-0** language subset, used for differential testin
 |---------|-----------------|-------|-------------|
 | `hello_world.ast` | `"Hello, World!"` | Basic I/O | Simple print statement |
 | `fibonacci.ast` | `"0\n1\n1\n2\n3\n5\n8\n13\n21\n34\n"` | Recursion | Fibonacci sequence |
-| `sum_array.ast` | `"15"` | Vec Iteration | Sum elements in Vec |
 
-**Total**: 3 fixtures
+**Total**: 2 fixtures
+
+**Note**: `sum_array.ast` has been moved to `fixtures/core1/` as it uses non-Core-0 constructs (`&Vec<T>`, `Vec::new`, `.push()`) that require Core-1 language features.
 
 ## Core-0 Language Features Tested
 
@@ -174,12 +175,13 @@ goldens/core0/
 | no_traits_in_core0 | ✅ | ❌ | - | - | - |
 | hello_world | ✅ | ✅ | ✅ | ✅ | ✅ |
 | fibonacci | ✅ | ✅ | ✅ | ✅ | ✅ |
-| sum_array | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 Legend:
 - ✅ Expected to pass
 - ❌ Expected to fail (with specific error)
 - `-` Not applicable
+
+**Note**: `sum_array` has been moved to Core-1 fixtures as it requires non-Core-0 features.
 
 ## TODO
 
@@ -199,6 +201,6 @@ Legend:
 
 ---
 
-**Total Fixtures**: 12 (5 compile-pass, 4 compile-fail, 3 run-pass)  
+**Total Fixtures**: 11 (5 compile-pass, 4 compile-fail, 2 run-pass)  
 **Coverage**: Basic Core-0 features (structs, enums, functions, control flow)  
 **Status**: Ready for differential testing once aster1 is implemented
