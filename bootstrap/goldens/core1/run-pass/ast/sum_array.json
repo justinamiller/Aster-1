@@ -2,7 +2,7 @@
   "Declarations": [
     {
       "Span": {
-        "File": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/run-pass/sum_array.ast",
+        "File": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core1/run-pass/sum_array.ast",
         "Line": 6,
         "Column": 1,
         "Start": 109,
@@ -12,7 +12,7 @@
     },
     {
       "Span": {
-        "File": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/run-pass/sum_array.ast",
+        "File": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core1/run-pass/sum_array.ast",
         "Line": 16,
         "Column": 1,
         "Start": 295,
@@ -22,7 +22,7 @@
     }
   ],
   "Span": {
-    "File": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core0/run-pass/sum_array.ast",
+    "File": "/home/runner/work/Aster-1/Aster-1/bootstrap/fixtures/core1/run-pass/sum_array.ast",
     "Line": 6,
     "Column": 1,
     "Start": 109,
