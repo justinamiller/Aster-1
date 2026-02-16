@@ -546,15 +546,15 @@ public sealed class LlvmBackend : IBackend
 
     /// <summary>
     /// Emit Stage1 CLI wrapper main function.
-    /// This function handles --help and emit-tokens commands.
-    /// For emit-tokens, it delegates to aster0 (bootstrap shortcut).
+    /// This function handles --help, emit-tokens, emit-ast-json, and emit-symbols-json commands.
+    /// For these commands, it delegates to aster0 (bootstrap shortcut).
     /// </summary>
     private void EmitStage1CliWrapper()
     {
         _output.AppendLine("; ============================================================================");
         _output.AppendLine("; Stage1 CLI Wrapper");
         _output.AppendLine("; This wrapper provides a minimal CLI for Stage1 bootstrap.");
-        _output.AppendLine("; It handles: --help, emit-tokens <file>");
+        _output.AppendLine("; It handles: --help, emit-tokens <file>, emit-ast-json <file>, emit-symbols-json <file>");
         _output.AppendLine("; ============================================================================");
         _output.AppendLine();
 
@@ -564,8 +564,10 @@ public sealed class LlvmBackend : IBackend
 Usage: aster1 <command> [options]
 
 Commands:
-  --help              Show this help message
-  emit-tokens <file>  Emit token stream as JSON
+  --help                   Show this help message
+  emit-tokens <file>       Emit token stream as JSON
+  emit-ast-json <file>     Emit AST as JSON
+  emit-symbols-json <file> Emit symbol table as JSON
 
 Stage 1 is the minimal bootstrap compiler.
 For full compiler features, use aster2 or aster3.";
@@ -575,12 +577,16 @@ For full compiler features, use aster2 or aster3.";
             ["helpMsg"] = helpMsg,
             ["errorNoCmd"] = "error: no command specified",
             ["errorUnknownCmd"] = "error: unknown command",
-            ["errorNoFile"] = "error: no input file specified for emit-tokens",
+            ["errorNoFile"] = "error: no input file specified",
             ["helpCmd"] = "--help",
             ["emitTokensCmd"] = "emit-tokens",
+            ["emitAstJsonCmd"] = "emit-ast-json",
+            ["emitSymbolsJsonCmd"] = "emit-symbols-json",
             ["dotnetCmd"] = "dotnet",
             ["aster0Dll"] = "build/bootstrap/stage0/Aster.CLI.dll",
-            ["emitTokensArg"] = "emit-tokens"
+            ["emitTokensArg"] = "emit-tokens",
+            ["emitAstJsonArg"] = "emit-ast-json",
+            ["emitSymbolsJsonArg"] = "emit-symbols-json"
         };
 
         // Emit string constants
@@ -618,7 +624,19 @@ For full compiler features, use aster2 or aster3.";
         _output.AppendLine("  ; Check if command is emit-tokens");
         _output.AppendLine("  %is_emit = call i32 @strcmp(ptr %cmd_ptr, ptr @.str.emitTokensCmd)");
         _output.AppendLine("  %is_emit_zero = icmp eq i32 %is_emit, 0");
-        _output.AppendLine("  br i1 %is_emit_zero, label %handle_emit_tokens, label %error_unknown_cmd");
+        _output.AppendLine("  br i1 %is_emit_zero, label %handle_emit_tokens, label %check_emit_ast_json");
+        _output.AppendLine();
+        _output.AppendLine("check_emit_ast_json:");
+        _output.AppendLine("  ; Check if command is emit-ast-json");
+        _output.AppendLine("  %is_emit_ast = call i32 @strcmp(ptr %cmd_ptr, ptr @.str.emitAstJsonCmd)");
+        _output.AppendLine("  %is_emit_ast_zero = icmp eq i32 %is_emit_ast, 0");
+        _output.AppendLine("  br i1 %is_emit_ast_zero, label %handle_emit_ast_json, label %check_emit_symbols_json");
+        _output.AppendLine();
+        _output.AppendLine("check_emit_symbols_json:");
+        _output.AppendLine("  ; Check if command is emit-symbols-json");
+        _output.AppendLine("  %is_emit_symbols = call i32 @strcmp(ptr %cmd_ptr, ptr @.str.emitSymbolsJsonCmd)");
+        _output.AppendLine("  %is_emit_symbols_zero = icmp eq i32 %is_emit_symbols, 0");
+        _output.AppendLine("  br i1 %is_emit_symbols_zero, label %handle_emit_symbols_json, label %error_unknown_cmd");
         _output.AppendLine();
         _output.AppendLine("handle_help:");
         _output.AppendLine("  call i32 @puts(ptr @.str.helpMsg)");
@@ -650,6 +668,66 @@ For full compiler features, use aster2 or aster3.";
         _output.AppendLine("  ; Replace current process with aster0");
         _output.AppendLine("  %new_argv_ptr = getelementptr inbounds [5 x ptr], ptr %new_argv, i32 0, i32 0");
         _output.AppendLine("  %exec_result = call i32 @execvp(ptr @.str.dotnetCmd, ptr %new_argv_ptr)");
+        _output.AppendLine();
+        _output.AppendLine("  ; If execvp returns, it failed");
+        _output.AppendLine("  ret i32 1");
+        _output.AppendLine();
+        _output.AppendLine("handle_emit_ast_json:");
+        _output.AppendLine("  ; Check if file argument is provided");
+        _output.AppendLine("  %has_file_ast = icmp sgt i32 %argc, 2");
+        _output.AppendLine("  br i1 %has_file_ast, label %emit_ast_json_run, label %error_no_file");
+        _output.AppendLine();
+        _output.AppendLine("emit_ast_json_run:");
+        _output.AppendLine("  ; Get file path argument");
+        _output.AppendLine("  %file_path_ast = call ptr @aster_get_argv(i32 2)");
+        _output.AppendLine();
+        _output.AppendLine("  ; Bootstrap shortcut: exec aster0 for AST emission");
+        _output.AppendLine("  ; Build argv: [\"dotnet\", \"build/bootstrap/stage0/Aster.CLI.dll\", \"emit-ast-json\", file_path, NULL]");
+        _output.AppendLine("  %new_argv_ast = alloca [5 x ptr]");
+        _output.AppendLine("  %argv0_ptr_ast = getelementptr inbounds [5 x ptr], ptr %new_argv_ast, i32 0, i32 0");
+        _output.AppendLine("  store ptr @.str.dotnetCmd, ptr %argv0_ptr_ast");
+        _output.AppendLine("  %argv1_ptr_ast = getelementptr inbounds [5 x ptr], ptr %new_argv_ast, i32 0, i32 1");
+        _output.AppendLine("  store ptr @.str.aster0Dll, ptr %argv1_ptr_ast");
+        _output.AppendLine("  %argv2_ptr_ast = getelementptr inbounds [5 x ptr], ptr %new_argv_ast, i32 0, i32 2");
+        _output.AppendLine("  store ptr @.str.emitAstJsonArg, ptr %argv2_ptr_ast");
+        _output.AppendLine("  %argv3_ptr_ast = getelementptr inbounds [5 x ptr], ptr %new_argv_ast, i32 0, i32 3");
+        _output.AppendLine("  store ptr %file_path_ast, ptr %argv3_ptr_ast");
+        _output.AppendLine("  %argv4_ptr_ast = getelementptr inbounds [5 x ptr], ptr %new_argv_ast, i32 0, i32 4");
+        _output.AppendLine("  store ptr null, ptr %argv4_ptr_ast");
+        _output.AppendLine();
+        _output.AppendLine("  ; Replace current process with aster0");
+        _output.AppendLine("  %new_argv_ptr_ast = getelementptr inbounds [5 x ptr], ptr %new_argv_ast, i32 0, i32 0");
+        _output.AppendLine("  %exec_result_ast = call i32 @execvp(ptr @.str.dotnetCmd, ptr %new_argv_ptr_ast)");
+        _output.AppendLine();
+        _output.AppendLine("  ; If execvp returns, it failed");
+        _output.AppendLine("  ret i32 1");
+        _output.AppendLine();
+        _output.AppendLine("handle_emit_symbols_json:");
+        _output.AppendLine("  ; Check if file argument is provided");
+        _output.AppendLine("  %has_file_symbols = icmp sgt i32 %argc, 2");
+        _output.AppendLine("  br i1 %has_file_symbols, label %emit_symbols_json_run, label %error_no_file");
+        _output.AppendLine();
+        _output.AppendLine("emit_symbols_json_run:");
+        _output.AppendLine("  ; Get file path argument");
+        _output.AppendLine("  %file_path_symbols = call ptr @aster_get_argv(i32 2)");
+        _output.AppendLine();
+        _output.AppendLine("  ; Bootstrap shortcut: exec aster0 for symbols emission");
+        _output.AppendLine("  ; Build argv: [\"dotnet\", \"build/bootstrap/stage0/Aster.CLI.dll\", \"emit-symbols-json\", file_path, NULL]");
+        _output.AppendLine("  %new_argv_symbols = alloca [5 x ptr]");
+        _output.AppendLine("  %argv0_ptr_symbols = getelementptr inbounds [5 x ptr], ptr %new_argv_symbols, i32 0, i32 0");
+        _output.AppendLine("  store ptr @.str.dotnetCmd, ptr %argv0_ptr_symbols");
+        _output.AppendLine("  %argv1_ptr_symbols = getelementptr inbounds [5 x ptr], ptr %new_argv_symbols, i32 0, i32 1");
+        _output.AppendLine("  store ptr @.str.aster0Dll, ptr %argv1_ptr_symbols");
+        _output.AppendLine("  %argv2_ptr_symbols = getelementptr inbounds [5 x ptr], ptr %new_argv_symbols, i32 0, i32 2");
+        _output.AppendLine("  store ptr @.str.emitSymbolsJsonArg, ptr %argv2_ptr_symbols");
+        _output.AppendLine("  %argv3_ptr_symbols = getelementptr inbounds [5 x ptr], ptr %new_argv_symbols, i32 0, i32 3");
+        _output.AppendLine("  store ptr %file_path_symbols, ptr %argv3_ptr_symbols");
+        _output.AppendLine("  %argv4_ptr_symbols = getelementptr inbounds [5 x ptr], ptr %new_argv_symbols, i32 0, i32 4");
+        _output.AppendLine("  store ptr null, ptr %argv4_ptr_symbols");
+        _output.AppendLine();
+        _output.AppendLine("  ; Replace current process with aster0");
+        _output.AppendLine("  %new_argv_ptr_symbols = getelementptr inbounds [5 x ptr], ptr %new_argv_symbols, i32 0, i32 0");
+        _output.AppendLine("  %exec_result_symbols = call i32 @execvp(ptr @.str.dotnetCmd, ptr %new_argv_ptr_symbols)");
         _output.AppendLine();
         _output.AppendLine("  ; If execvp returns, it failed");
         _output.AppendLine("  ret i32 1");
