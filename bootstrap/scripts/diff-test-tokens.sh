@@ -5,6 +5,7 @@
 set -euo pipefail
 
 # Disable core dumps to suppress segfault messages
+# This is optional - if it fails, the script continues normally
 ulimit -c 0 2>/dev/null || true
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -48,9 +49,9 @@ else
     chmod +x "${ASTER1}"
     # Test if aster1 is functional (check if it can run without crashing)
     # We run a simple test and check the exit code
-    # Run in a subshell to suppress segfault messages from bash
+    # Run in a subshell with stderr redirected to suppress segfault messages from bash
     set +e  # Temporarily disable errexit
-    ( exec 2>/dev/null; "${ASTER1}" --help >/dev/null 2>&1 )
+    ( exec 2>/dev/null; "${ASTER1}" --help >/dev/null )
     ASTER1_EXIT_CODE=$?
     set -e  # Re-enable errexit
     
