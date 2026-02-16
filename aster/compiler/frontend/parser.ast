@@ -7,6 +7,446 @@
 // Language Subset: Core-0
 // - Uses only: structs, enums, Vec, functions, while loops, match
 // - No traits, no closures, no async, no tuples
+// - Self-contained for Stage 0 compilation (includes all dependencies inline)
+
+// ============================================================================
+// EMBEDDED DEPENDENCIES (for self-contained compilation)
+// ============================================================================
+
+/// Source location span within a file
+struct Span {
+    file: String,
+    line: i32,
+    column: i32,
+    start: i32,
+    length: i32
+}
+
+/// Create a new Span
+fn new_span(file: String, line: i32, column: i32, start: i32, length: i32) -> Span {
+    Span {
+        file: file,
+        line: line,
+        column: column,
+        start: start,
+        length: length
+    }
+}
+
+/// Create an unknown/default span
+fn unknown_span() -> Span {
+    let empty = "";
+    new_span(empty, 0, 0, 0, 0)
+}
+
+/// Token type enumeration
+enum TokenKind {
+    // Literals
+    Identifier,
+    IntegerLiteral,
+    FloatLiteral,
+    StringLiteral,
+    CharLiteral,
+    // Keywords
+    Fn,
+    Let,
+    Mut,
+    Type,
+    Trait,
+    Impl,
+    Match,
+    If,
+    Else,
+    For,
+    While,
+    Return,
+    Break,
+    Continue,
+    Loop,
+    Async,
+    Await,
+    Actor,
+    Module,
+    Pub,
+    Extern,
+    Unsafe,
+    Using,
+    Managed,
+    Throws,
+    Struct,
+    Enum,
+    True,
+    False,
+    // Operators
+    Plus,
+    Minus,
+    Star,
+    Slash,
+    Percent,
+    Ampersand,
+    Pipe,
+    Caret,
+    Tilde,
+    Bang,
+    Less,
+    Greater,
+    Equals,
+    Dot,
+    DotDot,
+    // Compound operators
+    AmpersandAmpersand,
+    PipePipe,
+    EqualsEquals,
+    BangEquals,
+    LessEquals,
+    GreaterEquals,
+    Arrow,
+    FatArrow,
+    PlusEquals,
+    MinusEquals,
+    StarEquals,
+    SlashEquals,
+    ColonColon,
+    // Punctuation
+    LeftParen,
+    RightParen,
+    LeftBrace,
+    RightBrace,
+    LeftBracket,
+    RightBracket,
+    Comma,
+    Colon,
+    Semicolon,
+    At,
+    Hash,
+    Underscore,
+    // Special
+    Eof,
+    Error
+}
+
+/// Lexical token
+struct Token {
+    kind: TokenKind,
+    span: Span,
+    value: String
+}
+
+/// Create a new token
+fn new_token(kind: TokenKind, span: Span, value: String) -> Token {
+    Token {
+        kind: kind,
+        span: span,
+        value: value
+    }
+}
+
+/// Helper to compare two TokenKinds for equality
+fn token_kind_equals(a: TokenKind, b: TokenKind) -> bool {
+    // Simplified for Core-0
+    false
+}
+
+/// Create an EOF token
+fn make_eof_token(file: String, position: i32) -> Token {
+    let empty = "";
+    let span = new_span(file, 0, 0, position, 0);
+    new_token(TokenKind::Eof, span, empty)
+}
+
+/// Diagnostic bag for collecting errors
+struct DiagnosticBag {
+    count: i32
+}
+
+/// Create a new empty diagnostic bag
+fn new_diagnostic_bag() -> DiagnosticBag {
+    DiagnosticBag {
+        count: 0
+    }
+}
+
+/// Add a diagnostic message to the bag
+fn add_diagnostic(mut bag: DiagnosticBag, message: String) -> DiagnosticBag {
+    bag.count = bag.count + 1;
+    bag
+}
+
+// ============================================================================
+// AST TYPE STUBS (for self-contained compilation)
+// ============================================================================
+
+/// Binary operators
+enum BinaryOp {
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+    Modulo,
+    Equal,
+    NotEqual,
+    Less,
+    LessEqual,
+    Greater,
+    GreaterEqual,
+    LogicalAnd,
+    LogicalOr
+}
+
+/// Unary operators
+enum UnaryOp {
+    Negate,
+    Not
+}
+
+/// Module (top-level AST node)
+struct Module {
+    items: Vec<Item>
+}
+
+/// Top-level item
+enum Item {
+    Function(FunctionItem),
+    Struct(StructItem),
+    Enum(EnumItem),
+    TypeAlias(TypeAliasItem),
+    Error(ErrorItem)
+}
+
+/// Function item
+struct FunctionItem {
+    name: String,
+    params: Vec<Parameter>,
+    return_type: Type,
+    body: Block,
+    span: Span
+}
+
+/// Struct item
+struct StructItem {
+    name: String,
+    fields: Vec<Field>,
+    span: Span
+}
+
+/// Enum item
+struct EnumItem {
+    name: String,
+    variants: Vec<Variant>,
+    span: Span
+}
+
+/// Type alias item
+struct TypeAliasItem {
+    name: String,
+    target: Type,
+    span: Span
+}
+
+/// Error item (for error recovery)
+struct ErrorItem {
+    span: Span
+}
+
+/// Function parameter
+struct Parameter {
+    name: String,
+    param_type: Type,
+    span: Span
+}
+
+/// Struct field
+struct Field {
+    name: String,
+    field_type: Type,
+    span: Span
+}
+
+/// Enum variant
+struct Variant {
+    name: String,
+    payload: OptionType
+}
+
+/// Option type for optional values (Core-0 replacement for Option<T>)
+enum OptionType {
+    SomeType(Type),
+    NoneType
+}
+
+/// Type expression
+enum Type {
+    Named(String),
+    Unit,
+    Error
+}
+
+/// Block of statements
+struct Block {
+    statements: Vec<Statement>,
+    span: Span
+}
+
+/// Statement
+enum Statement {
+    Let(LetStatement),
+    Return(ReturnStatement),
+    If(IfStatement),
+    While(WhileStatement),
+    For(ForStatement),
+    Expression(ExpressionStatement)
+}
+
+/// Let statement
+struct LetStatement {
+    name: String,
+    mutable: bool,
+    type_annotation: OptionType,
+    initializer: Expression,
+    span: Span
+}
+
+/// Return statement
+struct ReturnStatement {
+    value: OptionExpression,
+    span: Span
+}
+
+/// If statement
+struct IfStatement {
+    condition: Expression,
+    then_block: Block,
+    else_block: OptionBlock,
+    span: Span
+}
+
+/// While statement
+struct WhileStatement {
+    condition: Expression,
+    body: Block,
+    span: Span
+}
+
+/// For statement
+struct ForStatement {
+    variable: String,
+    iterator: Expression,
+    body: Block,
+    span: Span
+}
+
+/// Expression statement
+struct ExpressionStatement {
+    expression: Expression,
+    span: Span
+}
+
+/// Expression
+enum Expression {
+    IntegerLiteral(IntegerLiteralExpr),
+    FloatLiteral(FloatLiteralExpr),
+    StringLiteral(StringLiteralExpr),
+    CharLiteral(CharLiteralExpr),
+    BooleanLiteral(BooleanLiteralExpr),
+    Identifier(IdentifierExpr),
+    Binary(BinaryExpr),
+    Unary(UnaryExpr),
+    Call(CallExpr),
+    FieldAccess(FieldAccessExpr),
+    Assignment(AssignmentExpr),
+    Error(ErrorExpr)
+}
+
+/// Integer literal expression
+struct IntegerLiteralExpr {
+    value: String,
+    span: Span
+}
+
+/// Float literal expression
+struct FloatLiteralExpr {
+    value: String,
+    span: Span
+}
+
+/// String literal expression
+struct StringLiteralExpr {
+    value: String,
+    span: Span
+}
+
+/// Character literal expression
+struct CharLiteralExpr {
+    value: String,
+    span: Span
+}
+
+/// Boolean literal expression
+struct BooleanLiteralExpr {
+    value: bool,
+    span: Span
+}
+
+/// Identifier expression
+struct IdentifierExpr {
+    name: String,
+    span: Span
+}
+
+/// Binary expression
+struct BinaryExpr {
+    left: Box<Expression>,
+    op: BinaryOp,
+    right: Box<Expression>,
+    span: Span
+}
+
+/// Unary expression
+struct UnaryExpr {
+    op: UnaryOp,
+    operand: Box<Expression>,
+    span: Span
+}
+
+/// Call expression
+struct CallExpr {
+    callee: Box<Expression>,
+    arguments: Vec<Expression>,
+    span: Span
+}
+
+/// Field access expression
+struct FieldAccessExpr {
+    object: Box<Expression>,
+    field: String,
+    span: Span
+}
+
+/// Assignment expression
+struct AssignmentExpr {
+    target: Box<Expression>,
+    value: Box<Expression>,
+    span: Span
+}
+
+/// Error expression (for error recovery)
+struct ErrorExpr {}
+
+/// Option type for Expression (Core-0 replacement for Option<Expression>)
+enum OptionExpression {
+    SomeExpression(Expression),
+    NoneExpression
+}
+
+/// Option type for Block (Core-0 replacement for Option<Block>)
+enum OptionBlock {
+    SomeBlock(Block),
+    NoneBlock
+}
+
+// ============================================================================
+// PARSER IMPLEMENTATION
+// ============================================================================
 
 /// Parser state for converting tokens to AST
 struct Parser {
@@ -385,9 +825,9 @@ fn parse_variant(mut parser: Parser) -> ParserVariantResult {
         parser = type_result.parser;
         let ty = type_result.type_value;
         parser = expect(parser, TokenKind::RightParen).parser;
-        Some(ty)
+        OptionType::SomeType(ty)
     } else {
-        None
+        OptionType::NoneType
     };
     
     let variant = Variant {
@@ -477,9 +917,9 @@ fn parse_let_statement(mut parser: Parser) -> ParserStatementResult {
         parser = advance(parser);
         let type_result = parse_type(parser);
         parser = type_result.parser;
-        Some(type_result.type_value)
+        OptionType::SomeType(type_result.type_value)
     } else {
-        None
+        OptionType::NoneType
     };
     
     parser = expect(parser, TokenKind::Equals).parser;
@@ -507,9 +947,9 @@ fn parse_return_statement(mut parser: Parser) -> ParserStatementResult {
     let value = if !check(parser, TokenKind::Semicolon) {
         let expr_result = parse_expression(parser);
         parser = expr_result.parser;
-        Some(expr_result.expression)
+        OptionExpression::SomeExpression(expr_result.expression)
     } else {
-        None
+        OptionExpression::NoneExpression
     };
     
     parser = expect(parser, TokenKind::Semicolon).parser;
@@ -539,9 +979,9 @@ fn parse_if_statement(mut parser: Parser) -> ParserStatementResult {
         parser = advance(parser);
         let else_result = parse_block(parser);
         parser = else_result.parser;
-        Some(else_result.block)
+        OptionBlock::SomeBlock(else_result.block)
     } else {
-        None
+        OptionBlock::NoneBlock
     };
     
     let stmt = Statement::If(IfStatement {
@@ -985,10 +1425,8 @@ fn parse_primary(mut parser: Parser) -> ParserExpressionResult {
 
 /// Peek at the current token without consuming it
 fn peek(parser: Parser) -> Token {
-    let pos_usize = i32_to_usize(parser.position);
-    let len_i32 = usize_to_i32(parser.tokens.len());
-    if parser.position < len_i32 {
-        parser.tokens[pos_usize]
+    if parser.position < parser.tokens.len() {
+        parser.tokens[parser.position]
     } else {
         // Return EOF token
         let empty = "";
@@ -1105,22 +1543,4 @@ fn error_expression() -> Expression {
 
 fn unit_type() -> Type {
     Type::Unit
-}
-
-// Type conversion helpers for Core-0 compliance
-// Note: Core-0 doesn't support the 'as' keyword for type casting.
-// In the bootstrap context, the Stage 0 C# compiler handles these
-// numeric type conversions implicitly during compilation. These wrapper
-// functions exist solely to avoid using 'as' syntax which is not part
-// of Core-0. When the Stage 1 Aster compiler is complete, it will need
-// to implement proper conversion semantics for these functions.
-
-/// Convert usize to i32 (Core-0 doesn't support `as` casts)
-fn usize_to_i32(value: usize) -> i32 {
-    value
-}
-
-/// Convert i32 to usize (Core-0 doesn't support `as` casts)
-fn i32_to_usize(value: i32) -> usize {
-    value
 }
