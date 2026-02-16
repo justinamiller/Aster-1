@@ -64,6 +64,8 @@ public sealed class LlvmBackend : IBackend
         _output.AppendLine("declare void @exit(i32)");
         _output.AppendLine();
         _output.AppendLine("; Built-in Core-0 type constructors (stub implementations for bootstrap)");
+        _output.AppendLine("; WARNING: These return null and are only for bootstrap IR generation.");
+        _output.AppendLine("; Proper implementations should be provided for full functionality.");
         _output.AppendLine("define ptr @Vec_new() { ret ptr null }");
         _output.AppendLine("define ptr @Box_new() { ret ptr null }");
         _output.AppendLine("define ptr @String_new() { ret ptr null }");
@@ -198,17 +200,17 @@ public sealed class LlvmBackend : IBackend
             args.Add($"{MapType(op.Type)} {FormatOperand(op)}");
         }
 
-        var retType2 = instr.Destination != null ? MapType(instr.Destination.Type) : "void";
+        var callReturnType = instr.Destination != null ? MapType(instr.Destination.Type) : "void";
         var argStr = string.Join(", ", args);
         var calleeName = MangleFunctionName(callee.Name);
 
-        if (retType2 == "void")
+        if (callReturnType == "void")
         {
             _output.AppendLine($"  call void @{calleeName}({argStr})");
         }
         else
         {
-            _output.AppendLine($"  %{instr.Destination!.Name} = call {retType2} @{calleeName}({argStr})");
+            _output.AppendLine($"  %{instr.Destination!.Name} = call {callReturnType} @{calleeName}({argStr})");
         }
     }
 
@@ -231,22 +233,22 @@ public sealed class LlvmBackend : IBackend
         {
             _output.AppendLine($"  %{dest} = bitcast {MapType(obj.Type)} {FormatOperand(obj)} to ptr");
         }
-        // For bool fields, return false (0)
+        // For bool fields, return false (0) - using add as a simple constant materializer
         else if (destType == "i1")
         {
-            _output.AppendLine($"  %{dest} = add i1 0, 0");
+            _output.AppendLine($"  %{dest} = add i1 0, 0  ; materialize constant false");
         }
-        // For integer fields, emit a default value 
+        // For integer fields, emit a default value of 0
         else if (destType == "i32" || destType == "i64")
         {
-            // For bootstrap, we return 0 for integer fields
-            _output.AppendLine($"  %{dest} = add {destType} 0, 0");
+            // For bootstrap, we return 0 for integer fields - using add as constant materializer
+            _output.AppendLine($"  %{dest} = add {destType} 0, 0  ; materialize constant 0");
         }
         else
         {
             // For other types, use default value
             var defaultValue = GetDefaultValue(destType);
-            _output.AppendLine($"  %{dest} = add {destType} {defaultValue}, 0");
+            _output.AppendLine($"  %{dest} = add {destType} {defaultValue}, 0  ; materialize default value");
         }
     }
 
