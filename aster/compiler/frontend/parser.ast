@@ -10,6 +10,25 @@
 // - Self-contained for Stage 0 compilation (includes all dependencies inline)
 
 // ============================================================================
+// CORE TYPE STUBS (Vec and Box provided by C# compiler at runtime)
+// ============================================================================
+
+// Note: Vec and Box are fundamental collection/pointer types.
+// During Core-0 bootstrap, the C# compiler provides runtime support for these.
+// We declare them here as opaque types to satisfy the type checker.
+
+/// Generic vector type (provided by runtime)
+struct Vec<T> {}
+
+/// Boxed pointer type (provided by runtime)
+struct Box<T> {}
+
+/// Create a new Box (provided by runtime)
+fn Box_new<T>(value: T) -> Box<T> {
+    Box {}
+}
+
+// ============================================================================
 // EMBEDDED DEPENDENCIES (for self-contained compilation)
 // ============================================================================
 
@@ -170,6 +189,11 @@ fn new_diagnostic_bag() -> DiagnosticBag {
 fn add_diagnostic(mut bag: DiagnosticBag, message: String) -> DiagnosticBag {
     bag.count = bag.count + 1;
     bag
+}
+
+/// Create an error diagnostic (stub for Core-0)
+fn error(code: String, message: String, span: Span) -> String {
+    message
 }
 
 // ============================================================================
@@ -1081,8 +1105,8 @@ fn parse_assignment(mut parser: Parser) -> ParserExpressionResult {
         parser = value_result.parser;
         let value = value_result.expression;
         let assign_expr = Expression::Assignment(AssignmentExpr {
-            target: Box::new(expr),
-            value: Box::new(value)
+            target: Box_new(expr),
+            value: Box_new(value)
         });
         return ParserExpressionResult { parser: parser, expression: assign_expr };
     }
@@ -1103,9 +1127,9 @@ fn parse_logical_or(mut parser: Parser) -> ParserExpressionResult {
         parser = right_result.parser;
         let right = right_result.expression;
         left = Expression::Binary(BinaryExpr {
-            left: Box::new(left),
+            left: Box_new(left),
             op: BinaryOp::LogicalOr,
-            right: Box::new(right)
+            right: Box_new(right)
         });
     }
     
@@ -1125,9 +1149,9 @@ fn parse_logical_and(mut parser: Parser) -> ParserExpressionResult {
         parser = right_result.parser;
         let right = right_result.expression;
         left = Expression::Binary(BinaryExpr {
-            left: Box::new(left),
+            left: Box_new(left),
             op: BinaryOp::LogicalAnd,
-            right: Box::new(right)
+            right: Box_new(right)
         });
     }
     
@@ -1154,9 +1178,9 @@ fn parse_equality(mut parser: Parser) -> ParserExpressionResult {
         parser = right_result.parser;
         let right = right_result.expression;
         left = Expression::Binary(BinaryExpr {
-            left: Box::new(left),
+            left: Box_new(left),
             op: op,
-            right: Box::new(right)
+            right: Box_new(right)
         });
     }
     
@@ -1191,9 +1215,9 @@ fn parse_comparison(mut parser: Parser) -> ParserExpressionResult {
         parser = right_result.parser;
         let right = right_result.expression;
         left = Expression::Binary(BinaryExpr {
-            left: Box::new(left),
+            left: Box_new(left),
             op: op,
-            right: Box::new(right)
+            right: Box_new(right)
         });
     }
     
@@ -1220,9 +1244,9 @@ fn parse_term(mut parser: Parser) -> ParserExpressionResult {
         parser = right_result.parser;
         let right = right_result.expression;
         left = Expression::Binary(BinaryExpr {
-            left: Box::new(left),
+            left: Box_new(left),
             op: op,
-            right: Box::new(right)
+            right: Box_new(right)
         });
     }
     
@@ -1254,9 +1278,9 @@ fn parse_factor(mut parser: Parser) -> ParserExpressionResult {
         parser = right_result.parser;
         let right = right_result.expression;
         left = Expression::Binary(BinaryExpr {
-            left: Box::new(left),
+            left: Box_new(left),
             op: op,
-            right: Box::new(right)
+            right: Box_new(right)
         });
     }
     
@@ -1273,7 +1297,7 @@ fn parse_unary(mut parser: Parser) -> ParserExpressionResult {
         let operand = operand_result.expression;
         let unary_expr = Expression::Unary(UnaryExpr {
             op: UnaryOp::Negate,
-            operand: Box::new(operand)
+            operand: Box_new(operand)
         });
         return ParserExpressionResult { parser: parser, expression: unary_expr };
     }
@@ -1285,7 +1309,7 @@ fn parse_unary(mut parser: Parser) -> ParserExpressionResult {
         let operand = operand_result.expression;
         let unary_expr = Expression::Unary(UnaryExpr {
             op: UnaryOp::Not,
-            operand: Box::new(operand)
+            operand: Box_new(operand)
         });
         return ParserExpressionResult { parser: parser, expression: unary_expr };
     }
@@ -1308,7 +1332,7 @@ fn parse_call(mut parser: Parser) -> ParserExpressionResult {
             let args = args_result.expressions;
             parser = expect(parser, TokenKind::RightParen).parser;
             expr = Expression::Call(CallExpr {
-                callee: Box::new(expr),
+                callee: Box_new(expr),
                 arguments: args
             });
         } else if check(parser, TokenKind::Dot) {
@@ -1317,7 +1341,7 @@ fn parse_call(mut parser: Parser) -> ParserExpressionResult {
             parser = field_result.parser;
             let field = field_result.value;
             expr = Expression::FieldAccess(FieldAccessExpr {
-                object: Box::new(expr),
+                object: Box_new(expr),
                 field: field
             });
         } else {
