@@ -6,7 +6,7 @@ This directory will contain the **Stage 2 (Aster Core-1)** compiler implementati
 
 ## Status
 
-⚙️ **Not Yet Implemented** - Infrastructure ready, awaiting implementation.
+⏳ **Not Yet Implemented** - Infrastructure ready, awaiting implementation.
 
 ## What Goes Here
 

@@ -6,7 +6,7 @@ This directory will contain the **Stage 3 (full Aster)** compiler implementation
 
 ## Status
 
-⚙️ **Not Yet Implemented** - Infrastructure ready, awaiting implementation.
+⏳ **Not Yet Implemented** - Infrastructure ready, awaiting implementation.
 
 ## What Goes Here
 
