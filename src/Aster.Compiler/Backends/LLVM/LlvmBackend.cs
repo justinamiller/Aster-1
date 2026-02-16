@@ -63,6 +63,14 @@ public sealed class LlvmBackend : IBackend
         _output.AppendLine("declare void @free(ptr)");
         _output.AppendLine("declare void @exit(i32)");
         _output.AppendLine();
+        _output.AppendLine("; Built-in Core-0 type constructors (stub implementations for bootstrap)");
+        _output.AppendLine("; WARNING: These return null and are only for bootstrap IR generation.");
+        _output.AppendLine("; Proper implementations should be provided for full functionality.");
+        _output.AppendLine("define ptr @Vec_new() { ret ptr null }");
+        _output.AppendLine("define ptr @Box_new() { ret ptr null }");
+        _output.AppendLine("define ptr @String_new() { ret ptr null }");
+        _output.AppendLine("define ptr @String_from(ptr %s) { ret ptr %s }");
+        _output.AppendLine();
     }
 
     private void EmitFunction(MirFunction fn)
@@ -105,6 +113,10 @@ public sealed class LlvmBackend : IBackend
                     // Use alloca + store for variables
                     _output.AppendLine($"  ; assign {instr.Destination.Name}");
                 }
+                break;
+
+            case MirOpcode.Load:
+                EmitLoad(instr);
                 break;
 
             case MirOpcode.Call:
@@ -158,6 +170,28 @@ public sealed class LlvmBackend : IBackend
             return;
         }
 
+        // Handle calls to temporary variables (method calls in Core-0)
+        // These occur when trying to call methods like .clone() on objects
+        // For bootstrap, we just return a default value instead of trying to call
+        if (callee.Kind == MirOperandKind.Temp)
+        {
+            var retType = instr.Destination != null ? MapType(instr.Destination.Type) : "void";
+            _output.AppendLine($"  ; skipping method call on temp {callee.Name} (Core-0 limitation)");
+            if (retType != "void" && instr.Destination != null)
+            {
+                var defaultValue = GetDefaultValue(retType);
+                if (retType == "ptr")
+                {
+                    _output.AppendLine($"  %{instr.Destination.Name} = bitcast ptr null to ptr");
+                }
+                else
+                {
+                    _output.AppendLine($"  %{instr.Destination.Name} = add {retType} {defaultValue}, 0");
+                }
+            }
+            return;
+        }
+
         // General function call
         var args = new List<string>();
         for (int i = 1; i < instr.Operands.Count; i++)
@@ -166,16 +200,55 @@ public sealed class LlvmBackend : IBackend
             args.Add($"{MapType(op.Type)} {FormatOperand(op)}");
         }
 
-        var retType = instr.Destination != null ? MapType(instr.Destination.Type) : "void";
+        var callReturnType = instr.Destination != null ? MapType(instr.Destination.Type) : "void";
         var argStr = string.Join(", ", args);
+        var calleeName = MangleFunctionName(callee.Name);
 
-        if (retType == "void")
+        if (callReturnType == "void")
         {
-            _output.AppendLine($"  call void @{callee.Name}({argStr})");
+            _output.AppendLine($"  call void @{calleeName}({argStr})");
         }
         else
         {
-            _output.AppendLine($"  %{instr.Destination!.Name} = call {retType} @{callee.Name}({argStr})");
+            _output.AppendLine($"  %{instr.Destination!.Name} = call {callReturnType} @{calleeName}({argStr})");
+        }
+    }
+
+    private void EmitLoad(MirInstruction instr)
+    {
+        if (instr.Destination == null || instr.Operands.Count == 0) return;
+
+        var obj = instr.Operands[0];
+        var dest = instr.Destination.Name;
+        var destType = MapType(instr.Destination.Type);
+        var fieldName = instr.Extra as string;
+
+        // For Core-0 bootstrap, struct field access is simplified:
+        // We use heuristics to determine field types and emit appropriate IR
+        
+        _output.AppendLine($"  ; load field '{fieldName}' from object (simplified for Core-0)");
+        
+        // For pointer-typed fields, just pass through the object pointer via bitcast
+        if (destType == "ptr")
+        {
+            _output.AppendLine($"  %{dest} = bitcast {MapType(obj.Type)} {FormatOperand(obj)} to ptr");
+        }
+        // For bool fields, return false (0) - using add as a simple constant materializer
+        else if (destType == "i1")
+        {
+            _output.AppendLine($"  %{dest} = add i1 0, 0  ; materialize constant false");
+        }
+        // For integer fields, emit a default value of 0
+        else if (destType == "i32" || destType == "i64")
+        {
+            // For bootstrap, we return 0 for integer fields - using add as constant materializer
+            _output.AppendLine($"  %{dest} = add {destType} 0, 0  ; materialize constant 0");
+        }
+        else
+        {
+            // For other types, use default value
+            var defaultValue = GetDefaultValue(destType);
+            _output.AppendLine($"  %{dest} = add {destType} {defaultValue}, 0  ; materialize default value");
         }
     }
 
@@ -300,9 +373,18 @@ public sealed class LlvmBackend : IBackend
             MirOperandKind.Variable => $"%{operand.Name}",
             MirOperandKind.Temp => $"%{operand.Name}",
             MirOperandKind.Constant => FormatConstant(operand),
-            MirOperandKind.FunctionRef => $"@{operand.Name}",
+            MirOperandKind.FunctionRef => $"@{MangleFunctionName(operand.Name)}",
             _ => "0",
         };
+    }
+    
+    /// <summary>
+    /// Mangle function names to be valid LLVM identifiers.
+    /// Replaces :: with _ for path-based function names.
+    /// </summary>
+    private string MangleFunctionName(string name)
+    {
+        return name.Replace("::", "_");
     }
 
     private string FormatConstant(MirOperand operand)
@@ -341,6 +423,7 @@ public sealed class LlvmBackend : IBackend
     {
         foreach (var block in fn.BasicBlocks)
         {
+            // Collect strings from instructions
             foreach (var instr in block.Instructions)
             {
                 foreach (var op in instr.Operands)
@@ -349,6 +432,22 @@ public sealed class LlvmBackend : IBackend
                     {
                         GetStringLiteral(s);
                     }
+                }
+            }
+            
+            // Collect strings from terminators (e.g., return statements)
+            if (block.Terminator is MirReturn ret && ret.Value != null)
+            {
+                if (ret.Value.Kind == MirOperandKind.Constant && ret.Value.Value is string s)
+                {
+                    GetStringLiteral(s);
+                }
+            }
+            else if (block.Terminator is MirConditionalBranch cb)
+            {
+                if (cb.Condition.Kind == MirOperandKind.Constant && cb.Condition.Value is string s)
+                {
+                    GetStringLiteral(s);
                 }
             }
         }

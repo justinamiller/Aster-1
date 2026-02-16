@@ -14,6 +14,7 @@ public sealed class MirLowering
     private MirBasicBlock? _currentBlock;
     private int _tempCounter;
     private readonly Dictionary<string, MirOperand> _localVariables = new();
+    private readonly Dictionary<string, MirType> _functionReturnTypes = new();
     public DiagnosticBag Diagnostics { get; } = new();
 
     /// <summary>Lower an HIR program to MIR.</summary>
@@ -21,6 +22,17 @@ public sealed class MirLowering
     {
         var module = new MirModule("main");
 
+        // First pass: collect function signatures for return type lookup
+        foreach (var decl in program.Declarations)
+        {
+            if (decl is HirFunctionDecl fn)
+            {
+                var returnType = fn.ReturnType != null ? ResolveType(fn.ReturnType) : MirType.Void;
+                _functionReturnTypes[fn.Symbol.Name] = returnType;
+            }
+        }
+
+        // Second pass: lower function bodies
         foreach (var decl in program.Declarations)
         {
             if (decl is HirFunctionDecl fn)
@@ -195,6 +207,12 @@ public sealed class MirLowering
                 }
                 return MirOperand.Variable(id.Name, paramType);
 
+            case HirPathExpr path:
+                // Handle path expressions like Vec::new, String::from, etc.
+                // For now, treat them as function references
+                var pathName = string.Join("::", path.Segments);
+                return MirOperand.FunctionRef(pathName);
+
             case HirCallExpr call:
                 return LowerCall(call);
 
@@ -215,7 +233,28 @@ public sealed class MirLowering
 
             case HirMemberAccessExpr ma:
                 var obj = LowerExpr(ma.Object);
-                var temp = NewTemp(MirType.I64);
+                // For Core-0 bootstrap, infer field type from field name
+                // Common patterns:
+                // - *_count, *_index, line, column, position, start, length: i32
+                // - success, is_*, has_*: bool
+                // - String fields, Vec fields, Box fields, other struct types: ptr
+                var fieldType = MirType.Ptr; // Default to pointer
+                
+                // Heuristic for integer fields
+                if (ma.Member.Contains("count") || ma.Member.Contains("index") || 
+                    ma.Member == "line" || ma.Member == "column" || ma.Member.Contains("length") ||
+                    ma.Member.Contains("position") || ma.Member == "start")
+                {
+                    fieldType = MirType.I32;
+                }
+                // Heuristic for bool fields
+                else if (ma.Member == "success" || ma.Member.StartsWith("is_") || 
+                         ma.Member.StartsWith("has_") || ma.Member == "is_mutable")
+                {
+                    fieldType = MirType.Bool;
+                }
+                
+                var temp = NewTemp(fieldType);
                 Emit(new MirInstruction(MirOpcode.Load, temp, new[] { obj! }, ma.Member));
                 return temp;
 
@@ -251,7 +290,49 @@ public sealed class MirLowering
         if (callee != null) operands.Add(callee);
         operands.AddRange(args);
 
-        var result = NewTemp(MirType.I64);
+        // Determine the return type of the called function
+        MirType returnType = MirType.I64; // default
+        
+        // Try to resolve the function name from the callee
+        string? functionName = null;
+        if (call.Callee is HirIdentifierExpr idExpr)
+        {
+            functionName = idExpr.Name;
+        }
+        else if (call.Callee is HirPathExpr pathExpr)
+        {
+            functionName = string.Join("::", pathExpr.Segments);
+            
+            // Handle built-in constructors for Core-0 types
+            // These should return ptr (pointer to heap-allocated data)
+            if (functionName == "Vec::new" || functionName.StartsWith("Vec::"))
+            {
+                returnType = MirType.Ptr;
+            }
+            else if (functionName == "Box::new" || functionName.StartsWith("Box::"))
+            {
+                returnType = MirType.Ptr;
+            }
+            else if (functionName == "String::new" || functionName.StartsWith("String::"))
+            {
+                returnType = MirType.Ptr;
+            }
+        }
+        
+        // Look up the function's return type if not already determined
+        if (functionName != null && returnType.Name == "i64" && _functionReturnTypes.TryGetValue(functionName, out var declaredReturnType))
+        {
+            returnType = declaredReturnType;
+        }
+        
+        // If the return type is void, don't create a result temporary
+        if (returnType.Name == "void")
+        {
+            Emit(new MirInstruction(MirOpcode.Call, null, operands));
+            return null;
+        }
+        
+        var result = NewTemp(returnType);
         Emit(new MirInstruction(MirOpcode.Call, result, operands));
         return result;
     }
