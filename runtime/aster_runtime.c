@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdint.h>
 
 /**
  * Panic handler - prints panic message and aborts
@@ -93,4 +94,95 @@ void aster_print_int(long long value) {
 void aster_println(void) {
     putchar('\n');
     fflush(stdout);
+}
+
+/* Global storage for command-line arguments */
+static int g_argc = 0;
+static char** g_argv = NULL;
+
+/* Constants for runtime path search */
+#define MAX_PARENT_SEARCH_DEPTH 5  /* Maximum depth to search up directory tree for runtime */
+
+/**
+ * Initialize command-line arguments
+ */
+void aster_init_args(int argc, char** argv) {
+    g_argc = argc;
+    g_argv = argv;
+}
+
+/**
+ * Get command-line argument count
+ */
+int aster_get_argc(void) {
+    return g_argc;
+}
+
+/**
+ * Get command-line argument by index
+ */
+const char* aster_get_argv(int index) {
+    if (index < 0 || index >= g_argc) {
+        return NULL;
+    }
+    return g_argv[index];
+}
+
+/**
+ * Read entire file into memory
+ */
+char* aster_read_file(const char* path, size_t* out_length) {
+    FILE* file = fopen(path, "rb");
+    if (!file) {
+        return NULL;
+    }
+    
+    // Get file size using fseeko/ftello for better portability with large files
+    if (fseeko(file, 0, SEEK_END) != 0) {
+        fclose(file);
+        return NULL;
+    }
+    
+    off_t size = ftello(file);
+    if (size < 0) {
+        fclose(file);
+        return NULL;
+    }
+    
+    if (fseeko(file, 0, SEEK_SET) != 0) {
+        fclose(file);
+        return NULL;
+    }
+    
+    // Check for reasonable file size (avoid overflow)
+    if ((unsigned long long)size > SIZE_MAX - 1) {
+        fclose(file);
+        return NULL;
+    }
+    
+    // Allocate buffer
+    char* buffer = (char*)malloc((size_t)size + 1);
+    if (!buffer) {
+        fclose(file);
+        return NULL;
+    }
+    
+    // Read file
+    size_t bytes_read = fread(buffer, 1, (size_t)size, file);
+    
+    // Check for read errors
+    if (ferror(file)) {
+        free(buffer);
+        fclose(file);
+        return NULL;
+    }
+    
+    fclose(file);
+    
+    buffer[bytes_read] = '\0';  // Null terminate at actual bytes read
+    if (out_length) {
+        *out_length = bytes_read;
+    }
+    
+    return buffer;
 }

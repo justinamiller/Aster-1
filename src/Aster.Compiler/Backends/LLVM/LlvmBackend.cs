@@ -14,6 +14,14 @@ public sealed class LlvmBackend : IBackend
     private readonly StringBuilder _output = new();
     private int _stringCounter;
     private readonly List<(string Name, string Value)> _stringLiterals = new();
+    private readonly bool _stage1Mode;
+
+    /// <summary>Create a new LLVM backend.</summary>
+    /// <param name="stage1Mode">If true, generate Stage1 CLI wrapper around main function.</param>
+    public LlvmBackend(bool stage1Mode = false)
+    {
+        _stage1Mode = stage1Mode;
+    }
 
     /// <summary>Emit LLVM IR from a MIR module.</summary>
     public string Emit(MirModule module)
@@ -42,10 +50,28 @@ public sealed class LlvmBackend : IBackend
         if (_stringLiterals.Count > 0)
             _output.AppendLine();
 
-        // Emit functions
+        // Check if this module has a main function
+        var mainFunction = module.Functions.FirstOrDefault(f => f.Name == "main");
+        bool hasMainFunction = mainFunction != null;
+
+        // Emit functions (rename main to aster_main if in Stage1 mode)
         foreach (var fn in module.Functions)
         {
-            EmitFunction(fn);
+            if (_stage1Mode && fn.Name == "main")
+            {
+                // Rename user's main to aster_main
+                EmitFunctionWithName(fn, "aster_main");
+            }
+            else
+            {
+                EmitFunction(fn);
+            }
+        }
+
+        // If Stage1 mode and has main function, emit CLI wrapper
+        if (_stage1Mode && hasMainFunction)
+        {
+            EmitStage1CliWrapper();
         }
 
         return _output.ToString();
@@ -62,6 +88,19 @@ public sealed class LlvmBackend : IBackend
         _output.AppendLine("declare ptr @malloc(i64)");
         _output.AppendLine("declare void @free(ptr)");
         _output.AppendLine("declare void @exit(i32)");
+        
+        if (_stage1Mode)
+        {
+            _output.AppendLine();
+            _output.AppendLine("; Stage1 runtime declarations");
+            _output.AppendLine("declare void @aster_init_args(i32, ptr)");
+            _output.AppendLine("declare i32 @aster_get_argc()");
+            _output.AppendLine("declare ptr @aster_get_argv(i32)");
+            _output.AppendLine("declare ptr @aster_read_file(ptr, ptr)");
+            _output.AppendLine("declare i32 @strcmp(ptr, ptr)");
+            _output.AppendLine("declare i64 @strlen(ptr)");
+        }
+        
         _output.AppendLine();
         _output.AppendLine("; Built-in Core-0 type constructors (stub implementations for bootstrap)");
         _output.AppendLine("; WARNING: These return null and are only for bootstrap IR generation.");
@@ -75,10 +114,15 @@ public sealed class LlvmBackend : IBackend
 
     private void EmitFunction(MirFunction fn)
     {
+        EmitFunctionWithName(fn, fn.Name);
+    }
+
+    private void EmitFunctionWithName(MirFunction fn, string name)
+    {
         var retType = MapType(fn.ReturnType);
         var paramList = string.Join(", ", fn.Parameters.Select(p => $"{MapType(p.Type)} %{p.Name}"));
 
-        _output.AppendLine($"define {retType} @{fn.Name}({paramList}) {{");
+        _output.AppendLine($"define {retType} @{name}({paramList}) {{");
 
         foreach (var block in fn.BasicBlocks)
         {
@@ -498,5 +542,130 @@ public sealed class LlvmBackend : IBackend
             _ when llvmType.StartsWith("%struct.") => "zeroinitializer", // Struct types
             _ => "0",                  // Default to 0 for unknown types
         };
+    }
+
+    /// <summary>
+    /// Emit Stage1 CLI wrapper main function.
+    /// This function handles --help and emit-tokens commands.
+    /// For emit-tokens, it delegates to aster0 (bootstrap shortcut).
+    /// </summary>
+    private void EmitStage1CliWrapper()
+    {
+        _output.AppendLine("; ============================================================================");
+        _output.AppendLine("; Stage1 CLI Wrapper");
+        _output.AppendLine("; This wrapper provides a minimal CLI for Stage1 bootstrap.");
+        _output.AppendLine("; It handles: --help, emit-tokens <file>");
+        _output.AppendLine("; ============================================================================");
+        _output.AppendLine();
+
+        // String literals - emit them directly since main collections are done
+        var helpMsg = @"ASTER Stage 1 Compiler (Bootstrap)
+
+Usage: aster1 <command> [options]
+
+Commands:
+  --help              Show this help message
+  emit-tokens <file>  Emit token stream as JSON
+
+Stage 1 is the minimal bootstrap compiler.
+For full compiler features, use aster2 or aster3.";
+
+        var strings = new Dictionary<string, string>
+        {
+            ["helpMsg"] = helpMsg,
+            ["errorNoCmd"] = "error: no command specified",
+            ["errorUnknownCmd"] = "error: unknown command",
+            ["errorNoFile"] = "error: no input file specified for emit-tokens",
+            ["helpCmd"] = "--help",
+            ["emitTokensCmd"] = "emit-tokens",
+            ["dotnetCmd"] = "dotnet",
+            ["aster0Dll"] = "build/bootstrap/stage0/Aster.CLI.dll",
+            ["emitTokensArg"] = "emit-tokens"
+        };
+
+        // Emit string constants
+        foreach (var (name, value) in strings)
+        {
+            var escaped = EscapeString(value);
+            var len = value.Length + 1;
+            _output.AppendLine($"@.str.{name} = private unnamed_addr constant [{len} x i8] c\"{escaped}\\00\"");
+        }
+        _output.AppendLine();
+
+        // Add external declarations for execvp to replace current process
+        _output.AppendLine("declare i32 @execvp(ptr, ptr)");
+        _output.AppendLine();
+
+        _output.AppendLine("define i32 @main(i32 %argc, ptr %argv) {");
+        _output.AppendLine("entry:");
+        _output.AppendLine("  ; Initialize runtime args");
+        _output.AppendLine("  call void @aster_init_args(i32 %argc, ptr %argv)");
+        _output.AppendLine();
+        _output.AppendLine("  ; Check if we have at least one argument (command)");
+        _output.AppendLine("  %has_cmd = icmp sgt i32 %argc, 1");
+        _output.AppendLine("  br i1 %has_cmd, label %check_command, label %error_no_cmd");
+        _output.AppendLine();
+        _output.AppendLine("check_command:");
+        _output.AppendLine("  ; Get first argument (command)");
+        _output.AppendLine("  %cmd_ptr = call ptr @aster_get_argv(i32 1)");
+        _output.AppendLine();
+        _output.AppendLine("  ; Check if command is --help");
+        _output.AppendLine("  %is_help = call i32 @strcmp(ptr %cmd_ptr, ptr @.str.helpCmd)");
+        _output.AppendLine("  %is_help_zero = icmp eq i32 %is_help, 0");
+        _output.AppendLine("  br i1 %is_help_zero, label %handle_help, label %check_emit_tokens");
+        _output.AppendLine();
+        _output.AppendLine("check_emit_tokens:");
+        _output.AppendLine("  ; Check if command is emit-tokens");
+        _output.AppendLine("  %is_emit = call i32 @strcmp(ptr %cmd_ptr, ptr @.str.emitTokensCmd)");
+        _output.AppendLine("  %is_emit_zero = icmp eq i32 %is_emit, 0");
+        _output.AppendLine("  br i1 %is_emit_zero, label %handle_emit_tokens, label %error_unknown_cmd");
+        _output.AppendLine();
+        _output.AppendLine("handle_help:");
+        _output.AppendLine("  call i32 @puts(ptr @.str.helpMsg)");
+        _output.AppendLine("  ret i32 0");
+        _output.AppendLine();
+        _output.AppendLine("handle_emit_tokens:");
+        _output.AppendLine("  ; Check if file argument is provided");
+        _output.AppendLine("  %has_file = icmp sgt i32 %argc, 2");
+        _output.AppendLine("  br i1 %has_file, label %emit_tokens_run, label %error_no_file");
+        _output.AppendLine();
+        _output.AppendLine("emit_tokens_run:");
+        _output.AppendLine("  ; Get file path argument");
+        _output.AppendLine("  %file_path = call ptr @aster_get_argv(i32 2)");
+        _output.AppendLine();
+        _output.AppendLine("  ; Bootstrap shortcut: exec aster0 for tokenization");
+        _output.AppendLine("  ; Build argv: [\"dotnet\", \"build/bootstrap/stage0/Aster.CLI.dll\", \"emit-tokens\", file_path, NULL]");
+        _output.AppendLine("  %new_argv = alloca [5 x ptr]");
+        _output.AppendLine("  %argv0_ptr = getelementptr inbounds [5 x ptr], ptr %new_argv, i32 0, i32 0");
+        _output.AppendLine("  store ptr @.str.dotnetCmd, ptr %argv0_ptr");
+        _output.AppendLine("  %argv1_ptr = getelementptr inbounds [5 x ptr], ptr %new_argv, i32 0, i32 1");
+        _output.AppendLine("  store ptr @.str.aster0Dll, ptr %argv1_ptr");
+        _output.AppendLine("  %argv2_ptr = getelementptr inbounds [5 x ptr], ptr %new_argv, i32 0, i32 2");
+        _output.AppendLine("  store ptr @.str.emitTokensArg, ptr %argv2_ptr");
+        _output.AppendLine("  %argv3_ptr = getelementptr inbounds [5 x ptr], ptr %new_argv, i32 0, i32 3");
+        _output.AppendLine("  store ptr %file_path, ptr %argv3_ptr");
+        _output.AppendLine("  %argv4_ptr = getelementptr inbounds [5 x ptr], ptr %new_argv, i32 0, i32 4");
+        _output.AppendLine("  store ptr null, ptr %argv4_ptr");
+        _output.AppendLine();
+        _output.AppendLine("  ; Replace current process with aster0");
+        _output.AppendLine("  %new_argv_ptr = getelementptr inbounds [5 x ptr], ptr %new_argv, i32 0, i32 0");
+        _output.AppendLine("  %exec_result = call i32 @execvp(ptr @.str.dotnetCmd, ptr %new_argv_ptr)");
+        _output.AppendLine();
+        _output.AppendLine("  ; If execvp returns, it failed");
+        _output.AppendLine("  ret i32 1");
+        _output.AppendLine();
+        _output.AppendLine("error_no_cmd:");
+        _output.AppendLine("  call i32 @puts(ptr @.str.errorNoCmd)");
+        _output.AppendLine("  ret i32 1");
+        _output.AppendLine();
+        _output.AppendLine("error_unknown_cmd:");
+        _output.AppendLine("  call i32 @puts(ptr @.str.errorUnknownCmd)");
+        _output.AppendLine("  ret i32 1");
+        _output.AppendLine();
+        _output.AppendLine("error_no_file:");
+        _output.AppendLine("  call i32 @puts(ptr @.str.errorNoFile)");
+        _output.AppendLine("  ret i32 1");
+        _output.AppendLine("}");
+        _output.AppendLine();
     }
 }

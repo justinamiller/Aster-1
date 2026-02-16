@@ -153,7 +153,8 @@ public static class Program
             try
             {
                 // Invoke clang to create native executable
-                var result = CompileToNative(tempLlFile, outputPath);
+                // In Stage1 mode, link the runtime library
+                var result = CompileToNative(tempLlFile, outputPath, stage1Mode);
                 if (result != 0)
                 {
                     Console.Error.WriteLine("error: failed to create native executable");
@@ -201,14 +202,73 @@ public static class Program
     /// <summary>
     /// Compile LLVM IR to native executable using clang.
     /// </summary>
-    private static int CompileToNative(string llvmIrPath, string outputPath)
+    private static int CompileToNative(string llvmIrPath, string outputPath, bool stage1Mode = false)
     {
         try
         {
+            // In Stage1 mode, we need to link the runtime library
+            string arguments;
+            if (stage1Mode)
+            {
+                // Try multiple paths to find the runtime library
+                string? runtimePath = null;
+                
+                // Option 1: Relative to current directory (for project development)
+                var path1 = Path.Combine(Directory.GetCurrentDirectory(), "runtime", "aster_runtime.c");
+                if (File.Exists(path1))
+                {
+                    runtimePath = path1;
+                }
+                else
+                {
+                    // Option 2: Relative to executable location (navigate up from bin/Release/net10.0/)
+                    var exeDir = AppContext.BaseDirectory;
+                    // Navigate up: bin -> Aster.CLI -> src -> project root
+                    var path2 = Path.GetFullPath(Path.Combine(exeDir, "..", "..", "..", "..", "runtime", "aster_runtime.c"));
+                    if (File.Exists(path2))
+                    {
+                        runtimePath = path2;
+                    }
+                    else
+                    {
+                        // Option 3: Search up directory tree for runtime/ (max depth to avoid infinite search)
+                        const int maxSearchDepth = 5;
+                        var searchDir = Directory.GetCurrentDirectory();
+                        for (int i = 0; i < maxSearchDepth; i++)
+                        {
+                            var path3 = Path.Combine(searchDir, "runtime", "aster_runtime.c");
+                            if (File.Exists(path3))
+                            {
+                                runtimePath = path3;
+                                break;
+                            }
+                            var parent = Directory.GetParent(searchDir);
+                            if (parent == null) break;
+                            searchDir = parent.FullName;
+                        }
+                    }
+                }
+                
+                if (runtimePath != null)
+                {
+                    arguments = $"\"{llvmIrPath}\" \"{runtimePath}\" -o \"{outputPath}\" -Wno-override-module";
+                }
+                else
+                {
+                    // Fallback: try without runtime (will fail if runtime functions are needed)
+                    Console.Error.WriteLine($"warning: runtime library not found, linking without it");
+                    arguments = $"\"{llvmIrPath}\" -o \"{outputPath}\" -Wno-override-module";
+                }
+            }
+            else
+            {
+                arguments = $"\"{llvmIrPath}\" -o \"{outputPath}\" -Wno-override-module";
+            }
+            
             var startInfo = new System.Diagnostics.ProcessStartInfo
             {
                 FileName = "clang",
-                Arguments = $"\"{llvmIrPath}\" -o \"{outputPath}\" -Wno-override-module",
+                Arguments = arguments,
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,

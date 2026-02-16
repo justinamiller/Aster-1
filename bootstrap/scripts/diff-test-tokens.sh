@@ -70,6 +70,24 @@ fi
 
 chmod +x "${ASTER0}"
 
+# Function to normalize file paths in JSON
+# Converts absolute paths to relative paths by removing the repository root
+# Example: /home/runner/work/Aster-1/Aster-1/bootstrap/... -> bootstrap/...
+normalize_paths() {
+    local input_file="$1"
+    local output_file="$2"
+    
+    # Validate REPO_ROOT is set and not empty
+    if [ -z "${REPO_ROOT}" ]; then
+        echo "Error: REPO_ROOT is not set" >&2
+        return 1
+    fi
+    
+    # Use sed to replace absolute paths with relative paths
+    # This handles paths like ${REPO_ROOT}/bootstrap/... -> bootstrap/...
+    sed "s|${REPO_ROOT}/||g" "${input_file}" > "${output_file}"
+}
+
 # Function to compare two JSON token files
 compare_tokens() {
     local golden="$1"
@@ -86,15 +104,22 @@ compare_tokens() {
         return 1
     fi
     
+    # Normalize paths in both files before comparison
+    local normalized_golden="${TEMP_DIR}/${fixture_name}_golden_normalized.json"
+    local normalized_output="${TEMP_DIR}/${fixture_name}_output_normalized.json"
+    
+    normalize_paths "${golden}" "${normalized_golden}"
+    normalize_paths "${test_output}" "${normalized_output}"
+    
     # Use diff to compare (ignoring whitespace differences in JSON)
-    if diff -w "${golden}" "${test_output}" > /dev/null 2>&1; then
+    if diff -w "${normalized_golden}" "${normalized_output}" > /dev/null 2>&1; then
         echo -e "${GREEN}  ✓ ${fixture_name}${NC}"
         return 0
     else
         echo -e "${RED}  ✗ ${fixture_name}: outputs differ${NC}"
         if [ "${VERBOSE:-false}" = "true" ]; then
             echo "    Differences:"
-            diff -u "${golden}" "${test_output}" | head -20
+            diff -u "${normalized_golden}" "${normalized_output}" | head -20
         fi
         return 1
     fi

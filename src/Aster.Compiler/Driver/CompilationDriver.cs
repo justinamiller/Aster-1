@@ -108,7 +108,7 @@ public sealed class CompilationDriver
             return null;
 
         // Phase 10: LLVM IR Emission
-        IBackend backend = new LlvmBackend();
+        IBackend backend = new LlvmBackend(_stage1Mode);
         var llvmIr = backend.Emit(mir);
 
         return llvmIr;
