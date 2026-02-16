@@ -7,6 +7,156 @@
 // Language Subset: Core-0
 // - Uses only: functions, Vec, String, structs
 // - No traits, no async, no macros, no tuples
+// - Self-contained for Stage 1 compilation (includes all dependencies inline)
+
+// ============================================================================
+// EMBEDDED DEPENDENCIES (for self-contained compilation)
+// ============================================================================
+
+/// Generic vector type (provided by runtime)
+struct Vec<T> {}
+
+/// Option type for Module (Core-0 replacement for Option<Module>)
+enum OptionModule {
+    SomeModule(Module),
+    NoneModule
+}
+
+/// Source location span
+struct Span {
+    file: String,
+    line: i32,
+    column: i32,
+    start: i32,
+    length: i32
+}
+
+/// Token type enumeration (minimal subset for main)
+enum TokenKind {
+    Identifier,
+    Eof,
+    Error
+}
+
+/// Lexical token
+struct Token {
+    kind: TokenKind,
+    span: Span,
+    value: String
+}
+
+/// AST Module (stub)
+struct Module {
+    items: Vec<Item>
+}
+
+/// AST Item (stub)
+enum Item {
+    Function,
+    Struct,
+    Enum
+}
+
+/// Diagnostic severity
+enum DiagnosticLevel {
+    Error,
+    Warning
+}
+
+/// Diagnostic message
+struct Diagnostic {
+    level: DiagnosticLevel,
+    message: String,
+    span: Span
+}
+
+/// Diagnostic collection
+struct DiagnosticBag {
+    diagnostics: Vec<Diagnostic>,
+    error_count: i32,
+    warning_count: i32
+}
+
+/// Create a new empty diagnostic bag (stub)
+fn new_diagnostic_bag() -> DiagnosticBag {
+    DiagnosticBag {
+        diagnostics: Vec {},
+        error_count: 0,
+        warning_count: 0
+    }
+}
+
+/// Check if bag has errors (stub)
+fn has_errors(bag: DiagnosticBag) -> bool {
+    bag.error_count > 0
+}
+
+/// Clone a diagnostic bag (stub for Core-0)
+fn clone_diagnostics(bag: DiagnosticBag) -> DiagnosticBag {
+    // Simplified - just creates a copy with same counts
+    // Full implementation would copy the diagnostics Vec
+    DiagnosticBag {
+        diagnostics: Vec {},
+        error_count: bag.error_count,
+        warning_count: bag.warning_count
+    }
+}
+
+/// Lexer stub
+struct Lexer {
+    source: String,
+    position: i32
+}
+
+/// Create a new lexer (stub)
+fn new_lexer(source: String, file: String) -> Lexer {
+    Lexer {
+        source: source,
+        position: 0
+    }
+}
+
+/// Tokenize source (stub)
+fn tokenize(lexer: Lexer) -> Vec<Token> {
+    Vec {}
+}
+
+/// Parser stub
+struct Parser {
+    tokens: Vec<Token>,
+    position: i32,
+    diagnostics: DiagnosticBag
+}
+
+/// Parser module result
+struct ParserModuleResult {
+    parser: Parser,
+    parsed_module: Module
+}
+
+/// Create a new parser (stub)
+fn new_parser(tokens: Vec<Token>) -> Parser {
+    Parser {
+        tokens: tokens,
+        position: 0,
+        diagnostics: new_diagnostic_bag()
+    }
+}
+
+/// Parse tokens into module (stub)
+fn parse(parser: Parser) -> ParserModuleResult {
+    let parsed_module = Module {
+        items: Vec {}
+    };
+    ParserModuleResult {
+        parser: parser,
+        parsed_module: parsed_module
+    }
+}
+
+// ============================================================================
+// MAIN COMPILER IMPLEMENTATION
+// ============================================================================
 
 /// Compiler driver that orchestrates all compilation stages
 struct Compiler {
@@ -28,7 +178,7 @@ struct LexResult {
 
 struct ParseResult {
     compiler: Compiler,
-    module: Module
+    parsed_module: Module
 }
 
 /// Create a new compiler instance
@@ -48,11 +198,11 @@ fn compile(mut compiler: Compiler) -> CompileResult {
     compiler = lex_result.compiler;
     let tokens = lex_result.tokens;
     
-    if has_errors(compiler.diagnostics.clone()) {
+    if has_errors(clone_diagnostics(compiler.diagnostics)) {
         let result = CompilationResult {
             success: false,
-            module: None,
-            diagnostics: compiler.diagnostics.clone()
+            parsed_module: OptionModule::NoneModule,
+            diagnostics: clone_diagnostics(compiler.diagnostics)
         };
         return CompileResult {
             compiler: compiler,
@@ -63,13 +213,13 @@ fn compile(mut compiler: Compiler) -> CompileResult {
     // Stage 2: Parsing
     let parse_result = parse_source(compiler, tokens);
     compiler = parse_result.compiler;
-    let module = parse_result.module;
+    let parsed_module = parse_result.parsed_module;
     
-    if has_errors(compiler.diagnostics.clone()) {
+    if has_errors(clone_diagnostics(compiler.diagnostics)) {
         let result = CompilationResult {
             success: false,
-            module: Some(module),
-            diagnostics: compiler.diagnostics.clone()
+            parsed_module: OptionModule::SomeModule(parsed_module),
+            diagnostics: clone_diagnostics(compiler.diagnostics)
         };
         return CompileResult {
             compiler: compiler,
@@ -80,8 +230,8 @@ fn compile(mut compiler: Compiler) -> CompileResult {
     // Success
     let result = CompilationResult {
         success: true,
-        module: Some(module),
-        diagnostics: compiler.diagnostics.clone()
+        parsed_module: OptionModule::SomeModule(parsed_module),
+        diagnostics: clone_diagnostics(compiler.diagnostics)
     };
     CompileResult {
         compiler: compiler,
@@ -92,7 +242,7 @@ fn compile(mut compiler: Compiler) -> CompileResult {
 /// Lex the source code into tokens
 /// Returns LexResult with updated compiler and tokens
 fn lex_source(compiler: Compiler) -> LexResult {
-    let lexer = new_lexer(compiler.source_text.clone(), compiler.source_file.clone());
+    let lexer = new_lexer(compiler.source_text, compiler.source_file);
     let tokens = tokenize(lexer);
     
     // Collect any lexer diagnostics
@@ -110,21 +260,21 @@ fn parse_source(mut compiler: Compiler, tokens: Vec<Token>) -> ParseResult {
     let parser = new_parser(tokens);
     let parse_result = parse(parser);
     let final_parser = parse_result.parser;
-    let module = parse_result.module;
+    let parsed_module = parse_result.parsed_module;
     
     // Collect parser diagnostics
     compiler.diagnostics = final_parser.diagnostics;
     
     ParseResult {
         compiler: compiler,
-        module: module
+        parsed_module: parsed_module
     }
 }
 
 /// Result of compilation
 struct CompilationResult {
     success: bool,
-    module: Option<Module>,
+    parsed_module: OptionModule,
     diagnostics: DiagnosticBag
 }
 
@@ -172,10 +322,4 @@ fn read_file(path: String) -> String {
 fn write_file(path: String, content: String) {
     // Simplified stub for Core-0
     // In full implementation, would use file I/O
-}
-
-/// Print a string (stub for Core-0)
-fn print(s: String) {
-    // Simplified stub for Core-0
-    // In full implementation, would use println! macro
 }
