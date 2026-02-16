@@ -5,10 +5,11 @@
 // a stream of tokens with full span tracking.
 //
 // Language Subset: Core-0
-// - Uses only: structs, enums, Vec, String, functions, while loops
+// - Uses only: structs, enums, String, functions, while loops
 // - No traits, no HashMap, no methods, no tuples
 // - All functions are standalone
 // - Self-contained for Stage 0 compilation (includes all dependencies inline)
+// - Note: Vec<Token> return type relies on C# compiler support during bootstrap
 
 // ============================================================================
 // EMBEDDED DEPENDENCIES (for self-contained compilation)
@@ -155,8 +156,9 @@ fn make_error_token(span: Span, message: String) -> Token {
 }
 
 /// String interner for deduplication
+/// Simplified for Core-0 - counter-based, no actual pooling
 struct StringInterner {
-    pool: Vec<String>
+    count: i32
 }
 
 /// Result of string interning
@@ -168,28 +170,14 @@ struct InternResult {
 /// Create a new empty string interner
 fn new_interner() -> StringInterner {
     StringInterner {
-        pool: Vec::new()
+        count: 0
     }
 }
 
 /// Intern a string
+/// Simplified for Core-0 - just passes through the string and increments counter
 fn intern(mut interner: StringInterner, value: String) -> InternResult {
-    // Search for existing string in pool
-    let mut i = 0;
-    let pool_len = vec_len_i32(interner.pool.clone());
-    while i < pool_len {
-        if vec_get_string(interner.pool.clone(), i) == value {
-            let result = vec_get_string(interner.pool.clone(), i);
-            return InternResult {
-                interner: interner,
-                value: result
-            };
-        }
-        i = i + 1;
-    }
-    
-    // Not found, add to pool
-    interner.pool.push(value.clone());
+    interner.count = interner.count + 1;
     InternResult {
         interner: interner,
         value: value
@@ -236,10 +224,13 @@ fn new_lexer(source: String, file_name: String) -> Lexer {
 }
 
 /// Tokenize the entire source code and return a list of tokens.
+/// Note: Vec<Token> is provided by the C# compiler during bootstrap
 fn tokenize(mut lexer: Lexer) -> Vec<Token> {
-    let mut tokens = Vec::new();
+    // Create new token vector - C# compiler provides Vec support
+    let mut tokens = Vec<Token>::new();
     
-    loop {
+    // Core-0 doesn't have 'loop' keyword, use while true instead
+    while true {
         let result = next_token(lexer);
         lexer = result.lexer;
         let token = result.token;
@@ -764,20 +755,8 @@ fn current_char_from_lexer(lexer: Lexer) -> char {
 }
 
 // ============================================================================
-// HELPER FUNCTIONS (Core-0 doesn't have string/vec methods)
+// HELPER FUNCTIONS (Core-0 doesn't have string methods)
 // ============================================================================
-
-/// Get length of a Vec<String> as i32
-fn vec_len_i32(v: Vec<String>) -> i32 {
-    // Simplified for Core-0 - in real implementation would get actual length
-    0
-}
-
-/// Get string from Vec<String> at index
-fn vec_get_string(v: Vec<String>, index: i32) -> String {
-    // Simplified for Core-0 - in real implementation would access vector
-    ""
-}
 
 /// Get length of a string as i32
 fn string_length(s: String) -> i32 {
