@@ -7,11 +7,129 @@
 // Language Subset: Core-0
 // - Uses only: structs, enums, basic types, functions
 // - No traits, no async, no macros
+<<<<<<< HEAD
 
 // Import dependencies
 // (In a real implementation, these would be proper module imports)
 // use crate::contracts::span::Span;
 // use crate::contracts::token_kind::TokenKind;
+=======
+// - Self-contained for Stage 1 compilation (includes all dependencies inline)
+
+// ============================================================================
+// EMBEDDED DEPENDENCIES (for self-contained compilation)
+// ============================================================================
+
+/// Source location span within a file
+struct Span {
+    file: String,
+    line: i32,
+    column: i32,
+    start: i32,
+    length: i32
+}
+
+/// Create a new Span
+fn new_span(file: String, line: i32, column: i32, start: i32, length: i32) -> Span {
+    Span {
+        file: file,
+        line: line,
+        column: column,
+        start: start,
+        length: length
+    }
+}
+
+/// Token type enumeration
+enum TokenKind {
+    // Literals
+    Identifier,
+    IntegerLiteral,
+    FloatLiteral,
+    StringLiteral,
+    CharLiteral,
+    // Keywords
+    Fn,
+    Let,
+    Mut,
+    Type,
+    Trait,
+    Impl,
+    Match,
+    If,
+    Else,
+    For,
+    While,
+    Return,
+    Break,
+    Continue,
+    Loop,
+    Async,
+    Await,
+    Actor,
+    Module,
+    Pub,
+    Extern,
+    Unsafe,
+    Using,
+    Managed,
+    Throws,
+    Struct,
+    Enum,
+    True,
+    False,
+    // Operators
+    Plus,
+    Minus,
+    Star,
+    Slash,
+    Percent,
+    Ampersand,
+    Pipe,
+    Caret,
+    Tilde,
+    Bang,
+    Less,
+    Greater,
+    Equals,
+    Dot,
+    DotDot,
+    // Compound operators
+    AmpersandAmpersand,
+    PipePipe,
+    EqualsEquals,
+    BangEquals,
+    LessEquals,
+    GreaterEquals,
+    Arrow,
+    FatArrow,
+    PlusEquals,
+    MinusEquals,
+    StarEquals,
+    SlashEquals,
+    ColonColon,
+    // Punctuation
+    LeftParen,
+    RightParen,
+    LeftBrace,
+    RightBrace,
+    LeftBracket,
+    RightBracket,
+    Comma,
+    Colon,
+    Semicolon,
+    At,
+    Hash,
+    Underscore,
+    // Special
+    Eof,
+    Error
+}
+
+// ============================================================================
+// TOKEN IMPLEMENTATION
+// ============================================================================
+>>>>>>> main
 
 /// Represents a single lexical token.
 /// Immutable value type storing kind, span, and the actual text value.
