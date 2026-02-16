@@ -61,6 +61,27 @@ void aster_print_int(long long value);
  */
 void aster_println(void);
 
+/**
+ * Get command-line argument count
+ * @return Number of command-line arguments
+ */
+int aster_get_argc(void);
+
+/**
+ * Get command-line argument at index
+ * @param index Argument index (0 = program name)
+ * @return Pointer to argument string, or NULL if index out of bounds
+ */
+const char* aster_get_argv(int index);
+
+/**
+ * Read entire file contents into a dynamically allocated string
+ * @param path Path to file
+ * @param out_len Pointer to store length of file contents
+ * @return Pointer to file contents (caller must free), or NULL on error
+ */
+char* aster_read_file(const char* path, size_t* out_len);
+
 #ifdef __cplusplus
 }
 #endif
