@@ -7,6 +7,13 @@
 // Language Subset: Core-0
 // - Uses only: structs, enums, basic types, functions
 // - No traits, no async, no macros
+<<<<<<< HEAD
+
+// Import dependencies
+// (In a real implementation, these would be proper module imports)
+// use crate::contracts::span::Span;
+// use crate::contracts::token_kind::TokenKind;
+=======
 // - Self-contained for Stage 1 compilation (includes all dependencies inline)
 
 // ============================================================================
@@ -122,6 +129,7 @@ enum TokenKind {
 // ============================================================================
 // TOKEN IMPLEMENTATION
 // ============================================================================
+>>>>>>> main
 
 /// Represents a single lexical token.
 /// Immutable value type storing kind, span, and the actual text value.

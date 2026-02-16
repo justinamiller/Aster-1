@@ -27,13 +27,6 @@ fn vec_len(v: Vec<Token>) -> i32 {
     0
 }
 
-/// Get token at index (helper for opaque Vec type)
-/// C# runtime provides actual implementation
-fn vec_get_token(v: Vec<Token>, index: i32) -> Token {
-    // Stub - actual implementation provided by C# runtime
-    make_eof_token("", 0)
-}
-
 /// Boxed pointer type (provided by runtime)
 struct Box<T> {}
 
@@ -1470,12 +1463,11 @@ fn parse_primary(mut parser: Parser) -> ParserExpressionResult {
 /// Peek at the current token without consuming it
 fn peek(parser: Parser) -> Token {
     let len = vec_len(parser.tokens);
-    let result = if parser.position < len {
-        vec_get_token(parser.tokens, parser.position)
+    if parser.position < len {
+        parser.tokens[parser.position]
     } else {
         make_eof_token("", 0)
-    };
-    result
+    }
 }
 
 /// Advance to the next token

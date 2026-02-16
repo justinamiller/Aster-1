@@ -7,48 +7,6 @@
 // Language Subset: Core-0
 // - Uses only: structs, enums, Vec, String, Box
 // - No traits, no async, no macros
-// - Self-contained for Stage 1 compilation (includes all dependencies inline)
-
-// ============================================================================
-// EMBEDDED DEPENDENCIES (for self-contained compilation)
-// ============================================================================
-
-/// Generic vector type (provided by runtime)
-struct Vec<T> {}
-
-/// Boxed pointer type (provided by runtime)
-struct Box<T> {}
-
-/// Source location span
-struct Span {
-    file: String,
-    line: i32,
-    column: i32,
-    start: i32,
-    length: i32
-}
-
-/// Option type for Type (Core-0 replacement for Option<Type>)
-enum OptionType {
-    SomeType(Type),
-    NoneType
-}
-
-/// Option type for Expression (Core-0 replacement for Option<Expression>)
-enum OptionExpression {
-    SomeExpression(Expression),
-    NoneExpression
-}
-
-/// Option type for Block (Core-0 replacement for Option<Block>)
-enum OptionBlock {
-    SomeBlock(Block),
-    NoneBlock
-}
-
-// ============================================================================
-// AST NODE DEFINITIONS
-// ============================================================================
 
 /// A complete module (source file)
 struct Module {
@@ -114,7 +72,7 @@ struct Field {
 /// Enum variant
 struct Variant {
     name: String,
-    payload: OptionType
+    payload: Option<Type>
 }
 
 /// Type expression
@@ -144,14 +102,14 @@ enum Statement {
 struct LetStatement {
     name: String,
     mutable: bool,
-    type_annotation: OptionType,
+    type_annotation: Option<Type>,
     initializer: Expression,
     span: Span
 }
 
 /// Return statement
 struct ReturnStatement {
-    value: OptionExpression,
+    value: Option<Expression>,
     span: Span
 }
 
@@ -159,7 +117,7 @@ struct ReturnStatement {
 struct IfStatement {
     condition: Expression,
     then_block: Block,
-    else_block: OptionBlock,
+    else_block: Option<Block>,
     span: Span
 }
 
