@@ -107,6 +107,10 @@ public sealed class LlvmBackend : IBackend
                 }
                 break;
 
+            case MirOpcode.Load:
+                EmitLoad(instr);
+                break;
+
             case MirOpcode.Call:
                 EmitCall(instr);
                 break;
@@ -168,15 +172,39 @@ public sealed class LlvmBackend : IBackend
 
         var retType = instr.Destination != null ? MapType(instr.Destination.Type) : "void";
         var argStr = string.Join(", ", args);
+        var calleeName = MangleFunctionName(callee.Name);
 
         if (retType == "void")
         {
-            _output.AppendLine($"  call void @{callee.Name}({argStr})");
+            _output.AppendLine($"  call void @{calleeName}({argStr})");
         }
         else
         {
-            _output.AppendLine($"  %{instr.Destination!.Name} = call {retType} @{callee.Name}({argStr})");
+            _output.AppendLine($"  %{instr.Destination!.Name} = call {retType} @{calleeName}({argStr})");
         }
+    }
+
+    private void EmitLoad(MirInstruction instr)
+    {
+        if (instr.Destination == null || instr.Operands.Count == 0) return;
+
+        var obj = instr.Operands[0];
+        var dest = instr.Destination.Name;
+        var destType = MapType(instr.Destination.Type);
+        var fieldName = instr.Extra as string;
+
+        // For now, we'll emit a simplified load that just reads from the object
+        // In a full implementation, this would need to calculate field offsets
+        // For struct field access, we emit a getelementptr + load
+        // But for Core-0 bootstrap, we'll use a simpler approach
+        
+        // If the object is a struct pointer and we're accessing a field,
+        // we need to use getelementptr to get the field address, then load it
+        // For simplicity in Core-0, we'll just emit a comment and use a default value
+        // This is a known limitation for the bootstrap phase
+        
+        _output.AppendLine($"  ; load {fieldName} from {FormatOperand(obj)}");
+        _output.AppendLine($"  %{dest} = load {destType}, ptr {FormatOperand(obj)}");
     }
 
     private void EmitBinaryOp(MirInstruction instr)
@@ -300,9 +328,18 @@ public sealed class LlvmBackend : IBackend
             MirOperandKind.Variable => $"%{operand.Name}",
             MirOperandKind.Temp => $"%{operand.Name}",
             MirOperandKind.Constant => FormatConstant(operand),
-            MirOperandKind.FunctionRef => $"@{operand.Name}",
+            MirOperandKind.FunctionRef => $"@{MangleFunctionName(operand.Name)}",
             _ => "0",
         };
+    }
+    
+    /// <summary>
+    /// Mangle function names to be valid LLVM identifiers.
+    /// Replaces :: with _ for path-based function names.
+    /// </summary>
+    private string MangleFunctionName(string name)
+    {
+        return name.Replace("::", "_");
     }
 
     private string FormatConstant(MirOperand operand)
