@@ -233,7 +233,28 @@ public sealed class MirLowering
 
             case HirMemberAccessExpr ma:
                 var obj = LowerExpr(ma.Object);
-                var temp = NewTemp(MirType.I64);
+                // For Core-0 bootstrap, infer field type from field name
+                // Common patterns:
+                // - *_count, *_index, line, column, position, start, length: i32
+                // - success, is_*, has_*: bool
+                // - String fields, Vec fields, Box fields, other struct types: ptr
+                var fieldType = MirType.Ptr; // Default to pointer
+                
+                // Heuristic for integer fields
+                if (ma.Member.Contains("count") || ma.Member.Contains("index") || 
+                    ma.Member == "line" || ma.Member == "column" || ma.Member.Contains("length") ||
+                    ma.Member.Contains("position") || ma.Member == "start")
+                {
+                    fieldType = MirType.I32;
+                }
+                // Heuristic for bool fields
+                else if (ma.Member == "success" || ma.Member.StartsWith("is_") || 
+                         ma.Member.StartsWith("has_") || ma.Member == "is_mutable")
+                {
+                    fieldType = MirType.Bool;
+                }
+                
+                var temp = NewTemp(fieldType);
                 Emit(new MirInstruction(MirOpcode.Load, temp, new[] { obj! }, ma.Member));
                 return temp;
 
