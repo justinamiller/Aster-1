@@ -221,8 +221,9 @@ public static class Program
                 }
                 else
                 {
-                    // Option 2: Relative to executable location
+                    // Option 2: Relative to executable location (navigate up from bin/Release/net10.0/)
                     var exeDir = AppContext.BaseDirectory;
+                    // Navigate up: bin -> Aster.CLI -> src -> project root
                     var path2 = Path.GetFullPath(Path.Combine(exeDir, "..", "..", "..", "..", "runtime", "aster_runtime.c"));
                     if (File.Exists(path2))
                     {
@@ -230,9 +231,10 @@ public static class Program
                     }
                     else
                     {
-                        // Option 3: Search up directory tree for runtime/
+                        // Option 3: Search up directory tree for runtime/ (max depth to avoid infinite search)
+                        const int maxSearchDepth = 5;
                         var searchDir = Directory.GetCurrentDirectory();
-                        for (int i = 0; i < 5; i++)
+                        for (int i = 0; i < maxSearchDepth; i++)
                         {
                             var path3 = Path.Combine(searchDir, "runtime", "aster_runtime.c");
                             if (File.Exists(path3))

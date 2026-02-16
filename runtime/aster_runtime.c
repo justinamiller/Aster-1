@@ -99,6 +99,9 @@ void aster_println(void) {
 static int g_argc = 0;
 static char** g_argv = NULL;
 
+/* Constants for runtime path search */
+#define MAX_PARENT_SEARCH_DEPTH 5  /* Maximum depth to search up directory tree for runtime */
+
 /**
  * Initialize command-line arguments
  */
@@ -133,35 +136,51 @@ char* aster_read_file(const char* path, size_t* out_length) {
         return NULL;
     }
     
-    // Get file size
-    fseek(file, 0, SEEK_END);
-    long size = ftell(file);
-    fseek(file, 0, SEEK_SET);
+    // Get file size using fseeko/ftello for better portability with large files
+    if (fseeko(file, 0, SEEK_END) != 0) {
+        fclose(file);
+        return NULL;
+    }
     
+    off_t size = ftello(file);
     if (size < 0) {
         fclose(file);
         return NULL;
     }
     
+    if (fseeko(file, 0, SEEK_SET) != 0) {
+        fclose(file);
+        return NULL;
+    }
+    
+    // Check for reasonable file size (avoid overflow)
+    if ((unsigned long long)size > SIZE_MAX - 1) {
+        fclose(file);
+        return NULL;
+    }
+    
     // Allocate buffer
-    char* buffer = (char*)malloc(size + 1);
+    char* buffer = (char*)malloc((size_t)size + 1);
     if (!buffer) {
         fclose(file);
         return NULL;
     }
     
     // Read file
-    size_t bytes_read = fread(buffer, 1, size, file);
-    fclose(file);
+    size_t bytes_read = fread(buffer, 1, (size_t)size, file);
     
-    if (bytes_read != (size_t)size) {
+    // Check for read errors
+    if (ferror(file)) {
         free(buffer);
+        fclose(file);
         return NULL;
     }
     
-    buffer[size] = '\0';  // Null terminate
+    fclose(file);
+    
+    buffer[bytes_read] = '\0';  // Null terminate at actual bytes read
     if (out_length) {
-        *out_length = (size_t)size;
+        *out_length = bytes_read;
     }
     
     return buffer;
