@@ -286,8 +286,10 @@ build_stage1() {
     # Check if build succeeded
     if [[ -f "${BUILD_DIR}/stage1/aster1" ]] || [[ -f "${BUILD_DIR}/stage1/aster1.exe" ]]; then
         # Rename the native binary as backup
+        local has_native_bin=false
         if [[ -f "${BUILD_DIR}/stage1/aster1" ]]; then
             mv "${BUILD_DIR}/stage1/aster1" "${BUILD_DIR}/stage1/aster1.bin"
+            has_native_bin=true
         fi
         
         # Install the wrapper script as aster1
@@ -297,7 +299,9 @@ build_stage1() {
         chmod +x "${BUILD_DIR}/stage1/aster1"
         
         log_success "Stage 1 built successfully"
-        log_info "Stage 1 binary (native): ${BUILD_DIR}/stage1/aster1.bin"
+        if [[ "$has_native_bin" == "true" ]]; then
+            log_info "Stage 1 binary (native): ${BUILD_DIR}/stage1/aster1.bin"
+        fi
         log_info "Stage 1 wrapper (active): ${BUILD_DIR}/stage1/aster1"
         log_warning "Note: aster1 currently uses a wrapper that delegates to aster0 --stage1"
         log_warning "This enables differential testing while Stage 1 implementation continues"
