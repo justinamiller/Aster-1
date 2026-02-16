@@ -226,8 +226,8 @@ fn new_lexer(source: String, file_name: String) -> Lexer {
 /// Tokenize the entire source code and return a list of tokens.
 /// Note: Vec<Token> is provided by the C# compiler during bootstrap
 fn tokenize(mut lexer: Lexer) -> Vec<Token> {
-    // Create new token vector - C# compiler provides Vec support
-    let mut tokens = Vec<Token>::new();
+    // Create new token vector - use type annotation to help compiler
+    let mut tokens: Vec<Token> = Vec.new();
     
     // Core-0 doesn't have 'loop' keyword, use while true instead
     while true {
