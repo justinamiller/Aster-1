@@ -1466,9 +1466,7 @@ fn peek(parser: Parser) -> Token {
     if parser.position < len {
         parser.tokens[parser.position]
     } else {
-        // Return EOF token
-        let empty = "";
-        make_eof_token(empty, 0)
+        make_eof_token("", 0)
     }
 }
 
