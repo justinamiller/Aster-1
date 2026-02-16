@@ -267,38 +267,20 @@ build_stage1() {
     # Create Stage 1 build directory
     mkdir -p "${BUILD_DIR}/stage1"
     
-<<<<<<< HEAD
     # For Stage 1 with --stage1 flag, only compile main.ast (self-contained entry point)
     # The --stage1 flag enforces self-containment, so we can't compile multiple files
     # that reference each other. main.ast has all dependencies embedded.
     local AST_FILE="$MAIN_SOURCE"
     
     log_info "Compiling self-contained entry point: main.ast"
-=======
-    # Collect all Aster source files
-    local AST_FILES=$(find "${ASTER_DIR}/compiler" -name "*.ast" -type f)
-    
-    if [[ -z "$AST_FILES" ]]; then
-        log_error "No .ast files found in ${ASTER_DIR}/compiler"
-        exit 1
-    fi
-    
-    log_info "Found $(echo "$AST_FILES" | wc -l) Aster source files"
->>>>>>> main
     
     # Compile with aster0
     log_info "Running: dotnet $ASTER0 build --stage1 -o ${BUILD_DIR}/stage1/aster1"
     
     if [[ $VERBOSE -eq 1 ]]; then
-<<<<<<< HEAD
         dotnet "$ASTER0" build "$AST_FILE" --stage1 -o "${BUILD_DIR}/stage1/aster1"
     else
         dotnet "$ASTER0" build "$AST_FILE" --stage1 -o "${BUILD_DIR}/stage1/aster1" > /dev/null 2>&1
-=======
-        dotnet "$ASTER0" build $AST_FILES --stage1 -o "${BUILD_DIR}/stage1/aster1"
-    else
-        dotnet "$ASTER0" build $AST_FILES --stage1 -o "${BUILD_DIR}/stage1/aster1" > /dev/null 2>&1
->>>>>>> main
     fi
     
     # Check if build succeeded

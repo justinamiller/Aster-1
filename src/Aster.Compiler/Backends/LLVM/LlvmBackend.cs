@@ -254,7 +254,18 @@ public sealed class LlvmBackend : IBackend
                 }
                 else
                 {
-                    _output.AppendLine("  ret void");
+                    // If return value is null, check function's return type
+                    var retType = MapType(fn.ReturnType);
+                    if (retType == "void")
+                    {
+                        _output.AppendLine("  ret void");
+                    }
+                    else
+                    {
+                        // For non-void return types, emit a null/zero default value
+                        var defaultValue = GetDefaultValue(retType);
+                        _output.AppendLine($"  ret {retType} {defaultValue}");
+                    }
                 }
                 break;
 
@@ -267,7 +278,17 @@ public sealed class LlvmBackend : IBackend
                 break;
 
             default:
-                _output.AppendLine("  ret void");
+                // Default terminator should also respect function return type
+                var defaultRetType = MapType(fn.ReturnType);
+                if (defaultRetType == "void")
+                {
+                    _output.AppendLine("  ret void");
+                }
+                else
+                {
+                    var defaultValue = GetDefaultValue(defaultRetType);
+                    _output.AppendLine($"  ret {defaultRetType} {defaultValue}");
+                }
                 break;
         }
     }
@@ -358,5 +379,25 @@ public sealed class LlvmBackend : IBackend
             else sb.Append(c);
         }
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// Get the default/zero value for a given LLVM type.
+    /// Used when a function must return a value but none is provided.
+    /// </summary>
+    private static string GetDefaultValue(string llvmType)
+    {
+        return llvmType switch
+        {
+            "ptr" => "null",           // Pointer types return null
+            "i1" => "0",               // bool returns false
+            "i8" => "0",               // char returns 0
+            "i32" => "0",              // i32 returns 0
+            "i64" => "0",              // i64 returns 0
+            "float" => "0.0",          // f32 returns 0.0
+            "double" => "0.0",         // f64 returns 0.0
+            _ when llvmType.StartsWith("%struct.") => "zeroinitializer", // Struct types
+            _ => "0",                  // Default to 0 for unknown types
+        };
     }
 }
