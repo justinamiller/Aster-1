@@ -429,14 +429,24 @@ create_stage3_stub() {
     local stub="${BUILD_DIR}/stage3/aster3"
     local stage1="${BUILD_DIR}/stage1/aster1"
     
+    # Ensure stage3 directory exists
+    mkdir -p "${BUILD_DIR}/stage3"
+    
     # Don't overwrite if real Stage 3 already exists
     if [[ -f "$stub" ]] && ! grep -q "Stage 3 Stub" "$stub" 2>/dev/null; then
         log_info "Real Stage 3 binary exists, not creating stub"
         return
     fi
     
+    # Remove any existing stub to ensure clean creation
+    if [[ -f "$stub" ]]; then
+        log_info "Removing existing Stage 3 stub"
+        rm -f "$stub"
+    fi
+    
     log_info "Creating Stage 3 stub at ${stub}"
     
+    # Create the stub file
     cat > "$stub" << 'EOFSTUB'
 #!/usr/bin/env bash
 # Stage 3 Stub - Placeholder for testing bootstrap infrastructure
@@ -459,9 +469,20 @@ fi
 exec "$STAGE1" "$@"
 EOFSTUB
     
+    if [[ ! -f "$stub" ]]; then
+        log_error "Failed to create Stage 3 stub at ${stub}"
+        exit 1
+    fi
+    
     chmod +x "$stub"
     
+    if [[ ! -x "$stub" ]]; then
+        log_error "Failed to make Stage 3 stub executable at ${stub}"
+        exit 1
+    fi
+    
     log_success "Stage 3 stub created for testing"
+    log_info "Stub location: ${stub}"
     log_info "Self-hosting validation can now test infrastructure"
     log_info "Stub will be replaced when real Stage 3 is built"
 }
