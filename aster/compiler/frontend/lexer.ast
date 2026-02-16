@@ -239,15 +239,15 @@ fn next_token(mut lexer: Lexer) -> LexerTokenResult {
     lexer = skip_whitespace_and_comments(lexer);
     
     // Check for end of file
-    if lexer.position >= string_length(lexer.source.clone()) {
-        let token = make_eof_token(lexer.file_name.clone(), lexer.position);
+    if lexer.position >= string_length(lexer.source) {
+        let token = make_eof_token(lexer.file_name, lexer.position);
         return LexerTokenResult { lexer: lexer, token: token };
     }
     
     let start = lexer.position;
     let start_line = lexer.line;
     let start_column = lexer.column;
-    let ch = current_char_from_lexer(lexer.clone());
+    let ch = current_char_from_lexer(lexer);
     
     // Identifiers and keywords
     if is_ident_start(ch) {
@@ -281,8 +281,8 @@ fn lex_identifier_or_keyword(mut lexer: Lexer) -> LexerTokenResult {
     let start_col = lexer.column;
     
     // Consume identifier characters
-    while lexer.position < string_length(lexer.source.clone()) {
-        let ch = char_at(lexer.source.clone(), lexer.position);
+    while lexer.position < string_length(lexer.source) {
+        let ch = char_at(lexer.source, lexer.position);
         if !is_ident_continue(ch) {
             break;
         }
@@ -290,14 +290,14 @@ fn lex_identifier_or_keyword(mut lexer: Lexer) -> LexerTokenResult {
     }
     
     // Extract and intern the text
-    let result = intern_substring(lexer.interner, lexer.source.clone(), start, lexer.position);
+    let result = intern_substring(lexer.interner, lexer.source, start, lexer.position);
     lexer.interner = result.interner;
     let text = result.value;
     
     // Check if it's a keyword
-    let kind = keyword_lookup(text.clone());
+    let kind = keyword_lookup(text);
     
-    let span = new_span(lexer.file_name.clone(), start_line, start_col, start, lexer.position - start);
+    let span = new_span(lexer.file_name, start_line, start_col, start, lexer.position - start);
     let token = new_token(kind, span, text);
     LexerTokenResult { lexer: lexer, token: token }
 }
@@ -311,22 +311,22 @@ fn lex_number(mut lexer: Lexer) -> LexerTokenResult {
     let mut is_float = false;
     
     // Handle hex/binary prefixes
-    if current_char_from_lexer(lexer.clone()) == '0' && lexer.position + 1 < string_length(lexer.source.clone()) {
-        let next = char_at(lexer.source.clone(), lexer.position + 1);
+    if current_char_from_lexer(lexer) == '0' && lexer.position + 1 < string_length(lexer.source) {
+        let next = char_at(lexer.source, lexer.position + 1);
         
         // Hexadecimal: 0x...
         if next == 'x' || next == 'X' {
             lexer = advance(lexer); // skip '0'
             lexer = advance(lexer); // skip 'x'
-            while lexer.position < string_length(lexer.source.clone()) {
-                let ch = char_at(lexer.source.clone(), lexer.position);
+            while lexer.position < string_length(lexer.source) {
+                let ch = char_at(lexer.source, lexer.position);
                 if !is_hex_digit(ch) {
                     break;
                 }
                 lexer = advance(lexer);
             }
-            let text = string_substring(lexer.source.clone(), start, lexer.position);
-            let span = new_span(lexer.file_name.clone(), start_line, start_col, start, lexer.position - start);
+            let text = string_substring(lexer.source, start, lexer.position);
+            let span = new_span(lexer.file_name, start_line, start_col, start, lexer.position - start);
             let token = new_token(TokenKind::IntegerLiteral, span, text);
             return LexerTokenResult { lexer: lexer, token: token };
         }
@@ -335,23 +335,23 @@ fn lex_number(mut lexer: Lexer) -> LexerTokenResult {
         if next == 'b' || next == 'B' {
             lexer = advance(lexer); // skip '0'
             lexer = advance(lexer); // skip 'b'
-            while lexer.position < string_length(lexer.source.clone()) {
-                let ch = char_at(lexer.source.clone(), lexer.position);
+            while lexer.position < string_length(lexer.source) {
+                let ch = char_at(lexer.source, lexer.position);
                 if ch != '0' && ch != '1' && ch != '_' {
                     break;
                 }
                 lexer = advance(lexer);
             }
-            let text = string_substring(lexer.source.clone(), start, lexer.position);
-            let span = new_span(lexer.file_name.clone(), start_line, start_col, start, lexer.position - start);
+            let text = string_substring(lexer.source, start, lexer.position);
+            let span = new_span(lexer.file_name, start_line, start_col, start, lexer.position - start);
             let token = new_token(TokenKind::IntegerLiteral, span, text);
             return LexerTokenResult { lexer: lexer, token: token };
         }
     }
     
     // Decimal digits
-    while lexer.position < string_length(lexer.source.clone()) {
-        let ch = char_at(lexer.source.clone(), lexer.position);
+    while lexer.position < string_length(lexer.source) {
+        let ch = char_at(lexer.source, lexer.position);
         if !is_digit(ch) && ch != '_' {
             break;
         }
@@ -359,15 +359,15 @@ fn lex_number(mut lexer: Lexer) -> LexerTokenResult {
     }
     
     // Decimal point (for floats)
-    if lexer.position < string_length(lexer.source.clone()) {
-        let ch = char_at(lexer.source.clone(), lexer.position);
-        if ch == '.' && lexer.position + 1 < string_length(lexer.source.clone()) {
-            let next = char_at(lexer.source.clone(), lexer.position + 1);
+    if lexer.position < string_length(lexer.source) {
+        let ch = char_at(lexer.source, lexer.position);
+        if ch == '.' && lexer.position + 1 < string_length(lexer.source) {
+            let next = char_at(lexer.source, lexer.position + 1);
             if is_digit(next) {
                 is_float = true;
                 lexer = advance(lexer); // skip '.'
-                while lexer.position < string_length(lexer.source.clone()) {
-                    let ch = char_at(lexer.source.clone(), lexer.position);
+                while lexer.position < string_length(lexer.source) {
+                    let ch = char_at(lexer.source, lexer.position);
                     if !is_digit(ch) && ch != '_' {
                         break;
                     }
@@ -378,19 +378,19 @@ fn lex_number(mut lexer: Lexer) -> LexerTokenResult {
     }
     
     // Exponent (e or E)
-    if lexer.position < string_length(lexer.source.clone()) {
-        let ch = char_at(lexer.source.clone(), lexer.position);
+    if lexer.position < string_length(lexer.source) {
+        let ch = char_at(lexer.source, lexer.position);
         if ch == 'e' || ch == 'E' {
             is_float = true;
             lexer = advance(lexer);
-            if lexer.position < string_length(lexer.source.clone()) {
-                let ch = char_at(lexer.source.clone(), lexer.position);
+            if lexer.position < string_length(lexer.source) {
+                let ch = char_at(lexer.source, lexer.position);
                 if ch == '+' || ch == '-' {
                     lexer = advance(lexer);
                 }
             }
-            while lexer.position < string_length(lexer.source.clone()) {
-                let ch = char_at(lexer.source.clone(), lexer.position);
+            while lexer.position < string_length(lexer.source) {
+                let ch = char_at(lexer.source, lexer.position);
                 if !is_digit(ch) {
                     break;
                 }
@@ -399,9 +399,9 @@ fn lex_number(mut lexer: Lexer) -> LexerTokenResult {
         }
     }
     
-    let text = string_substring(lexer.source.clone(), start, lexer.position);
+    let text = string_substring(lexer.source, start, lexer.position);
     let kind = if is_float { TokenKind::FloatLiteral } else { TokenKind::IntegerLiteral };
-    let span = new_span(lexer.file_name.clone(), start_line, start_col, start, lexer.position - start);
+    let span = new_span(lexer.file_name, start_line, start_col, start, lexer.position - start);
     let token = new_token(kind, span, text);
     LexerTokenResult { lexer: lexer, token: token }
 }
@@ -417,8 +417,8 @@ fn lex_string(mut lexer: Lexer) -> LexerTokenResult {
     
     let mut result = String::new();
     
-    while lexer.position < string_length(lexer.source.clone()) {
-        let ch = char_at(lexer.source.clone(), lexer.position);
+    while lexer.position < string_length(lexer.source) {
+        let ch = char_at(lexer.source, lexer.position);
         if ch == '"' {
             break;
         }
@@ -426,8 +426,8 @@ fn lex_string(mut lexer: Lexer) -> LexerTokenResult {
         if ch == '\\' {
             // Escape sequence
             lexer = advance(lexer);
-            if lexer.position < string_length(lexer.source.clone()) {
-                let esc = char_at(lexer.source.clone(), lexer.position);
+            if lexer.position < string_length(lexer.source) {
+                let esc = char_at(lexer.source, lexer.position);
                 let escaped_char = match esc {
                     'n' => '\n',
                     'r' => '\r',
@@ -447,15 +447,15 @@ fn lex_string(mut lexer: Lexer) -> LexerTokenResult {
     }
     
     // Check for unterminated string
-    if lexer.position >= string_length(lexer.source.clone()) {
+    if lexer.position >= string_length(lexer.source) {
         // Error: unterminated string
-        let span = new_span(lexer.file_name.clone(), start_line, start_col, start, lexer.position - start);
+        let span = new_span(lexer.file_name, start_line, start_col, start, lexer.position - start);
         let token = make_error_token(span, String::from("Unterminated string literal"));
         return LexerTokenResult { lexer: lexer, token: token };
     }
     
     lexer = advance(lexer); // skip closing '"'
-    let span = new_span(lexer.file_name.clone(), start_line, start_col, start, lexer.position - start);
+    let span = new_span(lexer.file_name, start_line, start_col, start, lexer.position - start);
     let token = new_token(TokenKind::StringLiteral, span, result);
     LexerTokenResult { lexer: lexer, token: token }
 }
@@ -471,14 +471,14 @@ fn lex_char(mut lexer: Lexer) -> LexerTokenResult {
     
     let mut value = String::new();
     
-    if lexer.position < string_length(lexer.source.clone()) {
-        let ch = char_at(lexer.source.clone(), lexer.position);
+    if lexer.position < string_length(lexer.source) {
+        let ch = char_at(lexer.source, lexer.position);
         
         if ch == '\\' {
             // Escape sequence
             lexer = advance(lexer);
-            if lexer.position < string_length(lexer.source.clone()) {
-                let esc = char_at(lexer.source.clone(), lexer.position);
+            if lexer.position < string_length(lexer.source) {
+                let esc = char_at(lexer.source, lexer.position);
                 let escaped_char = match esc {
                     'n' => '\n',
                     'r' => '\r',
@@ -498,14 +498,14 @@ fn lex_char(mut lexer: Lexer) -> LexerTokenResult {
     }
     
     // Check for closing quote
-    if lexer.position >= string_length(lexer.source.clone()) || char_at(lexer.source.clone(), lexer.position) != '\'' {
-        let span = new_span(lexer.file_name.clone(), start_line, start_col, start, lexer.position - start);
+    if lexer.position >= string_length(lexer.source) || char_at(lexer.source, lexer.position) != '\'' {
+        let span = new_span(lexer.file_name, start_line, start_col, start, lexer.position - start);
         let token = make_error_token(span, String::from("Unterminated character literal"));
         return LexerTokenResult { lexer: lexer, token: token };
     }
     
     lexer = advance(lexer); // skip closing '\''
-    let span = new_span(lexer.file_name.clone(), start_line, start_col, start, lexer.position - start);
+    let span = new_span(lexer.file_name, start_line, start_col, start, lexer.position - start);
     let token = new_token(TokenKind::CharLiteral, span, value);
     LexerTokenResult { lexer: lexer, token: token }
 }
@@ -516,96 +516,96 @@ fn lex_operator_or_punctuation(mut lexer: Lexer) -> LexerTokenResult {
     let start = lexer.position;
     let start_line = lexer.line;
     let start_col = lexer.column;
-    let ch = current_char_from_lexer(lexer.clone());
+    let ch = current_char_from_lexer(lexer);
     
     lexer = advance(lexer);
     
     // Two-character operators
-    if lexer.position < string_length(lexer.source.clone()) {
-        let next = char_at(lexer.source.clone(), lexer.position);
+    if lexer.position < string_length(lexer.source) {
+        let next = char_at(lexer.source, lexer.position);
         
         // Check all two-character operators
         if ch == '&' && next == '&' {
             lexer = advance(lexer);
-            let span = new_span(lexer.file_name.clone(), start_line, start_col, start, 2);
+            let span = new_span(lexer.file_name, start_line, start_col, start, 2);
             let token = new_token(TokenKind::AmpersandAmpersand, span, String::from("&&"));
             return LexerTokenResult { lexer: lexer, token: token };
         }
         if ch == '|' && next == '|' {
             lexer = advance(lexer);
-            let span = new_span(lexer.file_name.clone(), start_line, start_col, start, 2);
+            let span = new_span(lexer.file_name, start_line, start_col, start, 2);
             let token = new_token(TokenKind::PipePipe, span, String::from("||"));
             return LexerTokenResult { lexer: lexer, token: token };
         }
         if ch == '=' && next == '=' {
             lexer = advance(lexer);
-            let span = new_span(lexer.file_name.clone(), start_line, start_col, start, 2);
+            let span = new_span(lexer.file_name, start_line, start_col, start, 2);
             let token = new_token(TokenKind::EqualsEquals, span, String::from("=="));
             return LexerTokenResult { lexer: lexer, token: token };
         }
         if ch == '!' && next == '=' {
             lexer = advance(lexer);
-            let span = new_span(lexer.file_name.clone(), start_line, start_col, start, 2);
+            let span = new_span(lexer.file_name, start_line, start_col, start, 2);
             let token = new_token(TokenKind::BangEquals, span, String::from("!="));
             return LexerTokenResult { lexer: lexer, token: token };
         }
         if ch == '<' && next == '=' {
             lexer = advance(lexer);
-            let span = new_span(lexer.file_name.clone(), start_line, start_col, start, 2);
+            let span = new_span(lexer.file_name, start_line, start_col, start, 2);
             let token = new_token(TokenKind::LessEquals, span, String::from("<="));
             return LexerTokenResult { lexer: lexer, token: token };
         }
         if ch == '>' && next == '=' {
             lexer = advance(lexer);
-            let span = new_span(lexer.file_name.clone(), start_line, start_col, start, 2);
+            let span = new_span(lexer.file_name, start_line, start_col, start, 2);
             let token = new_token(TokenKind::GreaterEquals, span, String::from(">="));
             return LexerTokenResult { lexer: lexer, token: token };
         }
         if ch == '-' && next == '>' {
             lexer = advance(lexer);
-            let span = new_span(lexer.file_name.clone(), start_line, start_col, start, 2);
+            let span = new_span(lexer.file_name, start_line, start_col, start, 2);
             let token = new_token(TokenKind::Arrow, span, String::from("->"));
             return LexerTokenResult { lexer: lexer, token: token };
         }
         if ch == '=' && next == '>' {
             lexer = advance(lexer);
-            let span = new_span(lexer.file_name.clone(), start_line, start_col, start, 2);
+            let span = new_span(lexer.file_name, start_line, start_col, start, 2);
             let token = new_token(TokenKind::FatArrow, span, String::from("=>"));
             return LexerTokenResult { lexer: lexer, token: token };
         }
         if ch == '+' && next == '=' {
             lexer = advance(lexer);
-            let span = new_span(lexer.file_name.clone(), start_line, start_col, start, 2);
+            let span = new_span(lexer.file_name, start_line, start_col, start, 2);
             let token = new_token(TokenKind::PlusEquals, span, String::from("+="));
             return LexerTokenResult { lexer: lexer, token: token };
         }
         if ch == '-' && next == '=' {
             lexer = advance(lexer);
-            let span = new_span(lexer.file_name.clone(), start_line, start_col, start, 2);
+            let span = new_span(lexer.file_name, start_line, start_col, start, 2);
             let token = new_token(TokenKind::MinusEquals, span, String::from("-="));
             return LexerTokenResult { lexer: lexer, token: token };
         }
         if ch == '*' && next == '=' {
             lexer = advance(lexer);
-            let span = new_span(lexer.file_name.clone(), start_line, start_col, start, 2);
+            let span = new_span(lexer.file_name, start_line, start_col, start, 2);
             let token = new_token(TokenKind::StarEquals, span, String::from("*="));
             return LexerTokenResult { lexer: lexer, token: token };
         }
         if ch == '/' && next == '=' {
             lexer = advance(lexer);
-            let span = new_span(lexer.file_name.clone(), start_line, start_col, start, 2);
+            let span = new_span(lexer.file_name, start_line, start_col, start, 2);
             let token = new_token(TokenKind::SlashEquals, span, String::from("/="));
             return LexerTokenResult { lexer: lexer, token: token };
         }
         if ch == ':' && next == ':' {
             lexer = advance(lexer);
-            let span = new_span(lexer.file_name.clone(), start_line, start_col, start, 2);
+            let span = new_span(lexer.file_name, start_line, start_col, start, 2);
             let token = new_token(TokenKind::ColonColon, span, String::from("::"));
             return LexerTokenResult { lexer: lexer, token: token };
         }
         if ch == '.' && next == '.' {
             lexer = advance(lexer);
-            let span = new_span(lexer.file_name.clone(), start_line, start_col, start, 2);
+            let span = new_span(lexer.file_name, start_line, start_col, start, 2);
             let token = new_token(TokenKind::DotDot, span, String::from(".."));
             return LexerTokenResult { lexer: lexer, token: token };
         }
@@ -643,7 +643,7 @@ fn lex_operator_or_punctuation(mut lexer: Lexer) -> LexerTokenResult {
     
     let mut char_str = String::new();
     char_str.push(ch);
-    let span = new_span(lexer.file_name.clone(), start_line, start_col, start, 1);
+    let span = new_span(lexer.file_name, start_line, start_col, start, 1);
     let token = new_token(kind, span, char_str);
     LexerTokenResult { lexer: lexer, token: token }
 }
@@ -651,8 +651,8 @@ fn lex_operator_or_punctuation(mut lexer: Lexer) -> LexerTokenResult {
 /// Skip whitespace and comments.
 /// Returns updated lexer
 fn skip_whitespace_and_comments(mut lexer: Lexer) -> Lexer {
-    while lexer.position < string_length(lexer.source.clone()) {
-        let ch = char_at(lexer.source.clone(), lexer.position);
+    while lexer.position < string_length(lexer.source) {
+        let ch = char_at(lexer.source, lexer.position);
         
         // Whitespace
         if is_whitespace(ch) {
@@ -661,12 +661,12 @@ fn skip_whitespace_and_comments(mut lexer: Lexer) -> Lexer {
         }
         
         // Line comment: //
-        if ch == '/' && lexer.position + 1 < string_length(lexer.source.clone()) {
-            let next = char_at(lexer.source.clone(), lexer.position + 1);
+        if ch == '/' && lexer.position + 1 < string_length(lexer.source) {
+            let next = char_at(lexer.source, lexer.position + 1);
             if next == '/' {
                 // Skip until end of line
-                while lexer.position < string_length(lexer.source.clone()) {
-                    let c = char_at(lexer.source.clone(), lexer.position);
+                while lexer.position < string_length(lexer.source) {
+                    let c = char_at(lexer.source, lexer.position);
                     if c == '\n' {
                         break;
                     }
@@ -681,12 +681,12 @@ fn skip_whitespace_and_comments(mut lexer: Lexer) -> Lexer {
                 lexer = advance(lexer); // skip '*'
                 let mut depth = 1;
                 
-                while lexer.position < string_length(lexer.source.clone()) && depth > 0 {
-                    let c = char_at(lexer.source.clone(), lexer.position);
+                while lexer.position < string_length(lexer.source) && depth > 0 {
+                    let c = char_at(lexer.source, lexer.position);
                     
                     // Nested block comment start
-                    if c == '/' && lexer.position + 1 < string_length(lexer.source.clone()) {
-                        let n = char_at(lexer.source.clone(), lexer.position + 1);
+                    if c == '/' && lexer.position + 1 < string_length(lexer.source) {
+                        let n = char_at(lexer.source, lexer.position + 1);
                         if n == '*' {
                             depth = depth + 1;
                             lexer = advance(lexer);
@@ -696,8 +696,8 @@ fn skip_whitespace_and_comments(mut lexer: Lexer) -> Lexer {
                     }
                     
                     // Block comment end
-                    if c == '*' && lexer.position + 1 < string_length(lexer.source.clone()) {
-                        let n = char_at(lexer.source.clone(), lexer.position + 1);
+                    if c == '*' && lexer.position + 1 < string_length(lexer.source) {
+                        let n = char_at(lexer.source, lexer.position + 1);
                         if n == '/' {
                             depth = depth - 1;
                             lexer = advance(lexer);
@@ -721,8 +721,8 @@ fn skip_whitespace_and_comments(mut lexer: Lexer) -> Lexer {
 /// Advance position, tracking line and column.
 /// Returns updated lexer
 fn advance(mut lexer: Lexer) -> Lexer {
-    if lexer.position < string_length(lexer.source.clone()) {
-        let ch = char_at(lexer.source.clone(), lexer.position);
+    if lexer.position < string_length(lexer.source) {
+        let ch = char_at(lexer.source, lexer.position);
         if ch == '\n' {
             lexer.line = lexer.line + 1;
             lexer.column = 1;
@@ -736,8 +736,8 @@ fn advance(mut lexer: Lexer) -> Lexer {
 
 /// Get the current character without advancing.
 fn current_char_from_lexer(lexer: Lexer) -> char {
-    if lexer.position < string_length(lexer.source.clone()) {
-        char_at(lexer.source.clone(), lexer.position)
+    if lexer.position < string_length(lexer.source) {
+        char_at(lexer.source, lexer.position)
     } else {
         '\0'
     }
@@ -758,18 +758,14 @@ fn string_length(s: String) -> i32 {
 /// Get character at index in string
 fn char_at(s: String, index: i32) -> char {
     let bytes = s.as_bytes();
-    if index >= 0 && index < string_length(s.clone()) {
+    if index >= 0 && index < string_length(s) {
         // Note: The C# compiler will handle the i32 to array index conversion
         let byte = bytes[index];
-        byte_to_char(byte)
+        // Return byte directly - C# compiler handles u8 to char conversion
+        byte
     } else {
         '\0'
     }
-}
-
-/// Convert byte to char (Core-0 helper)
-fn byte_to_char(byte: u8) -> char {
-    byte
 }
 
 /// Extract substring from String
@@ -778,10 +774,11 @@ fn string_substring(s: String, start: i32, end: i32) -> String {
     let mut result = String::new();
     
     let mut i = start;
-    let bytes_len = string_length(s.clone());
+    let bytes_len = string_length(s);
     while i < end && i < bytes_len {
         let byte = bytes[i];
-        result.push(byte_to_char(byte));
+        // Push byte directly - C# compiler handles u8 to char conversion
+        result.push(byte);
         i = i + 1;
     }
     
