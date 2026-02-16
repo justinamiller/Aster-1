@@ -236,9 +236,57 @@ function Build-Stage1 {
         return
     }
     
-    # TODO: Implement Stage 1 compilation
-    Write-Warning "Stage 1 compilation not yet implemented"
-    Write-Info "Future: aster0 will compile $AsterDir\compiler\stage1\*.ast → aster1"
+    # Check for main entry point
+    $mainSource = Join-Path $asterCompilerDir "main.ast"
+    if (-not (Test-Path $mainSource)) {
+        Write-Warning "No main.ast entry point found at $mainSource"
+        Write-Warning "Stage 1 requires a main entry point to build an executable"
+        Write-Info "Current status: Partial implementation (contracts and frontend started)"
+        Write-Info "Next steps:"
+        Write-Info "  1. Complete lexer and parser implementation"
+        Write-Info "  2. Create main.ast with entry point"
+        Write-Info "  3. Implement compiler driver logic"
+        return
+    }
+    
+    # Check if Stage 0 is built
+    $aster0 = Join-Path $BuildDir "stage0\Aster.CLI.dll"
+    if (-not (Test-Path $aster0)) {
+        Write-Error "Stage 0 not found. Build Stage 0 first."
+        exit 1
+    }
+    
+    Write-Info "Compiling Aster compiler source with aster0 (Stage 0)..."
+    
+    # Create Stage 1 build directory
+    $stage1Dir = Join-Path $BuildDir "stage1"
+    New-Item -ItemType Directory -Force -Path $stage1Dir | Out-Null
+    
+    # For Stage 1 with --stage1 flag, only compile main.ast (self-contained entry point)
+    # The --stage1 flag enforces self-containment, so we can't compile multiple files
+    # that reference each other. main.ast has all dependencies embedded.
+    $astFile = $mainSource
+    
+    Write-Info "Compiling self-contained entry point: main.ast"
+    
+    # Compile with aster0
+    $outputPath = Join-Path $stage1Dir "aster1"
+    Write-Info "Running: dotnet $aster0 build --stage1 -o $outputPath"
+    
+    if ($Verbose) {
+        & dotnet $aster0 build $astFile --stage1 -o $outputPath
+    } else {
+        & dotnet $aster0 build $astFile --stage1 -o $outputPath > $null 2>&1
+    }
+    
+    # Check if build succeeded
+    if ((Test-Path $outputPath) -or (Test-Path "$outputPath.exe")) {
+        Write-Success "Stage 1 built successfully"
+        Write-Info "Stage 1 binary: $outputPath"
+    } else {
+        Write-Warning "Stage 1 build did not produce binary (expected during partial implementation)"
+        Write-Info "This is normal if the compiler implementation is incomplete"
+    }
 }
 
 # Build Stage 2
