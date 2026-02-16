@@ -22,7 +22,7 @@ Stage 2 will include the expanded Aster compiler written in **Aster Core-1**:
 
 Before implementing Stage 2:
 - ✅ Stage 0 (C# seed compiler) must be complete
-- ⚙️ Stage 1 (minimal Aster compiler) must be complete
+- 🚧 Stage 1 (minimal Aster compiler) must be complete (currently 20% done)
 
 ## Building
 
