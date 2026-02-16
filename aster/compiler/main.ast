@@ -650,9 +650,8 @@ fn compile(mut compiler: Compiler) -> CompileResult {
     compiler = lex_result.compiler;
     let tokens = lex_result.tokens;
     
-    // Check for lexer errors
-    let diag_copy = compiler.diagnostics;
-    if has_errors(diag_copy) {
+    // Check for lexer errors (DiagnosticBag is copied by value)
+    if has_errors(compiler.diagnostics) {
         let result = CompilationResult {
             success: false,
             parsed_module: OptionModule::NoneModule,
@@ -669,9 +668,8 @@ fn compile(mut compiler: Compiler) -> CompileResult {
     compiler = parse_result.compiler;
     let parsed_module = parse_result.parsed_module;
     
-    // Check for parser errors
-    let diag_copy2 = compiler.diagnostics;
-    if has_errors(diag_copy2) {
+    // Check for parser errors (DiagnosticBag is copied by value)
+    if has_errors(compiler.diagnostics) {
         let result = CompilationResult {
             success: false,
             parsed_module: OptionModule::SomeModule(parsed_module),
