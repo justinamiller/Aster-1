@@ -734,23 +734,20 @@ struct CompilationResult {
 
 /// Main entry point for the compiler
 fn main() {
-    // For Stage 1, this would read command-line arguments
-    // and compile the specified file
-    
-    // Example usage (would be replaced with actual CLI handling):
-    let test_source = "fn main() { let x = 42; }";
-    let test_file = "test.ast";
-    
-    let compiler = new_compiler(test_file, test_source);
-    let compile_result = compile(compiler);
-    let final_compiler = compile_result.compiler;
-    let result = compile_result.result;
-    
-    if result.success {
-        print_success();
-    } else {
-        print_errors(result.diagnostics);
-    }
+    // Stub implementation for Stage 1 (Core-0)
+    // 
+    // This is intentionally a no-op because:
+    // 1. Command-line argument handling is not yet implemented in Core-0
+    // 2. The full CLI interface (emit-tokens, build, etc.) requires features
+    //    beyond the Core-0 language subset
+    // 3. This prevents the binary from entering compilation paths that may
+    //    cause infinite recursion or hangs during bootstrap
+    //
+    // When Stage 1 is fully implemented, this will be replaced with:
+    // - Command-line argument parsing
+    // - Proper CLI command dispatch (build, emit-tokens, check, etc.)
+    // - File I/O for reading source files
+    // - Error reporting and diagnostics output
 }
 
 /// Print success message
