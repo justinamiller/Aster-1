@@ -7,6 +7,44 @@
 // Language Subset: Core-0
 // - Uses only: structs, enums, Vec, String, Box
 // - No traits, no async, no macros
+// - Self-contained for Stage 0 compilation (includes minimal type stubs inline)
+
+// ============================================================================
+// CORE TYPE STUBS (provided by C# compiler/runtime during bootstrap)
+// ============================================================================
+
+/// Generic vector type (runtime-provided)
+struct Vec<T> {}
+
+/// Boxed pointer type (runtime-provided)
+struct Box<T> {}
+
+/// Option type for Type (Core-0 replacement for Option<Type>)
+enum OptionType {
+    Some(Type),
+    None
+}
+
+/// Option type for Expression (Core-0 replacement for Option<Expression>)
+enum OptionExpression {
+    Some(Expression),
+    None
+}
+
+/// Option type for Block (Core-0 replacement for Option<Block>)
+enum OptionBlock {
+    Some(Block),
+    None
+}
+
+/// Source location span within a file
+struct Span {
+    file: String,
+    line: i32,
+    column: i32,
+    start: i32,
+    length: i32
+}
 
 /// A complete module (source file)
 struct Module {
@@ -72,7 +110,7 @@ struct Field {
 /// Enum variant
 struct Variant {
     name: String,
-    payload: Option<Type>
+    payload: OptionType
 }
 
 /// Type expression
@@ -102,14 +140,14 @@ enum Statement {
 struct LetStatement {
     name: String,
     mutable: bool,
-    type_annotation: Option<Type>,
+    type_annotation: OptionType,
     initializer: Expression,
     span: Span
 }
 
 /// Return statement
 struct ReturnStatement {
-    value: Option<Expression>,
+    value: OptionExpression,
     span: Span
 }
 
@@ -117,7 +155,7 @@ struct ReturnStatement {
 struct IfStatement {
     condition: Expression,
     then_block: Block,
-    else_block: Option<Block>,
+    else_block: OptionBlock,
     span: Span
 }
 

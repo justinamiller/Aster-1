@@ -7,6 +7,23 @@
 // Language Subset: Core-0
 // - Uses only: structs, enums, Vec, String, functions
 // - No traits, no async, no macros
+// - Self-contained for Stage 0 compilation (includes minimal type stubs inline)
+
+// ============================================================================
+// CORE TYPE STUBS (provided by C# compiler/runtime during bootstrap)
+// ============================================================================
+
+/// Generic vector type (runtime-provided)
+struct Vec<T> {}
+
+/// Source location span within a file
+struct Span {
+    file: String,
+    line: i32,
+    column: i32,
+    start: i32,
+    length: i32
+}
 
 /// Diagnostic severity levels
 enum DiagnosticLevel {
@@ -31,6 +48,26 @@ struct DiagnosticNote {
     span: Span
 }
 
+/// Create empty diagnostic note list (Core-0 stub)
+fn empty_diagnostic_notes() -> Vec<DiagnosticNote> {
+    Vec {}
+}
+
+/// Push note into note list (Core-0 stub)
+fn push_diagnostic_note(notes: Vec<DiagnosticNote>, note: DiagnosticNote) -> Vec<DiagnosticNote> {
+    notes
+}
+
+/// Create empty diagnostic list (Core-0 stub)
+fn empty_diagnostics() -> Vec<Diagnostic> {
+    Vec {}
+}
+
+/// Push diagnostic into diagnostic list (Core-0 stub)
+fn push_diagnostic(diagnostics: Vec<Diagnostic>, diagnostic: Diagnostic) -> Vec<Diagnostic> {
+    diagnostics
+}
+
 /// Create a new error diagnostic
 fn error(code: String, message: String, span: Span) -> Diagnostic {
     Diagnostic {
@@ -38,7 +75,7 @@ fn error(code: String, message: String, span: Span) -> Diagnostic {
         code: code,
         message: message,
         span: span,
-        notes: Vec::new()
+        notes: empty_diagnostic_notes()
     }
 }
 
@@ -49,7 +86,7 @@ fn warning(code: String, message: String, span: Span) -> Diagnostic {
         code: code,
         message: message,
         span: span,
-        notes: Vec::new()
+        notes: empty_diagnostic_notes()
     }
 }
 
@@ -61,7 +98,7 @@ fn note(message: String, span: Span) -> Diagnostic {
         code: empty,
         message: message,
         span: span,
-        notes: Vec::new()
+        notes: empty_diagnostic_notes()
     }
 }
 
@@ -71,7 +108,7 @@ fn add_note(mut diagnostic: Diagnostic, message: String, span: Span) -> Diagnost
         message: message,
         span: span
     };
-    diagnostic.notes.push(note);
+    diagnostic.notes = push_diagnostic_note(diagnostic.notes, note);
     diagnostic
 }
 
@@ -94,18 +131,20 @@ fn format_diagnostic(diagnostic: Diagnostic) -> String {
 
 /// Check if a diagnostic is an error
 fn is_error(diagnostic: Diagnostic) -> bool {
-    match diagnostic.level {
+    let result = match diagnostic.level {
         DiagnosticLevel::Error => true,
         _ => false
-    }
+    };
+    result
 }
 
 /// Check if a diagnostic is a warning
 fn is_warning(diagnostic: Diagnostic) -> bool {
-    match diagnostic.level {
+    let result = match diagnostic.level {
         DiagnosticLevel::Warning => true,
         _ => false
-    }
+    };
+    result
 }
 
 /// Diagnostic collection for accumulating errors and warnings
@@ -118,7 +157,7 @@ struct DiagnosticBag {
 /// Create a new empty diagnostic bag
 fn new_diagnostic_bag() -> DiagnosticBag {
     DiagnosticBag {
-        diagnostics: Vec::new(),
+        diagnostics: empty_diagnostics(),
         error_count: 0,
         warning_count: 0
     }
@@ -132,7 +171,7 @@ fn add_diagnostic(mut bag: DiagnosticBag, diagnostic: Diagnostic) -> DiagnosticB
     if is_warning(diagnostic) {
         bag.warning_count = bag.warning_count + 1;
     }
-    bag.diagnostics.push(diagnostic);
+    bag.diagnostics = push_diagnostic(bag.diagnostics, diagnostic);
     bag
 }
 
@@ -153,7 +192,7 @@ fn warning_count(bag: DiagnosticBag) -> i32 {
 
 /// Clear all diagnostics from the bag
 fn clear_diagnostics(mut bag: DiagnosticBag) -> DiagnosticBag {
-    bag.diagnostics = Vec::new();
+    bag.diagnostics = empty_diagnostics();
     bag.error_count = 0;
     bag.warning_count = 0;
     bag
