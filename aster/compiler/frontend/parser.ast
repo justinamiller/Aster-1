@@ -23,10 +23,9 @@ struct Vec<T> {}
 /// Boxed pointer type (provided by runtime)
 struct Box<T> {}
 
-/// Create a new Box (provided by runtime)
-fn Box_new<T>(value: T) -> Box<T> {
-    Box {}
-}
+// Note: Box_new() constructor is provided by C# runtime
+// Core-0 doesn't support generic function syntax, so we can't declare it here
+// The actual Box_new() calls will be handled by the runtime
 
 // ============================================================================
 // EMBEDDED DEPENDENCIES (for self-contained compilation)
