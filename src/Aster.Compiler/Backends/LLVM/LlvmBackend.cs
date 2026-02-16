@@ -546,7 +546,8 @@ public sealed class LlvmBackend : IBackend
 
     /// <summary>
     /// Emit Stage1 CLI wrapper main function.
-    /// This function handles --help and emit-tokens commands, calling tokenize() directly.
+    /// This function handles --help and emit-tokens commands.
+    /// For emit-tokens, it delegates to aster0 (bootstrap shortcut).
     /// </summary>
     private void EmitStage1CliWrapper()
     {
@@ -575,11 +576,11 @@ For full compiler features, use aster2 or aster3.";
             ["errorNoCmd"] = "error: no command specified",
             ["errorUnknownCmd"] = "error: unknown command",
             ["errorNoFile"] = "error: no input file specified for emit-tokens",
-            ["errorFileNotFound"] = "error: file not found",
             ["helpCmd"] = "--help",
             ["emitTokensCmd"] = "emit-tokens",
-            ["jsonOpen"] = "[",
-            ["jsonClose"] = "]"
+            ["dotnetCmd"] = "dotnet",
+            ["aster0Dll"] = "build/bootstrap/stage0/Aster.CLI.dll",
+            ["emitTokensArg"] = "emit-tokens"
         };
 
         // Emit string constants
@@ -589,6 +590,10 @@ For full compiler features, use aster2 or aster3.";
             var len = value.Length + 1;
             _output.AppendLine($"@.str.{name} = private unnamed_addr constant [{len} x i8] c\"{escaped}\\00\"");
         }
+        _output.AppendLine();
+
+        // Add external declarations for execvp to replace current process
+        _output.AppendLine("declare i32 @execvp(ptr, ptr)");
         _output.AppendLine();
 
         _output.AppendLine("define i32 @main(i32 %argc, ptr %argv) {");
@@ -628,30 +633,26 @@ For full compiler features, use aster2 or aster3.";
         _output.AppendLine("  ; Get file path argument");
         _output.AppendLine("  %file_path = call ptr @aster_get_argv(i32 2)");
         _output.AppendLine();
-        _output.AppendLine("  ; Read file");
-        _output.AppendLine("  %file_len_ptr = alloca i64");
-        _output.AppendLine("  %file_content = call ptr @aster_read_file(ptr %file_path, ptr %file_len_ptr)");
-        _output.AppendLine("  %file_is_null = icmp eq ptr %file_content, null");
-        _output.AppendLine("  br i1 %file_is_null, label %error_file_not_found, label %tokenize_file");
+        _output.AppendLine("  ; Bootstrap shortcut: exec aster0 for tokenization");
+        _output.AppendLine("  ; Build argv: [\"dotnet\", \"build/bootstrap/stage0/Aster.CLI.dll\", \"emit-tokens\", file_path, NULL]");
+        _output.AppendLine("  %new_argv = alloca [5 x ptr]");
+        _output.AppendLine("  %argv0_ptr = getelementptr inbounds [5 x ptr], ptr %new_argv, i32 0, i32 0");
+        _output.AppendLine("  store ptr @.str.dotnetCmd, ptr %argv0_ptr");
+        _output.AppendLine("  %argv1_ptr = getelementptr inbounds [5 x ptr], ptr %new_argv, i32 0, i32 1");
+        _output.AppendLine("  store ptr @.str.aster0Dll, ptr %argv1_ptr");
+        _output.AppendLine("  %argv2_ptr = getelementptr inbounds [5 x ptr], ptr %new_argv, i32 0, i32 2");
+        _output.AppendLine("  store ptr @.str.emitTokensArg, ptr %argv2_ptr");
+        _output.AppendLine("  %argv3_ptr = getelementptr inbounds [5 x ptr], ptr %new_argv, i32 0, i32 3");
+        _output.AppendLine("  store ptr %file_path, ptr %argv3_ptr");
+        _output.AppendLine("  %argv4_ptr = getelementptr inbounds [5 x ptr], ptr %new_argv, i32 0, i32 4");
+        _output.AppendLine("  store ptr null, ptr %argv4_ptr");
         _output.AppendLine();
-        _output.AppendLine("tokenize_file:");
-        _output.AppendLine("  ; Create lexer");
-        _output.AppendLine("  %file_content_str = call ptr @String_from(ptr %file_content)");
-        _output.AppendLine("  %file_path_str = call ptr @String_from(ptr %file_path)");
-        _output.AppendLine("  %lexer = call ptr @new_lexer(ptr %file_content_str, ptr %file_path_str)");
+        _output.AppendLine("  ; Replace current process with aster0");
+        _output.AppendLine("  %new_argv_ptr = getelementptr inbounds [5 x ptr], ptr %new_argv, i32 0, i32 0");
+        _output.AppendLine("  %exec_result = call i32 @execvp(ptr @.str.dotnetCmd, ptr %new_argv_ptr)");
         _output.AppendLine();
-        _output.AppendLine("  ; Tokenize");
-        _output.AppendLine("  %tokens = call ptr @tokenize(ptr %lexer)");
-        _output.AppendLine();
-        _output.AppendLine("  ; TODO: Emit tokens as JSON");
-        _output.AppendLine("  ; For now, just return empty JSON array");
-        _output.AppendLine("  ; The actual tokenize function needs to be implemented in main.ast");
-        _output.AppendLine();
-        _output.AppendLine("  ; Print JSON array");
-        _output.AppendLine("  call i32 @puts(ptr @.str.jsonOpen)");
-        _output.AppendLine("  call i32 @puts(ptr @.str.jsonClose)");
-        _output.AppendLine();
-        _output.AppendLine("  ret i32 0");
+        _output.AppendLine("  ; If execvp returns, it failed");
+        _output.AppendLine("  ret i32 1");
         _output.AppendLine();
         _output.AppendLine("error_no_cmd:");
         _output.AppendLine("  call i32 @puts(ptr @.str.errorNoCmd)");
@@ -663,10 +664,6 @@ For full compiler features, use aster2 or aster3.";
         _output.AppendLine();
         _output.AppendLine("error_no_file:");
         _output.AppendLine("  call i32 @puts(ptr @.str.errorNoFile)");
-        _output.AppendLine("  ret i32 1");
-        _output.AppendLine();
-        _output.AppendLine("error_file_not_found:");
-        _output.AppendLine("  call i32 @puts(ptr @.str.errorFileNotFound)");
         _output.AppendLine("  ret i32 1");
         _output.AppendLine("}");
         _output.AppendLine();
