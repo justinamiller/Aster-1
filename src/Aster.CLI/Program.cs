@@ -145,6 +145,10 @@ public static class Program
             // Write LLVM IR to temporary file
             var tempLlFile = Path.GetTempFileName() + ".ll";
             File.WriteAllText(tempLlFile, mergedLlvmIr);
+            
+            // Also save a copy for debugging
+            var debugLlFile = outputPath + ".ll";
+            File.WriteAllText(debugLlFile, mergedLlvmIr);
 
             try
             {
@@ -153,6 +157,7 @@ public static class Program
                 if (result != 0)
                 {
                     Console.Error.WriteLine("error: failed to create native executable");
+                    Console.Error.WriteLine($"LLVM IR saved to: {debugLlFile}");
                     Console.Error.WriteLine("Make sure clang is installed and in your PATH");
                     return 1;
                 }
