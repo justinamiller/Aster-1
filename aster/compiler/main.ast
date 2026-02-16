@@ -7,6 +7,608 @@
 // Language Subset: Core-0
 // - Uses only: functions, Vec, String, structs
 // - No traits, no async, no macros, no tuples
+// - Self-contained for Stage 0 compilation (includes all dependencies inline)
+
+// ============================================================================
+// EMBEDDED DEPENDENCIES (for self-contained compilation)
+// ============================================================================
+
+// Note: Vec and Box are fundamental collection/pointer types.
+// During Core-0 bootstrap, the C# compiler provides runtime support for these.
+// We declare them here as opaque types to satisfy the type checker.
+
+/// Generic vector type (provided by runtime)
+struct Vec<T> {}
+
+/// Boxed pointer type (provided by runtime)
+struct Box<T> {}
+
+/// Option type for Module (Core-0 replacement for Option<Module>)
+enum OptionModule {
+    SomeModule(Module),
+    NoneModule
+}
+
+/// Option type for Type (Core-0 replacement for Option<Type>)
+enum OptionType {
+    SomeType(Type),
+    NoneType
+}
+
+/// Option type for Expression (Core-0 replacement for Option<Expression>)
+enum OptionExpression {
+    SomeExpression(Expression),
+    NoneExpression
+}
+
+/// Option type for Block (Core-0 replacement for Option<Block>)
+enum OptionBlock {
+    SomeBlock(Block),
+    NoneBlock
+}
+
+/// Source location span within a file
+struct Span {
+    file: String,
+    line: i32,
+    column: i32,
+    start: i32,
+    length: i32
+}
+
+/// Create a new Span
+fn new_span(file: String, line: i32, column: i32, start: i32, length: i32) -> Span {
+    Span {
+        file: file,
+        line: line,
+        column: column,
+        start: start,
+        length: length
+    }
+}
+
+/// Token type enumeration
+enum TokenKind {
+    // Literals
+    Identifier,
+    IntegerLiteral,
+    FloatLiteral,
+    StringLiteral,
+    CharLiteral,
+    // Keywords
+    Fn,
+    Let,
+    Mut,
+    Type,
+    Trait,
+    Impl,
+    Match,
+    If,
+    Else,
+    For,
+    While,
+    Return,
+    Break,
+    Continue,
+    Loop,
+    Async,
+    Await,
+    Actor,
+    Module,
+    Pub,
+    Extern,
+    Unsafe,
+    Using,
+    Managed,
+    Throws,
+    Struct,
+    Enum,
+    True,
+    False,
+    // Operators
+    Plus,
+    Minus,
+    Star,
+    Slash,
+    Percent,
+    Ampersand,
+    Pipe,
+    Caret,
+    Tilde,
+    Bang,
+    Less,
+    Greater,
+    Equals,
+    Dot,
+    DotDot,
+    // Compound operators
+    AmpersandAmpersand,
+    PipePipe,
+    EqualsEquals,
+    BangEquals,
+    LessEquals,
+    GreaterEquals,
+    Arrow,
+    FatArrow,
+    PlusEquals,
+    MinusEquals,
+    StarEquals,
+    SlashEquals,
+    ColonColon,
+    // Punctuation
+    LeftParen,
+    RightParen,
+    LeftBrace,
+    RightBrace,
+    LeftBracket,
+    RightBracket,
+    Comma,
+    Colon,
+    Semicolon,
+    At,
+    Hash,
+    Underscore,
+    // Special
+    Eof,
+    Error
+}
+
+/// Lexical token
+struct Token {
+    kind: TokenKind,
+    span: Span,
+    value: String
+}
+
+/// Create a new token
+fn new_token(kind: TokenKind, span: Span, value: String) -> Token {
+    Token {
+        kind: kind,
+        span: span,
+        value: value
+    }
+}
+
+/// Diagnostic severity levels
+enum DiagnosticLevel {
+    Error,
+    Warning,
+    Note,
+    Help
+}
+
+/// A diagnostic message with source location and context
+struct Diagnostic {
+    level: DiagnosticLevel,
+    code: String,
+    message: String,
+    span: Span,
+    notes: Vec<DiagnosticNote>
+}
+
+/// A supplementary note attached to a diagnostic
+struct DiagnosticNote {
+    message: String,
+    span: Span
+}
+
+/// Diagnostic collection for accumulating errors and warnings
+struct DiagnosticBag {
+    diagnostics: Vec<Diagnostic>,
+    error_count: i32,
+    warning_count: i32
+}
+
+/// Create a new empty diagnostic bag
+fn new_diagnostic_bag() -> DiagnosticBag {
+    DiagnosticBag {
+        diagnostics: Vec::new(),
+        error_count: 0,
+        warning_count: 0
+    }
+}
+
+/// Check if the bag has any errors
+fn has_errors(bag: DiagnosticBag) -> bool {
+    bag.error_count > 0
+}
+
+/// Lexer state for tokenizing Aster source code
+struct Lexer {
+    source: String,
+    file_name: String,
+    position: i32,
+    line: i32,
+    column: i32
+}
+
+/// Create a new lexer for the given source code
+fn new_lexer(source: String, file_name: String) -> Lexer {
+    Lexer {
+        source: source,
+        file_name: file_name,
+        position: 0,
+        line: 1,
+        column: 1
+    }
+}
+
+/// Tokenize the entire source code and return a list of tokens
+/// Simplified stub for Core-0 - actual lexer implementation is in lexer.ast
+fn tokenize(lexer: Lexer) -> Vec<Token> {
+    Vec::new()
+}
+
+/// Parser state for parsing tokens into AST
+struct Parser {
+    tokens: Vec<Token>,
+    position: i32,
+    diagnostics: DiagnosticBag
+}
+
+/// Create a new parser from a token stream
+fn new_parser(tokens: Vec<Token>) -> Parser {
+    Parser {
+        tokens: tokens,
+        position: 0,
+        diagnostics: new_diagnostic_bag()
+    }
+}
+
+/// A complete module (source file) - AST root
+struct Module {
+    items: Vec<Item>
+}
+
+/// Top-level item in a module
+enum Item {
+    Function(FunctionItem),
+    Struct(StructItem),
+    Enum(EnumItem),
+    TypeAlias(TypeAliasItem),
+    Error(ErrorItem)
+}
+
+/// Function declaration
+struct FunctionItem {
+    name: String,
+    params: Vec<Parameter>,
+    return_type: Type,
+    body: Block,
+    span: Span
+}
+
+/// Struct declaration
+struct StructItem {
+    name: String,
+    fields: Vec<Field>,
+    span: Span
+}
+
+/// Enum declaration
+struct EnumItem {
+    name: String,
+    variants: Vec<Variant>,
+    span: Span
+}
+
+/// Type alias declaration
+struct TypeAliasItem {
+    name: String,
+    target_type: Type,
+    span: Span
+}
+
+/// Error item (placeholder for parse errors)
+struct ErrorItem {
+    span: Span
+}
+
+/// Function parameter
+struct Parameter {
+    name: String,
+    param_type: Type,
+    span: Span
+}
+
+/// Struct field
+struct Field {
+    name: String,
+    field_type: Type,
+    span: Span
+}
+
+/// Enum variant
+struct Variant {
+    name: String,
+    fields: Vec<Field>,
+    span: Span
+}
+
+/// Type reference
+enum Type {
+    Named(NamedType),
+    Function(FunctionType),
+    Array(ArrayType),
+    Error(ErrorType)
+}
+
+/// Named type (e.g., i32, String, MyStruct)
+struct NamedType {
+    name: String,
+    span: Span
+}
+
+/// Function type (e.g., fn(i32) -> String)
+struct FunctionType {
+    param_types: Vec<Type>,
+    return_type: Box<Type>,
+    span: Span
+}
+
+/// Array type (e.g., [i32])
+struct ArrayType {
+    element_type: Box<Type>,
+    span: Span
+}
+
+/// Error type (placeholder for parse errors)
+struct ErrorType {
+    span: Span
+}
+
+/// Block of statements
+struct Block {
+    statements: Vec<Statement>,
+    span: Span
+}
+
+/// Statement
+enum Statement {
+    Let(LetStatement),
+    Return(ReturnStatement),
+    If(IfStatement),
+    While(WhileStatement),
+    For(ForStatement),
+    Break(BreakStatement),
+    Continue(ContinueStatement),
+    Expression(ExpressionStatement),
+    Error(ErrorStatement)
+}
+
+/// Let statement
+struct LetStatement {
+    name: String,
+    type_annotation: OptionType,
+    initializer: OptionExpression,
+    is_mutable: bool,
+    span: Span
+}
+
+/// Return statement
+struct ReturnStatement {
+    value: OptionExpression,
+    span: Span
+}
+
+/// If statement
+struct IfStatement {
+    condition: Expression,
+    then_block: Block,
+    else_block: OptionBlock,
+    span: Span
+}
+
+/// While statement
+struct WhileStatement {
+    condition: Expression,
+    body: Block,
+    span: Span
+}
+
+/// For statement
+struct ForStatement {
+    variable: String,
+    iterable: Expression,
+    body: Block,
+    span: Span
+}
+
+/// Break statement
+struct BreakStatement {
+    span: Span
+}
+
+/// Continue statement
+struct ContinueStatement {
+    span: Span
+}
+
+/// Expression statement
+struct ExpressionStatement {
+    expression: Expression,
+    span: Span
+}
+
+/// Error statement (placeholder for parse errors)
+struct ErrorStatement {
+    span: Span
+}
+
+/// Expression
+enum Expression {
+    Literal(LiteralExpression),
+    Identifier(IdentifierExpression),
+    Binary(BinaryExpression),
+    Unary(UnaryExpression),
+    Call(CallExpression),
+    StructInit(StructInitExpression),
+    FieldAccess(FieldAccessExpression),
+    Index(IndexExpression),
+    Block(BlockExpression),
+    If(IfExpression),
+    Match(MatchExpression),
+    Error(ErrorExpression)
+}
+
+/// Literal expression
+struct LiteralExpression {
+    value: String,
+    span: Span
+}
+
+/// Identifier expression
+struct IdentifierExpression {
+    name: String,
+    span: Span
+}
+
+/// Binary expression
+struct BinaryExpression {
+    left: Box<Expression>,
+    operator: String,
+    right: Box<Expression>,
+    span: Span
+}
+
+/// Unary expression
+struct UnaryExpression {
+    operator: String,
+    operand: Box<Expression>,
+    span: Span
+}
+
+/// Call expression
+struct CallExpression {
+    callee: Box<Expression>,
+    arguments: Vec<Expression>,
+    span: Span
+}
+
+/// Struct initialization expression
+struct StructInitExpression {
+    struct_name: String,
+    fields: Vec<FieldInit>,
+    span: Span
+}
+
+/// Field initialization
+struct FieldInit {
+    name: String,
+    value: Expression,
+    span: Span
+}
+
+/// Field access expression
+struct FieldAccessExpression {
+    object: Box<Expression>,
+    field_name: String,
+    span: Span
+}
+
+/// Index expression
+struct IndexExpression {
+    object: Box<Expression>,
+    index: Box<Expression>,
+    span: Span
+}
+
+/// Block expression
+struct BlockExpression {
+    block: Block,
+    span: Span
+}
+
+/// If expression
+struct IfExpression {
+    condition: Box<Expression>,
+    then_block: Block,
+    else_block: OptionBlock,
+    span: Span
+}
+
+/// Match expression
+struct MatchExpression {
+    scrutinee: Box<Expression>,
+    arms: Vec<MatchArm>,
+    span: Span
+}
+
+/// Match arm
+struct MatchArm {
+    pattern: Pattern,
+    body: Expression,
+    span: Span
+}
+
+/// Pattern
+enum Pattern {
+    Wildcard(WildcardPattern),
+    Identifier(IdentifierPattern),
+    Literal(LiteralPattern),
+    Struct(StructPattern),
+    Error(ErrorPattern)
+}
+
+/// Wildcard pattern (_)
+struct WildcardPattern {
+    span: Span
+}
+
+/// Identifier pattern
+struct IdentifierPattern {
+    name: String,
+    span: Span
+}
+
+/// Literal pattern
+struct LiteralPattern {
+    value: String,
+    span: Span
+}
+
+/// Struct pattern
+struct StructPattern {
+    struct_name: String,
+    fields: Vec<FieldPattern>,
+    span: Span
+}
+
+/// Field pattern
+struct FieldPattern {
+    name: String,
+    pattern: Box<Pattern>,
+    span: Span
+}
+
+/// Error pattern (placeholder for parse errors)
+struct ErrorPattern {
+    span: Span
+}
+
+/// Error expression (placeholder for parse errors)
+struct ErrorExpression {
+    span: Span
+}
+
+/// Result type for parser operations
+struct ParserModuleResult {
+    parser: Parser,
+    parsed_module: Module
+}
+
+/// Parse a complete source file into an AST
+/// Simplified stub for Core-0 - actual parser implementation is in parser.ast
+fn parse(parser: Parser) -> ParserModuleResult {
+    let parsed_module = Module {
+        items: Vec::new()
+    };
+    ParserModuleResult { parser: parser, parsed_module: parsed_module }
+}
+
+// ============================================================================
+// MAIN COMPILER IMPLEMENTATION
+// ============================================================================
 
 /// Compiler driver that orchestrates all compilation stages
 struct Compiler {
@@ -28,7 +630,7 @@ struct LexResult {
 
 struct ParseResult {
     compiler: Compiler,
-    module: Module
+    parsed_module: Module
 }
 
 /// Create a new compiler instance
@@ -48,11 +650,13 @@ fn compile(mut compiler: Compiler) -> CompileResult {
     compiler = lex_result.compiler;
     let tokens = lex_result.tokens;
     
-    if has_errors(compiler.diagnostics.clone()) {
+    // Check for lexer errors
+    let diag_copy = compiler.diagnostics;
+    if has_errors(diag_copy) {
         let result = CompilationResult {
             success: false,
-            module: None,
-            diagnostics: compiler.diagnostics.clone()
+            parsed_module: OptionModule::NoneModule,
+            diagnostics: compiler.diagnostics
         };
         return CompileResult {
             compiler: compiler,
@@ -63,13 +667,15 @@ fn compile(mut compiler: Compiler) -> CompileResult {
     // Stage 2: Parsing
     let parse_result = parse_source(compiler, tokens);
     compiler = parse_result.compiler;
-    let module = parse_result.module;
+    let parsed_module = parse_result.parsed_module;
     
-    if has_errors(compiler.diagnostics.clone()) {
+    // Check for parser errors
+    let diag_copy2 = compiler.diagnostics;
+    if has_errors(diag_copy2) {
         let result = CompilationResult {
             success: false,
-            module: Some(module),
-            diagnostics: compiler.diagnostics.clone()
+            parsed_module: OptionModule::SomeModule(parsed_module),
+            diagnostics: compiler.diagnostics
         };
         return CompileResult {
             compiler: compiler,
@@ -80,8 +686,8 @@ fn compile(mut compiler: Compiler) -> CompileResult {
     // Success
     let result = CompilationResult {
         success: true,
-        module: Some(module),
-        diagnostics: compiler.diagnostics.clone()
+        parsed_module: OptionModule::SomeModule(parsed_module),
+        diagnostics: compiler.diagnostics
     };
     CompileResult {
         compiler: compiler,
@@ -110,21 +716,21 @@ fn parse_source(mut compiler: Compiler, tokens: Vec<Token>) -> ParseResult {
     let parser = new_parser(tokens);
     let parse_result = parse(parser);
     let final_parser = parse_result.parser;
-    let module = parse_result.module;
+    let parsed_module = parse_result.parsed_module;
     
     // Collect parser diagnostics
     compiler.diagnostics = final_parser.diagnostics;
     
     ParseResult {
         compiler: compiler,
-        module: module
+        parsed_module: parsed_module
     }
 }
 
 /// Result of compilation
 struct CompilationResult {
     success: bool,
-    module: Option<Module>,
+    parsed_module: OptionModule,
     diagnostics: DiagnosticBag
 }
 
@@ -172,10 +778,4 @@ fn read_file(path: String) -> String {
 fn write_file(path: String, content: String) {
     // Simplified stub for Core-0
     // In full implementation, would use file I/O
-}
-
-/// Print a string (stub for Core-0)
-fn print(s: String) {
-    // Simplified stub for Core-0
-    // In full implementation, would use println! macro
 }
