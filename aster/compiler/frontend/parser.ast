@@ -596,7 +596,7 @@ fn parse(mut parser: Parser) -> ParserModuleResult {
 fn parse_item(mut parser: Parser) -> ParserItemResult {
     let token = peek(parser);
     
-    match token.kind {
+    let result = match token.kind {
         TokenKind::Fn => parse_function(parser),
         TokenKind::Struct => parse_struct(parser),
         TokenKind::Enum => parse_enum(parser),
@@ -608,7 +608,8 @@ fn parse_item(mut parser: Parser) -> ParserItemResult {
             parser = synchronize(parser);
             ParserItemResult { parser: parser, item: error_item() }
         }
-    }
+    };
+    result
 }
 
 /// Parse a function declaration
@@ -875,7 +876,7 @@ fn parse_variant(mut parser: Parser) -> ParserVariantResult {
 fn parse_type(mut parser: Parser) -> ParserTypeResult {
     let token = peek(parser);
     
-    match token.kind {
+    let result = match token.kind {
         TokenKind::Identifier => {
             let name_result = expect_identifier(parser);
             parser = name_result.parser;
@@ -887,7 +888,8 @@ fn parse_type(mut parser: Parser) -> ParserTypeResult {
             parser = report_error(parser, msg, token.span);
             ParserTypeResult { parser: parser, type_value: error_type() }
         }
-    }
+    };
+    result
 }
 
 /// Parse a block statement
@@ -919,14 +921,15 @@ fn parse_block(mut parser: Parser) -> ParserBlockResult {
 fn parse_statement(parser: Parser) -> ParserStatementResult {
     let token = peek(parser);
     
-    match token.kind {
+    let result = match token.kind {
         TokenKind::Let => parse_let_statement(parser),
         TokenKind::Return => parse_return_statement(parser),
         TokenKind::If => parse_if_statement(parser),
         TokenKind::While => parse_while_statement(parser),
         TokenKind::For => parse_for_statement(parser),
         _ => parse_expression_statement(parser)
-    }
+    };
+    result
 }
 
 /// Parse a let statement
@@ -1388,7 +1391,7 @@ fn parse_argument_list(mut parser: Parser) -> ParserExpressionsResult {
 fn parse_primary(mut parser: Parser) -> ParserExpressionResult {
     let token = peek(parser);
     
-    match token.kind {
+    let result = match token.kind {
         TokenKind::IntegerLiteral => {
             parser = advance(parser);
             let expr = Expression::IntegerLiteral(IntegerLiteralExpr {
@@ -1451,7 +1454,8 @@ fn parse_primary(mut parser: Parser) -> ParserExpressionResult {
             parser = report_error(parser, msg, token.span);
             ParserExpressionResult { parser: parser, expression: error_expression() }
         }
-    }
+    };
+    result
 }
 
 // Helper functions
@@ -1459,13 +1463,14 @@ fn parse_primary(mut parser: Parser) -> ParserExpressionResult {
 /// Peek at the current token without consuming it
 fn peek(parser: Parser) -> Token {
     let len = vec_len(parser.tokens);
-    if parser.position < len {
+    let result = if parser.position < len {
         parser.tokens[parser.position]
     } else {
         // Return EOF token
         let empty = "";
         make_eof_token(empty, 0)
-    }
+    };
+    result
 }
 
 /// Advance to the next token
