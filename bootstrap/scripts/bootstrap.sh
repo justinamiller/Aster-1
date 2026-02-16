@@ -358,6 +358,9 @@ build_stage2() {
 build_stage3() {
     log_step "Building Stage 3: Full Aster Compiler"
     
+    # Create Stage 3 build directory (even if we can't build yet)
+    mkdir -p "${BUILD_DIR}/stage3"
+    
     # Check if Stage 2 is built
     local ASTER2="${BUILD_DIR}/stage2/aster2"
     if [[ ! -f "$ASTER2" ]] && [[ ! -f "${ASTER2}.exe" ]]; then
