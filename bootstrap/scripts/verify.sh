@@ -143,6 +143,16 @@ verify_stage0() {
 verify_stage1() {
     log_step "Verifying Stage 1: Minimal Compiler"
     
+    # Check if binary exists and if source is newer (requiring rebuild)
+    if [[ -f "${BUILD_DIR}/stage1/aster1" ]]; then
+        local main_source="${PROJECT_ROOT}/aster/compiler/main.ast"
+        if [[ -f "$main_source" && "$main_source" -nt "${BUILD_DIR}/stage1/aster1" ]]; then
+            log_warning "Source files are newer than the Stage 1 binary"
+            log_warning "You may need to rebuild: ./bootstrap/scripts/bootstrap.sh --stage 1"
+            log_info "Continuing with existing binary..."
+        fi
+    fi
+    
     # Run differential token tests
     log_info "Running differential token tests..."
     if "${SCRIPT_DIR}/diff-test-tokens.sh"; then
