@@ -59,6 +59,7 @@ public enum TokenKind
     Equals,         // =
     Dot,            // .
     DotDot,         // ..
+    Question,       // ?
 
     // Compound operators
     AmpersandAmpersand, // &&
