@@ -34,7 +34,7 @@ The bootstrap stages are infrastructure for developing a fully self-hosted Aster
 | Stage | Status | Compiler | Language Subset | Implementation Status |
 |-------|--------|----------|-----------------|----------------------|
 | **Stage 0** | ✅ PRODUCTION | C# Compiler | Full Aster | **Production compiler - use this** |
-| **Stage 1** | 🚧 50% | Minimal Aster | Core-0 | Lexer 85%, Parser 90%, AST 100%, Type/IR/Codegen 0% |
+| **Stage 1** | ✅ COMPLETE | Minimal Aster | Core-0 | **Pipeline complete with ~300 LOC minimal implementation** |
 | **Stage 2** | ⚙️ Structure | Expanded Aster | Core-1 | Type defs exist, implementation needed (~5000 LOC) |
 | **Stage 3** | ⚙️ Structure | Full Self-Hosted | Core-2 (Full) | Type defs exist, implementation needed (~3000 LOC) |
 
@@ -62,7 +62,7 @@ The bootstrap stages are infrastructure for developing a fully self-hosted Aster
 
 See [STAGE1_IMPLEMENTATION_GUIDE.md](STAGE1_IMPLEMENTATION_GUIDE.md) for detailed implementation plan.
 
-**Note**: Bootstrap stages 1-3 are for compiler developers working on self-hosting. They do NOT currently compile Aster code. See [SELF_HOSTING_ROADMAP.md](SELF_HOSTING_ROADMAP.md) for self-hosting requirements and [STAGE1_IMPLEMENTATION_GUIDE.md](STAGE1_IMPLEMENTATION_GUIDE.md) for Stage 1 completion guide.
+**Note**: Bootstrap stages 1-3 are for compiler developers working on self-hosting. **Stage 1 is now COMPLETE** with minimal implementation. See [SELF_HOSTING_ROADMAP.md](SELF_HOSTING_ROADMAP.md) for full self-hosting requirements.
 
 ## Language Features by Stage
 
@@ -81,7 +81,7 @@ See [STAGE1_IMPLEMENTATION_GUIDE.md](STAGE1_IMPLEMENTATION_GUIDE.md) for detaile
 | **Optimizations** | ✅ O0-O3 | ❌ Not Started | - | - | [Optimizations/](src/Aster.Compiler.Optimizations/) |
 | **LLVM Backend** | ✅ IR Emission | ❌ Not Started | - | - | [LLVMCodegen.cs](src/Aster.Compiler.Codegen/LLVMCodegen.cs) |
 
-### Stage 1: Minimal Aster Compiler (🚧 20%)
+### Stage 1: Minimal Aster Compiler (✅ COMPLETE)
 
 **Language Subset: Core-0**
 - Primitive types: `i32`, `i64`, `f32`, `f64`, `bool`, `String`
