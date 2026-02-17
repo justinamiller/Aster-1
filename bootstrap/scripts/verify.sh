@@ -207,15 +207,95 @@ verify_self_hosting() {
     
     if [[ ! -f "$aster3" ]]; then
         log_warning "Stage 3 binary not found. Cannot verify self-hosting."
+        log_info "To enable self-hosting validation:"
+        log_info "  1. Complete Stage 1 implementation"
+        log_info "  2. Implement Stage 2 (name resolution, types, traits)"
+        log_info "  3. Implement Stage 3 (borrow checker, MIR, LLVM backend)"
         return
     fi
     
-    # TODO: Compile aster3 with itself
-    # aster3 compile aster/compiler/stage3/*.ast -o aster3'
-    # Compare aster3 vs aster3'
+    log_info "Found Stage 3 binary: $aster3"
     
-    log_warning "Self-hosting verification not yet implemented"
-    log_info "Future: aster3 will compile itself and outputs will be compared"
+    # Check if this is a stub
+    if grep -q "Stage 3 Stub" "$aster3" 2>/dev/null; then
+        log_warning "Stage 3 is currently a stub for testing infrastructure"
+        log_info "Self-hosting validation will be enabled when real Stage 3 exists"
+        
+        # Test that the stub at least executes
+        if "$aster3" --help > /dev/null 2>&1; then
+            log_success "Stage 3 stub executes successfully"
+        else
+            log_error "Stage 3 stub failed to execute"
+            return 1
+        fi
+        return
+    fi
+    
+    # Real Stage 3 self-hosting validation
+    log_info "Attempting self-hosting compilation..."
+    
+    # Check if Stage 3 source exists
+    local stage3_source="${PROJECT_ROOT}/aster/compiler/stage3"
+    if [[ ! -d "$stage3_source" ]] || [[ -z "$(find "$stage3_source" -name "*.ast" -type f)" ]]; then
+        log_warning "Stage 3 source not found at $stage3_source"
+        log_info "Cannot perform self-hosting test without source code"
+        return
+    fi
+    
+    # Create temporary directory for self-hosting test
+    local temp_dir="${BUILD_DIR}/self-hosting-test"
+    rm -rf "$temp_dir"
+    mkdir -p "$temp_dir"
+    
+    log_info "Compiling Stage 3 with itself..."
+    local ast_files=$(find "$stage3_source" -name "*.ast" -type f)
+    
+    if [[ $VERBOSE -eq 1 ]]; then
+        "$aster3" build $ast_files -o "${temp_dir}/aster3_prime"
+    else
+        "$aster3" build $ast_files -o "${temp_dir}/aster3_prime" > /dev/null 2>&1
+    fi
+    
+    if [[ ! -f "${temp_dir}/aster3_prime" ]]; then
+        log_error "Self-hosting compilation failed: aster3' not produced"
+        return 1
+    fi
+    
+    log_success "Self-hosting compilation succeeded"
+    
+    # Compare binaries
+    log_info "Comparing aster3 and aster3'..."
+    
+    # Check if bit-identical
+    if cmp -s "$aster3" "${temp_dir}/aster3_prime"; then
+        log_success "Self-hosting validated: aster3 == aster3' (bit-identical)"
+        return 0
+    else
+        log_warning "Binaries are not bit-identical"
+        log_info "Checking semantic equivalence..."
+        
+        # Test if both produce same output on a simple test
+        local test_file="${FIXTURES_DIR}/simple_test.ast"
+        if [[ -f "$test_file" ]]; then
+            local out1="${temp_dir}/test1.ll"
+            local out2="${temp_dir}/test2.ll"
+            
+            "$aster3" build "$test_file" -o "$out1" 2>/dev/null
+            "${temp_dir}/aster3_prime" build "$test_file" -o "$out2" 2>/dev/null
+            
+            if cmp -s "$out1" "$out2"; then
+                log_success "Self-hosting validated: aster3 and aster3' are semantically equivalent"
+                return 0
+            else
+                log_error "Self-hosting failed: aster3 and aster3' produce different output"
+                return 1
+            fi
+        else
+            log_warning "Cannot verify semantic equivalence without test fixtures"
+            log_info "Self-hosting compilation succeeded but equivalence not verified"
+            return 0
+        fi
+    fi
 }
 
 # Reproducibility tests

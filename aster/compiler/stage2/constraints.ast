@@ -1,0 +1,35 @@
+// Constraints - Core-0 Compatible Version
+// Simplified for Stage 1 compilation
+
+struct TypeConstraint {
+    left: i32,
+    right: i32
+}
+
+struct ConstraintContext {
+    constraint_count: i32,
+    diagnostic_count: i32
+}
+
+fn new_constraint_context() -> ConstraintContext {
+    ConstraintContext {
+        constraint_count: 0,
+        diagnostic_count: 0
+    }
+}
+
+fn add_constraint(ctx: ConstraintContext, left: i32, right: i32) -> ConstraintContext {
+    ConstraintContext {
+        constraint_count: ctx.constraint_count + 1,
+        diagnostic_count: ctx.diagnostic_count
+    }
+}
+
+fn generate_constraints(ctx: ConstraintContext, expr_id: i32) -> ConstraintContext {
+    // Simplified: just return unchanged
+    ctx
+}
+
+struct Diagnostic {
+    message: String
+}

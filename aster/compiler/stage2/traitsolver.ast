@@ -1,0 +1,39 @@
+// Trait Solver - Core-0 Compatible Version
+// Simplified for Stage 1 compilation
+
+struct TraitDef {
+    name: String,
+    trait_id: i32
+}
+
+struct TraitContext {
+    trait_count: i32,
+    impl_count: i32,
+    obligation_count: i32
+}
+
+fn new_trait_context() -> TraitContext {
+    TraitContext {
+        trait_count: 0,
+        impl_count: 0,
+        obligation_count: 0
+    }
+}
+
+fn add_trait(ctx: TraitContext, name: String) -> TraitContext {
+    TraitContext {
+        trait_count: ctx.trait_count + 1,
+        impl_count: ctx.impl_count,
+        obligation_count: ctx.obligation_count
+    }
+}
+
+fn resolve_traits(ctx: TraitContext) -> TraitContext {
+    // Simplified: just return unchanged
+    ctx
+}
+
+fn check_trait_bound(ctx: TraitContext, type_id: i32, trait_id: i32) -> bool {
+    // Simplified: always returns true
+    true
+}

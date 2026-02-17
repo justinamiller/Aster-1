@@ -1,0 +1,58 @@
+// Symbol Table - Core-0 Compatible Version
+// Simplified for Stage 1 compilation
+
+struct SymbolId {
+    id: i32
+}
+
+struct Symbol {
+    id: i32,
+    name: String,
+    kind: i32,  // 0=Variable, 1=Function, 2=Parameter, 3=Struct, 4=Enum, 5=Trait
+    type_id: i32,
+    scope_id: i32
+}
+
+struct SymbolTable {
+    symbol_count: i32,
+    scope_count: i32,
+    current_scope: i32
+}
+
+fn new_symbol_table() -> SymbolTable {
+    SymbolTable {
+        symbol_count: 0,
+        scope_count: 1,  // Start with global scope
+        current_scope: 0
+    }
+}
+
+fn add_symbol(table: SymbolTable, name: String, kind: i32) -> SymbolTable {
+    // Simplified: just increment counter
+    SymbolTable {
+        symbol_count: table.symbol_count + 1,
+        scope_count: table.scope_count,
+        current_scope: table.current_scope
+    }
+}
+
+fn enter_scope(table: SymbolTable) -> SymbolTable {
+    SymbolTable {
+        symbol_count: table.symbol_count,
+        scope_count: table.scope_count + 1,
+        current_scope: table.scope_count
+    }
+}
+
+fn exit_scope(table: SymbolTable) -> SymbolTable {
+    SymbolTable {
+        symbol_count: table.symbol_count,
+        scope_count: table.scope_count,
+        current_scope: 0  // Go back to global
+    }
+}
+
+fn lookup_symbol(table: SymbolTable, name: String) -> i32 {
+    // Simplified: always return -1 (not found)
+    -1
+}

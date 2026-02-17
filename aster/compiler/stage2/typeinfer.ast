@@ -1,0 +1,22 @@
+// Type Inference - Core-0 Compatible Version
+// Simplified for Stage 1 compilation
+
+struct TypeContext {
+    type_count: i32,
+    substitution_count: i32
+}
+
+fn infer_types(ctx: TypeContext, expr_id: i32) -> TypeContext {
+    // Simplified: just return unchanged
+    ctx
+}
+
+fn solve_constraints(ctx: TypeContext) -> TypeContext {
+    // Simplified: just return unchanged
+    ctx
+}
+
+fn apply_substitutions(ctx: TypeContext) -> TypeContext {
+    // Simplified: just return unchanged
+    ctx
+}

@@ -1,0 +1,64 @@
+// Effect System - Effect Tracking Component
+// Part of Aster Stage 2 (Core-1 implementation)
+// Simplified for Core-0 compatibility (no Vec, Option, Result)
+
+// ============================================================================
+// EFFECT STRUCTURES
+// ============================================================================
+
+/// Effect annotation
+enum Effect {
+    Pure,           // No effects
+    IO,            // Input/output
+    Exception,     // May throw
+    NonDet,        // Non-deterministic
+    Async          // Asynchronous
+}
+
+/// Effect context (simplified for Core-0)
+struct EffectContext {
+    function_count: i32,
+    diagnostic_count: i32
+}
+
+/// Effect annotation for a function
+struct FunctionEffect {
+    function_name: String,
+    effects: Effect
+}
+
+// ============================================================================
+// EFFECT OPERATIONS
+// ============================================================================
+
+/// Create new effect context
+fn new_effect_context() -> EffectContext {
+    EffectContext {
+        function_count: 0,
+        diagnostic_count: 0
+    }
+}
+
+/// Infer effects for a function
+fn infer_function_effects(ctx: EffectContext, func: Function) -> EffectContext {
+    // Analyze function body
+    // Infer effects from operations
+    // Propagate through function calls
+    ctx
+}
+
+/// Check effect boundaries
+fn check_effects(ctx: EffectContext) -> EffectContext {
+    // Verify pure functions don't perform IO
+    // Check exception handling
+    ctx
+}
+
+/// Combine multiple effects (simplified)
+fn combine_effects(e1: Effect, e2: Effect) -> Effect {
+    // For Core-0 compatibility, just return first effect
+    e1
+}
+
+struct Function { name: String }
+struct Diagnostic { message: String }

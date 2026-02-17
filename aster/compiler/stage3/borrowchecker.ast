@@ -1,0 +1,137 @@
+// Non-Lexical Lifetimes (NLL) Borrow Checker
+// Implements borrow checking with region inference
+
+struct Region {
+    id: i32,
+    name: String,
+    live_points: Set<(i32, i32)>,  // (block_id, statement_index)
+}
+
+struct BorrowCheckResult {
+    regions: Vec<Region>,
+    borrows: Vec<Borrow>,
+    errors: Vec<BorrowError>,
+}
+
+struct Borrow {
+    region: i32,
+    place: Place,
+    kind: BorrowKind,
+}
+
+enum BorrowKind {
+    Shared,
+    Mutable,
+    Unique,
+}
+
+enum BorrowError {
+    UseAfterMove(Place, Location),
+    MutableBorrowConflict(Place, Location, Location),
+    MutateWhileBorrowed(Place, Location),
+}
+
+fn check_borrows(cfg: &CFG, liveness: &LivenessResult) -> BorrowCheckResult {
+    let mut result = BorrowCheckResult {
+        regions: Vec::new(),
+        borrows: Vec::new(),
+        errors: Vec::new(),
+    };
+    
+    // Infer regions from liveness
+    let regions = infer_regions(cfg, liveness);
+    result.regions = regions;
+    
+    // Collect all borrows
+    for block in &cfg.blocks {
+        for (i, stmt) in block.statements.iter().enumerate() {
+            if let Some(borrow) = extract_borrow(stmt) {
+                result.borrows.push(borrow);
+            }
+        }
+    }
+    
+    // Check for conflicts
+    for i in 0..result.borrows.len() {
+        for j in (i + 1)..result.borrows.len() {
+            if let Some(error) = check_borrow_conflict(&result.borrows[i], &result.borrows[j], &result.regions) {
+                result.errors.push(error);
+            }
+        }
+    }
+    
+    result
+}
+
+fn infer_regions(cfg: &CFG, liveness: &LivenessResult) -> Vec<Region> {
+    let mut regions = Vec::new();
+    let mut region_id = 0;
+    
+    // Create region for each local variable
+    for block in &cfg.blocks {
+        for (i, stmt) in block.statements.iter().enumerate() {
+            match stmt {
+                Statement::Assign(place, _) => {
+                    let local = place.local();
+                    let mut live_points = Set::new();
+                    
+                    // Collect all points where this local is live
+                    for b in &cfg.blocks {
+                        for j in 0..b.statements.len() {
+                            if liveness.is_live_at(local, b.id, j as i32) {
+                                live_points.insert((b.id, j as i32));
+                            }
+                        }
+                    }
+                    
+                    regions.push(Region {
+                        id: region_id,
+                        name: format!("'{}", local),
+                        live_points,
+                    });
+                    region_id += 1;
+                }
+                _ => {}
+            }
+        }
+    }
+    
+    regions
+}
+
+fn extract_borrow(stmt: &Statement) -> Option<Borrow> {
+    match stmt {
+        Statement::Assign(place, rvalue) => {
+            // TODO: Detect borrow operations from rvalue
+            None
+        }
+        _ => None
+    }
+}
+
+fn check_borrow_conflict(borrow1: &Borrow, borrow2: &Borrow, regions: &Vec<Region>) -> Option<BorrowError> {
+    // Check if regions overlap
+    let region1 = &regions[borrow1.region as usize];
+    let region2 = &regions[borrow2.region as usize];
+    
+    let overlap = region1.live_points.intersection(&region2.live_points);
+    if overlap.is_empty() {
+        return None;
+    }
+    
+    // Check for mutable borrow conflicts
+    match (&borrow1.kind, &borrow2.kind) {
+        (BorrowKind::Mutable, _) | (_, BorrowKind::Mutable) => {
+            if borrow1.place == borrow2.place {
+                Some(BorrowError::MutableBorrowConflict(
+                    borrow1.place.clone(),
+                    Location { block: 0, statement: 0 },
+                    Location { block: 0, statement: 1 },
+                ))
+            } else {
+                None
+            }
+        }
+        _ => None
+    }
+}

@@ -1,0 +1,126 @@
+// Control Flow Graph (CFG) for Stage 3
+// Represents program control flow for borrow checking and optimization
+
+struct BasicBlock {
+    id: i32,
+    statements: Vec<Statement>,
+    terminator: Terminator,
+    predecessors: Vec<i32>,
+    successors: Vec<i32>,
+}
+
+enum Terminator {
+    Return(Operand),
+    Goto(i32),
+    If(Operand, i32, i32),
+    Switch(Operand, Vec<(i32, i32)>, i32),
+    Unreachable,
+}
+
+enum Statement {
+    Assign(Place, Rvalue),
+    StorageLive(Local),
+    StorageDead(Local),
+    Nop,
+}
+
+struct CFG {
+    blocks: Vec<BasicBlock>,
+    entry: i32,
+    exit: i32,
+}
+
+impl CFG {
+    fn new() -> CFG {
+        CFG {
+            blocks: Vec::new(),
+            entry: 0,
+            exit: -1,
+        }
+    }
+    
+    fn add_block(&mut self) -> i32 {
+        let id = self.blocks.len() as i32;
+        self.blocks.push(BasicBlock {
+            id,
+            statements: Vec::new(),
+            terminator: Terminator::Unreachable,
+            predecessors: Vec::new(),
+            successors: Vec::new(),
+        });
+        id
+    }
+    
+    fn add_edge(&mut self, from: i32, to: i32) {
+        // Add edge in CFG
+        self.blocks[from as usize].successors.push(to);
+        self.blocks[to as usize].predecessors.push(from);
+    }
+    
+    fn get_block(&self, id: i32) -> &BasicBlock {
+        &self.blocks[id as usize]
+    }
+    
+    fn get_block_mut(&mut self, id: i32) -> &mut BasicBlock {
+        &mut self.blocks[id as usize]
+    }
+}
+
+fn build_cfg(ast: &AST) -> Result<CFG, String> {
+    let mut cfg = CFG::new();
+    
+    // Create entry block
+    cfg.entry = cfg.add_block();
+    
+    // Build CFG from AST
+    for item in &ast.items {
+        match item {
+            Item::Function(func) => {
+                build_function_cfg(&mut cfg, func)?;
+            }
+            _ => {}
+        }
+    }
+    
+    Ok(cfg)
+}
+
+fn build_function_cfg(cfg: &mut CFG, func: &Function) -> Result<(), String> {
+    let entry = cfg.entry;
+    let mut current_block = entry;
+    
+    // Process function body
+    for stmt in &func.body.statements {
+        current_block = build_statement_cfg(cfg, stmt, current_block)?;
+    }
+    
+    // Add exit
+    cfg.exit = cfg.add_block();
+    cfg.add_edge(current_block, cfg.exit);
+    
+    Ok(())
+}
+
+fn build_statement_cfg(cfg: &mut CFG, stmt: &Stmt, current: i32) -> Result<i32, String> {
+    match stmt {
+        Stmt::Let { .. } => {
+            cfg.get_block_mut(current).statements.push(Statement::Assign(Place::Local(0), Rvalue::Use(Operand::Constant(0))));
+            Ok(current)
+        }
+        Stmt::If { condition, then_branch, else_branch } => {
+            let then_block = cfg.add_block();
+            let else_block = cfg.add_block();
+            let merge_block = cfg.add_block();
+            
+            cfg.get_block_mut(current).terminator = Terminator::If(Operand::Constant(0), then_block, else_block);
+            cfg.add_edge(current, then_block);
+            cfg.add_edge(current, else_block);
+            
+            cfg.add_edge(then_block, merge_block);
+            cfg.add_edge(else_block, merge_block);
+            
+            Ok(merge_block)
+        }
+        _ => Ok(current)
+    }
+}

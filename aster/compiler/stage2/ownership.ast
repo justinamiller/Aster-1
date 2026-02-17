@@ -1,0 +1,43 @@
+// Ownership Analysis - Core-0 Compatible Version
+// Simplified for Stage 1 compilation
+
+struct OwnershipContext {
+    var_count: i32,
+    borrow_count: i32,
+    diagnostic_count: i32
+}
+
+fn new_ownership_context() -> OwnershipContext {
+    OwnershipContext {
+        var_count: 0,
+        borrow_count: 0,
+        diagnostic_count: 0
+    }
+}
+
+fn track_move(ctx: OwnershipContext, var_id: i32) -> OwnershipContext {
+    // Simplified: just return unchanged
+    ctx
+}
+
+fn track_borrow(ctx: OwnershipContext, var_id: i32, is_mutable: bool) -> OwnershipContext {
+    OwnershipContext {
+        var_count: ctx.var_count,
+        borrow_count: ctx.borrow_count + 1,
+        diagnostic_count: ctx.diagnostic_count
+    }
+}
+
+fn analyze_ownership(ctx: OwnershipContext, expr_id: i32) -> OwnershipContext {
+    // Simplified: just return unchanged
+    ctx
+}
+
+fn check_conflicts(ctx: OwnershipContext) -> OwnershipContext {
+    // Simplified: just return unchanged
+    ctx
+}
+
+struct Diagnostic {
+    message: String
+}

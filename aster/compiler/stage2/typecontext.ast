@@ -1,0 +1,32 @@
+// Type Context - Core-0 Compatible Version
+// Simplified for Stage 1 compilation
+
+struct TypeId {
+    id: i32
+}
+
+struct TypeContext {
+    type_count: i32,
+    substitution_count: i32
+}
+
+fn new_type_context() -> TypeContext {
+    TypeContext {
+        type_count: 0,
+        substitution_count: 0
+    }
+}
+
+fn fresh_type_var(ctx: TypeContext) -> TypeContext {
+    TypeContext {
+        type_count: ctx.type_count + 1,
+        substitution_count: ctx.substitution_count
+    }
+}
+
+fn add_substitution(ctx: TypeContext, from: TypeId, to: TypeId) -> TypeContext {
+    TypeContext {
+        type_count: ctx.type_count,
+        substitution_count: ctx.substitution_count + 1
+    }
+}

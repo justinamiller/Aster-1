@@ -1,0 +1,29 @@
+// Name Resolver - Core-0 Compatible Version
+// Simplified for Stage 1 compilation
+
+struct NameResolver {
+    diagnostic_count: i32,
+    current_function_id: i32  // -1 means none
+}
+
+fn new_name_resolver() -> NameResolver {
+    NameResolver {
+        diagnostic_count: 0,
+        current_function_id: -1
+    }
+}
+
+fn resolve_names(resolver: NameResolver, table: SymbolTable) -> NameResolver {
+    // Simplified: just return unchanged
+    resolver
+}
+
+struct SymbolTable {
+    symbol_count: i32,
+    scope_count: i32,
+    current_scope: i32
+}
+
+struct Diagnostic {
+    message: String
+}

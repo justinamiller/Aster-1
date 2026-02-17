@@ -1,0 +1,21 @@
+// Unification - Core-0 Compatible Version
+// Simplified for Stage 1 compilation
+
+struct TypeId {
+    id: i32
+}
+
+fn unify(t1: TypeId, t2: TypeId) -> bool {
+    // Simplified: always returns true
+    true
+}
+
+fn occurs_check(var: TypeId, ty: TypeId) -> bool {
+    // Simplified: always returns false (no cycle)
+    false
+}
+
+fn substitute(from: TypeId, to: TypeId, in_type: TypeId) -> TypeId {
+    // Simplified: just return in_type unchanged
+    in_type
+}

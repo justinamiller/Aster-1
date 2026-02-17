@@ -1,0 +1,283 @@
+// Optimization Passes for MIR
+// Dead code elimination, CSE, inlining, SROA, constant folding
+
+fn optimize_mir(mir: &mut MirProgram) -> Result<(), String> {
+    // Run optimization passes in sequence
+    for func in &mut mir.functions {
+        // Pass 1: Constant folding
+        constant_fold(func)?;
+        
+        // Pass 2: Dead code elimination
+        eliminate_dead_code(func)?;
+        
+        // Pass 3: Common subexpression elimination
+        eliminate_common_subexpressions(func)?;
+        
+        // Pass 4: Inline small functions
+        // (Would need whole program analysis)
+        
+        // Pass 5: Scalar replacement of aggregates
+        scalar_replacement(func)?;
+    }
+    
+    Ok(())
+}
+
+// Dead Code Elimination (DCE)
+fn eliminate_dead_code(func: &mut MirFunction) -> Result<(), String> {
+    let mut changed = true;
+    
+    while changed {
+        changed = false;
+        
+        // Mark live statements
+        let mut live = mark_live_statements(func);
+        
+        // Remove dead statements
+        for block in &mut func.blocks {
+            let old_len = block.statements.len();
+            block.statements.retain(|stmt| {
+                let id = statement_id(stmt);
+                live.contains(&id)
+            });
+            
+            if block.statements.len() != old_len {
+                changed = true;
+            }
+        }
+    }
+    
+    Ok(())
+}
+
+fn mark_live_statements(func: &MirFunction) -> Set<i32> {
+    let mut live = Set::new();
+    let mut worklist = Vec::new();
+    
+    // Start with all terminators and side-effecting statements
+    for block in &func.blocks {
+        // Terminators are always live
+        live.insert(block.id * 1000 + block.statements.len() as i32);
+        
+        for (i, stmt) in block.statements.iter().enumerate() {
+            if has_side_effects(stmt) {
+                let id = block.id * 1000 + i as i32;
+                live.insert(id);
+                worklist.push(id);
+            }
+        }
+    }
+    
+    // Propagate liveness backwards
+    while let Some(id) = worklist.pop() {
+        // Find dependencies and mark them live
+        // (Simplified - would need proper data flow)
+    }
+    
+    live
+}
+
+fn has_side_effects(stmt: &MirStatement) -> bool {
+    match stmt {
+        MirStatement::Assign(_, _) => false,  // Pure assignment
+        MirStatement::StorageLive(_) | MirStatement::StorageDead(_) => true,
+        _ => true,
+    }
+}
+
+// Common Subexpression Elimination (CSE)
+fn eliminate_common_subexpressions(func: &mut MirFunction) -> Result<(), String> {
+    let mut expr_map: HashMap<String, Local> = HashMap::new();
+    
+    for block in &mut func.blocks {
+        for stmt in &mut block.statements {
+            if let MirStatement::Assign(place, rvalue) = stmt {
+                let expr_key = rvalue_to_key(rvalue);
+                
+                if let Some(&existing_local) = expr_map.get(&expr_key) {
+                    // Replace with copy of existing result
+                    *rvalue = Rvalue::Use(Operand::Copy(Place {
+                        local: existing_local,
+                        projection: vec![],
+                    }));
+                } else {
+                    // Record this expression
+                    expr_map.insert(expr_key, place.local);
+                }
+            }
+        }
+    }
+    
+    Ok(())
+}
+
+fn rvalue_to_key(rvalue: &Rvalue) -> String {
+    match rvalue {
+        Rvalue::Use(op) => format!("use:{}", operand_to_string(op)),
+        Rvalue::BinaryOp(op, left, right) => {
+            format!("binop:{}:{}:{}", binop_to_string(op), operand_to_string(left), operand_to_string(right))
+        }
+        Rvalue::UnaryOp(op, operand) => {
+            format!("unop:{}:{}", unop_to_string(op), operand_to_string(operand))
+        }
+        _ => format!("complex"),
+    }
+}
+
+// Scalar Replacement of Aggregates (SROA)
+fn scalar_replacement(func: &mut MirFunction) -> Result<(), String> {
+    // Find aggregates that can be replaced with scalars
+    let mut replacements: HashMap<Local, Vec<Local>> = HashMap::new();
+    
+    for (i, local_decl) in func.locals.iter().enumerate() {
+        if can_be_scalarized(&local_decl.ty) {
+            let scalars = create_scalar_replacements(&local_decl.ty, func);
+            replacements.insert(i as Local, scalars);
+        }
+    }
+    
+    // Rewrite uses of aggregates
+    for block in &mut func.blocks {
+        for stmt in &mut block.statements {
+            match stmt {
+                MirStatement::Assign(place, rvalue) => {
+                    // Replace aggregate accesses with scalar accesses
+                    if let Some(scalars) = replacements.get(&place.local) {
+                        // Transform assignment to work on scalars
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    
+    Ok(())
+}
+
+fn can_be_scalarized(ty: &Type) -> bool {
+    match ty {
+        Type::Struct(_) => true,
+        Type::Tuple(_) => true,
+        _ => false,
+    }
+}
+
+fn create_scalar_replacements(ty: &Type, func: &mut MirFunction) -> Vec<Local> {
+    let mut scalars = Vec::new();
+    
+    match ty {
+        Type::Struct(fields) => {
+            for field in fields {
+                let local = func.locals.len() as Local;
+                func.locals.push(LocalDecl {
+                    local,
+                    ty: field.ty.clone(),
+                    mutable: false,
+                });
+                scalars.push(local);
+            }
+        }
+        _ => {}
+    }
+    
+    scalars
+}
+
+// Constant Folding
+fn constant_fold(func: &mut MirFunction) -> Result<(), String> {
+    for block in &mut func.blocks {
+        for stmt in &mut block.statements {
+            if let MirStatement::Assign(place, rvalue) = stmt {
+                if let Some(const_val) = try_fold_constant(rvalue) {
+                    *rvalue = Rvalue::Use(Operand::Constant(const_val));
+                }
+            }
+        }
+    }
+    
+    Ok(())
+}
+
+fn try_fold_constant(rvalue: &Rvalue) -> Option<Constant> {
+    match rvalue {
+        Rvalue::BinaryOp(op, Operand::Constant(c1), Operand::Constant(c2)) => {
+            eval_binop_const(op, c1, c2)
+        }
+        Rvalue::UnaryOp(op, Operand::Constant(c)) => {
+            eval_unop_const(op, c)
+        }
+        _ => None,
+    }
+}
+
+fn eval_binop_const(op: &BinOp, c1: &Constant, c2: &Constant) -> Option<Constant> {
+    match (op, &c1.value, &c2.value) {
+        (BinOp::Add, ConstValue::Int(a), ConstValue::Int(b)) => {
+            Some(Constant {
+                value: ConstValue::Int(a + b),
+                ty: c1.ty.clone(),
+            })
+        }
+        (BinOp::Sub, ConstValue::Int(a), ConstValue::Int(b)) => {
+            Some(Constant {
+                value: ConstValue::Int(a - b),
+                ty: c1.ty.clone(),
+            })
+        }
+        (BinOp::Mul, ConstValue::Int(a), ConstValue::Int(b)) => {
+            Some(Constant {
+                value: ConstValue::Int(a * b),
+                ty: c1.ty.clone(),
+            })
+        }
+        _ => None,
+    }
+}
+
+fn eval_unop_const(op: &UnOp, c: &Constant) -> Option<Constant> {
+    match (op, &c.value) {
+        (UnOp::Neg, ConstValue::Int(a)) => {
+            Some(Constant {
+                value: ConstValue::Int(-a),
+                ty: c.ty.clone(),
+            })
+        }
+        (UnOp::Not, ConstValue::Bool(b)) => {
+            Some(Constant {
+                value: ConstValue::Bool(!b),
+                ty: c.ty.clone(),
+            })
+        }
+        _ => None,
+    }
+}
+
+// Helper functions
+fn statement_id(stmt: &MirStatement) -> i32 {
+    // Would need proper tracking
+    0
+}
+
+fn operand_to_string(op: &Operand) -> String {
+    match op {
+        Operand::Copy(place) => format!("copy_{}", place.local),
+        Operand::Move(place) => format!("move_{}", place.local),
+        Operand::Constant(c) => format!("const"),
+    }
+}
+
+fn binop_to_string(op: &BinOp) -> &str {
+    match op {
+        BinOp::Add => "add",
+        BinOp::Sub => "sub",
+        BinOp::Mul => "mul",
+        _ => "op",
+    }
+}
+
+fn unop_to_string(op: &UnOp) -> &str {
+    match op {
+        UnOp::Neg => "neg",
+        UnOp::Not => "not",
+    }
+}

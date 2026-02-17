@@ -1,0 +1,37 @@
+// File I/O operations for Stage 1 (Core-0)
+// This module provides basic file reading and writing capabilities
+
+// Note: In Core-0, we rely on extern C functions for actual I/O
+// The C# runtime provides these functions during bootstrap
+
+/// Read entire file contents as a String
+/// Returns empty string on error
+fn read_file(path: String) -> String {
+    // Call extern function provided by runtime
+    extern_read_file(path)
+}
+
+/// Write string contents to a file
+/// Returns true on success, false on failure
+fn write_file(path: String, content: String) -> bool {
+    extern_write_file(path, content)
+}
+
+/// Check if a file exists
+fn file_exists(path: String) -> bool {
+    extern_file_exists(path)
+}
+
+// ============================================================================
+// EXTERN DECLARATIONS
+// These are provided by the Stage 0 runtime during bootstrap
+// ============================================================================
+
+/// External function to read file (provided by runtime)
+extern "C" fn extern_read_file(path: String) -> String;
+
+/// External function to write file (provided by runtime)
+extern "C" fn extern_write_file(path: String, content: String) -> bool;
+
+/// External function to check file existence (provided by runtime)
+extern "C" fn extern_file_exists(path: String) -> bool;
