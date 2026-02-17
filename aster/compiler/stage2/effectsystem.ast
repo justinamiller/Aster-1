@@ -1,7 +1,6 @@
 // Effect System - Effect Tracking Component
 // Part of Aster Stage 2 (Core-1 implementation)
-//
-// Infers and checks effects (IO, exceptions, non-determinism, etc.)
+// Simplified for Core-0 compatibility (no Vec, Option, Result)
 
 // ============================================================================
 // EFFECT STRUCTURES
@@ -13,14 +12,13 @@ enum Effect {
     IO,            // Input/output
     Exception,     // May throw
     NonDet,        // Non-deterministic
-    Async,         // Asynchronous
-    Combined(Vec<Effect>)  // Multiple effects
+    Async          // Asynchronous
 }
 
-/// Effect context
+/// Effect context (simplified for Core-0)
 struct EffectContext {
-    function_effects: Vec<FunctionEffect>,
-    diagnostics: Vec<Diagnostic>
+    function_count: i32,
+    diagnostic_count: i32
 }
 
 /// Effect annotation for a function
@@ -35,12 +33,9 @@ struct FunctionEffect {
 
 /// Create new effect context
 fn new_effect_context() -> EffectContext {
-    let empty_func: Vec<FunctionEffect> = Vec::new();
-    let empty_diag: Vec<Diagnostic> = Vec::new();
-    
     EffectContext {
-        function_effects: empty_func,
-        diagnostics: empty_diag
+        function_count: 0,
+        diagnostic_count: 0
     }
 }
 
@@ -59,9 +54,10 @@ fn check_effects(ctx: EffectContext) -> EffectContext {
     ctx
 }
 
-/// Combine multiple effects
+/// Combine multiple effects (simplified)
 fn combine_effects(e1: Effect, e2: Effect) -> Effect {
-    Effect::Combined(Vec::new())  // Placeholder
+    // For Core-0 compatibility, just return first effect
+    e1
 }
 
 struct Function { name: String }

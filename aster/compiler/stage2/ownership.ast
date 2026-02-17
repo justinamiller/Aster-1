@@ -1,106 +1,43 @@
-// Ownership Analysis - Ownership Tracking Component
-// Part of Aster Stage 2 (Core-1 implementation)
-//
-// Tracks moves, borrows, and ownership transfer.
-// Detects use-after-move and borrow conflicts.
+// Ownership Analysis - Core-0 Compatible Version
+// Simplified for Stage 1 compilation
 
-// ============================================================================
-// OWNERSHIP STRUCTURES
-// ============================================================================
-
-/// Variable state
-enum VarState {
-    Uninitialized,
-    Initialized,
-    Moved,
-    Borrowed
-}
-
-/// Borrow kind
-enum BorrowKind {
-    Shared,      // &T
-    Mutable      // &mut T
-}
-
-/// Borrow record
-struct Borrow {
-    var_name: String,
-    kind: BorrowKind,
-    span: Span
-}
-
-/// Ownership context
 struct OwnershipContext {
-    var_states: Vec<VarStateEntry>,
-    active_borrows: Vec<Borrow>,
-    diagnostics: Vec<Diagnostic>
+    var_count: i32,
+    borrow_count: i32,
+    diagnostic_count: i32
 }
 
-/// Variable state entry
-struct VarStateEntry {
-    var_name: String,
-    state: VarState
-}
-
-// ============================================================================
-// OWNERSHIP OPERATIONS
-// ============================================================================
-
-/// Create new ownership context
 fn new_ownership_context() -> OwnershipContext {
-    let empty_states: Vec<VarStateEntry> = Vec::new();
-    let empty_borrows: Vec<Borrow> = Vec::new();
-    let empty_diag: Vec<Diagnostic> = Vec::new();
-    
     OwnershipContext {
-        var_states: empty_states,
-        active_borrows: empty_borrows,
-        diagnostics: empty_diag
+        var_count: 0,
+        borrow_count: 0,
+        diagnostic_count: 0
     }
 }
 
-/// Initialize a variable
-fn initialize_var(ctx: OwnershipContext, var_name: String) -> OwnershipContext {
-    let entry = VarStateEntry {
-        var_name: var_name,
-        state: VarState::Initialized
-    };
-    ctx.var_states.push(entry);
+fn track_move(ctx: OwnershipContext, var_id: i32) -> OwnershipContext {
+    // Simplified: just return unchanged
     ctx
 }
 
-/// Track a move
-fn track_move(ctx: OwnershipContext, var_name: String, span: Span) -> OwnershipContext {
-    // Update variable state to Moved
-    // Check if already moved (error)
+fn track_borrow(ctx: OwnershipContext, var_id: i32, is_mutable: bool) -> OwnershipContext {
+    OwnershipContext {
+        var_count: ctx.var_count,
+        borrow_count: ctx.borrow_count + 1,
+        diagnostic_count: ctx.diagnostic_count
+    }
+}
+
+fn analyze_ownership(ctx: OwnershipContext, expr_id: i32) -> OwnershipContext {
+    // Simplified: just return unchanged
     ctx
 }
 
-/// Track a borrow
-fn track_borrow(ctx: OwnershipContext, var_name: String, kind: BorrowKind, span: Span) -> OwnershipContext {
-    // Add borrow to active borrows
-    // Check for conflicting borrows
-    let borrow = Borrow {
-        var_name: var_name,
-        kind: kind,
-        span: span
-    };
-    ctx.active_borrows.push(borrow);
+fn check_conflicts(ctx: OwnershipContext) -> OwnershipContext {
+    // Simplified: just return unchanged
     ctx
 }
 
-/// Check variable usage
-fn check_usage(ctx: OwnershipContext, var_name: String, span: Span) -> OwnershipContext {
-    // Check if variable is moved (use-after-move error)
-    // Check if borrowed correctly
-    ctx
+struct Diagnostic {
+    message: String
 }
-
-/// End a borrow scope
-fn end_borrow(ctx: OwnershipContext, var_name: String) -> OwnershipContext {
-    // Remove borrow from active borrows
-    ctx
-}
-
-struct Span { line: i32 }
-struct Diagnostic { message: String }

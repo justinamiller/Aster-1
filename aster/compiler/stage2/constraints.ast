@@ -1,150 +1,35 @@
-// Type Constraints - Type Inference Component
-// Part of Aster Stage 2 (Core-1 implementation)
-//
-// Manages type constraints for Hindley-Milner type inference.
-// Constraints are collected during type checking and solved via unification.
+// Constraints - Core-0 Compatible Version
+// Simplified for Stage 1 compilation
 
-// ============================================================================
-// CONSTRAINT STRUCTURES
-// ============================================================================
-
-/// Type constraint: T1 = T2
 struct TypeConstraint {
-    left: TypeId,
-    right: TypeId,
-    span: Span,
-    reason: String
+    left: i32,
+    right: i32
 }
 
-/// Constraint set
-struct ConstraintSet {
-    constraints: Vec<TypeConstraint>
-}
-
-/// Context for constraint generation
 struct ConstraintContext {
-    type_ctx: TypeContext,
-    constraints: ConstraintSet,
-    diagnostics: Vec<Diagnostic>
+    constraint_count: i32,
+    diagnostic_count: i32
 }
 
-// ============================================================================
-// CONSTRAINT OPERATIONS
-// ============================================================================
-
-/// Create a new empty constraint set
-fn new_constraint_set() -> ConstraintSet {
-    let empty: Vec<TypeConstraint> = Vec::new();
-    ConstraintSet { constraints: empty }
-}
-
-/// Create a new constraint context
-fn new_constraint_context(type_ctx: TypeContext) -> ConstraintContext {
-    let empty_diag: Vec<Diagnostic> = Vec::new();
-    
+fn new_constraint_context() -> ConstraintContext {
     ConstraintContext {
-        type_ctx: type_ctx,
-        constraints: new_constraint_set(),
-        diagnostics: empty_diag
+        constraint_count: 0,
+        diagnostic_count: 0
     }
 }
 
-/// Add a constraint: T1 = T2
-fn add_constraint(ctx: ConstraintContext, left: TypeId, right: TypeId, span: Span, reason: String) -> ConstraintContext {
-    let constraint = TypeConstraint {
-        left: left,
-        right: right,
-        span: span,
-        reason: reason
-    };
-    
-    ctx.constraints.constraints.push(constraint);
+fn add_constraint(ctx: ConstraintContext, left: i32, right: i32) -> ConstraintContext {
+    ConstraintContext {
+        constraint_count: ctx.constraint_count + 1,
+        diagnostic_count: ctx.diagnostic_count
+    }
+}
+
+fn generate_constraints(ctx: ConstraintContext, expr_id: i32) -> ConstraintContext {
+    // Simplified: just return unchanged
     ctx
-}
-
-/// Generate constraints from an expression
-fn generate_constraints_expr(ctx: ConstraintContext, expr: Expr) -> (ConstraintContext, TypeId) {
-    // Match on expression kind
-    // Generate appropriate constraints
-    // Return updated context and expression's type
-    
-    // For now, return a fresh type variable
-    let (type_ctx, ty) = fresh_type_var(ctx.type_ctx);
-    
-    let new_ctx = ConstraintContext {
-        type_ctx: type_ctx,
-        constraints: ctx.constraints,
-        diagnostics: ctx.diagnostics
-    };
-    
-    (new_ctx, ty)
-}
-
-/// Generate constraints from a statement
-fn generate_constraints_stmt(ctx: ConstraintContext, stmt: Stmt) -> ConstraintContext {
-    // Match on statement kind
-    // Generate appropriate constraints
-    ctx
-}
-
-/// Generate constraints from a function
-fn generate_constraints_function(ctx: ConstraintContext, func: Function) -> ConstraintContext {
-    // Generate constraints for parameters
-    // Generate constraints for body
-    // Unify return type
-    ctx
-}
-
-// ============================================================================
-// PLACEHOLDERS FOR AST TYPES
-// ============================================================================
-
-struct Expr {
-    kind: ExprKind
-}
-
-enum ExprKind {
-    Literal,
-    Variable,
-    BinaryOp,
-    FunctionCall
-}
-
-struct Stmt {
-    kind: StmtKind
-}
-
-enum StmtKind {
-    Let,
-    Expression,
-    Return
-}
-
-struct Function {
-    name: String,
-    params: Vec<Parameter>,
-    return_type: Option<TypeId>,
-    body: Vec<Stmt>
-}
-
-struct Parameter {
-    name: String,
-    ty: Option<TypeId>
 }
 
 struct Diagnostic {
-    level: DiagnosticLevel,
-    message: String,
-    span: Span
-}
-
-enum DiagnosticLevel {
-    Error,
-    Warning
-}
-
-struct Span {
-    file: String,
-    line: i32,
-    column: i32
+    message: String
 }

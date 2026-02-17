@@ -1,199 +1,32 @@
-// Type Context - Type Inference Component
-// Part of Aster Stage 2 (Core-1 implementation)
-//
-// Manages type variables, type schemes, and type substitutions for
-// Hindley-Milner type inference.
+// Type Context - Core-0 Compatible Version
+// Simplified for Stage 1 compilation
 
-// ============================================================================
-// TYPE REPRESENTATIONS
-// ============================================================================
-
-/// Type identifier
 struct TypeId {
     id: i32
 }
 
-/// Type variable (unknown type to be inferred)
-struct TypeVar {
-    id: i32,
-    name: String
-}
-
-/// Concrete type representation
-enum Type {
-    /// Unknown type (not yet inferred)
-    Unknown,
-    /// Type variable (for inference)
-    Var(TypeVar),
-    /// Primitive types
-    Int32,
-    Int64,
-    Float32,
-    Float64,
-    Bool,
-    String,
-    Unit,
-    /// Function type: (params) -> return
-    Function(Vec<TypeId>, TypeId),
-    /// Generic type with parameters
-    Generic(String, Vec<TypeId>),
-    /// Struct type
-    Struct(String),
-    /// Enum type
-    Enum(String),
-    /// Trait type
-    Trait(String)
-}
-
-/// Type scheme for polymorphic types (forall a. T)
-struct TypeScheme {
-    type_vars: Vec<TypeVar>,
-    ty: TypeId
-}
-
-/// Type substitution (mapping from type var to type)
-struct Substitution {
-    var_id: i32,
-    ty: TypeId
-}
-
-/// Type context managing all types
 struct TypeContext {
-    types: Vec<Type>,
-    type_schemes: Vec<TypeScheme>,
-    substitutions: Vec<Substitution>,
-    next_type_id: i32,
-    next_type_var_id: i32
+    type_count: i32,
+    substitution_count: i32
 }
 
-// ============================================================================
-// TYPE CONTEXT OPERATIONS
-// ============================================================================
-
-/// Create a new empty type context
 fn new_type_context() -> TypeContext {
-    let empty_types: Vec<Type> = Vec::new();
-    let empty_schemes: Vec<TypeScheme> = Vec::new();
-    let empty_subs: Vec<Substitution> = Vec::new();
-    
     TypeContext {
-        types: empty_types,
-        type_schemes: empty_schemes,
-        substitutions: empty_subs,
-        next_type_id: 1,
-        next_type_var_id: 1
+        type_count: 0,
+        substitution_count: 0
     }
 }
 
-/// Create a fresh type variable
-fn fresh_type_var(ctx: TypeContext) -> (TypeContext, TypeId) {
-    let var_id = ctx.next_type_var_id;
-    let var_name = "t" + var_id;  // Conceptual string concatenation
-    
-    let type_var = TypeVar {
-        id: var_id,
-        name: var_name
-    };
-    
-    let type_id = ctx.next_type_id;
-    let ty = Type::Var(type_var);
-    
-    ctx.types.push(ty);
-    
-    let new_ctx = TypeContext {
-        types: ctx.types,
-        type_schemes: ctx.type_schemes,
-        substitutions: ctx.substitutions,
-        next_type_id: type_id + 1,
-        next_type_var_id: var_id + 1
-    };
-    
-    (new_ctx, TypeId { id: type_id })
-}
-
-/// Add a concrete type to the context
-fn add_type(ctx: TypeContext, ty: Type) -> (TypeContext, TypeId) {
-    let type_id = ctx.next_type_id;
-    ctx.types.push(ty);
-    
-    let new_ctx = TypeContext {
-        types: ctx.types,
-        type_schemes: ctx.type_schemes,
-        substitutions: ctx.substitutions,
-        next_type_id: type_id + 1,
-        next_type_var_id: ctx.next_type_var_id
-    };
-    
-    (new_ctx, TypeId { id: type_id })
-}
-
-/// Get a type by ID
-fn get_type(ctx: TypeContext, type_id: TypeId) -> Type {
-    // TODO: Index into types vector
-    Type::Unknown
-}
-
-/// Apply a substitution to a type
-fn apply_substitution(ctx: TypeContext, type_id: TypeId) -> TypeId {
-    // Follow substitution chain
-    // TODO: Implement substitution application
-    type_id
-}
-
-/// Add a substitution (unify two types)
-fn add_substitution(ctx: TypeContext, var_id: i32, ty: TypeId) -> TypeContext {
-    let sub = Substitution {
-        var_id: var_id,
-        ty: ty
-    };
-    
-    ctx.substitutions.push(sub);
-    
-    ctx
-}
-
-/// Instantiate a type scheme (replace bound vars with fresh vars)
-fn instantiate(ctx: TypeContext, scheme: TypeScheme) -> (TypeContext, TypeId) {
-    // Create fresh type variables for each bound variable
-    // Substitute in the type
-    // TODO: Implement instantiation
-    (ctx, scheme.ty)
-}
-
-/// Generalize a type (create a type scheme)
-fn generalize(ctx: TypeContext, type_id: TypeId) -> TypeScheme {
-    let empty_vars: Vec<TypeVar> = Vec::new();
-    TypeScheme {
-        type_vars: empty_vars,
-        ty: type_id
+fn fresh_type_var(ctx: TypeContext) -> TypeContext {
+    TypeContext {
+        type_count: ctx.type_count + 1,
+        substitution_count: ctx.substitution_count
     }
 }
 
-// ============================================================================
-// TYPE CONSTRUCTORS
-// ============================================================================
-
-/// Create an Int32 type
-fn type_int32(ctx: TypeContext) -> (TypeContext, TypeId) {
-    add_type(ctx, Type::Int32)
-}
-
-/// Create a Bool type
-fn type_bool(ctx: TypeContext) -> (TypeContext, TypeId) {
-    add_type(ctx, Type::Bool)
-}
-
-/// Create a String type
-fn type_string(ctx: TypeContext) -> (TypeContext, TypeId) {
-    add_type(ctx, Type::String)
-}
-
-/// Create a Unit type
-fn type_unit(ctx: TypeContext) -> (TypeContext, TypeId) {
-    add_type(ctx, Type::Unit)
-}
-
-/// Create a function type
-fn type_function(ctx: TypeContext, params: Vec<TypeId>, ret: TypeId) -> (TypeContext, TypeId) {
-    add_type(ctx, Type::Function(params, ret))
+fn add_substitution(ctx: TypeContext, from: TypeId, to: TypeId) -> TypeContext {
+    TypeContext {
+        type_count: ctx.type_count,
+        substitution_count: ctx.substitution_count + 1
+    }
 }

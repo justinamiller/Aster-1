@@ -1,70 +1,22 @@
-// Type Inference - Type Inference Component
-// Part of Aster Stage 2 (Core-1 implementation)
-//
-// Main type inference engine using Hindley-Milner algorithm.
-// Generates constraints and solves them via unification.
+// Type Inference - Core-0 Compatible Version
+// Simplified for Stage 1 compilation
 
-// ============================================================================
-// TYPE INFERENCE ENGINE
-// ============================================================================
-
-/// Type inference context
-struct TypeInferenceContext {
-    type_ctx: TypeContext,
-    symbol_table: SymbolTable,
-    constraint_ctx: ConstraintContext,
-    diagnostics: Vec<Diagnostic>
+struct TypeContext {
+    type_count: i32,
+    substitution_count: i32
 }
 
-/// Create new type inference context
-fn new_type_inference_context(symbol_table: SymbolTable) -> TypeInferenceContext {
-    let type_ctx = new_type_context();
-    let constraint_ctx = new_constraint_context(type_ctx);
-    let empty_diag: Vec<Diagnostic> = Vec::new();
-    
-    TypeInferenceContext {
-        type_ctx: type_ctx,
-        symbol_table: symbol_table,
-        constraint_ctx: constraint_ctx,
-        diagnostics: empty_diag
-    }
-}
-
-/// Infer types for an entire program
-fn infer_types(ctx: TypeInferenceContext, ast: AstNode) -> TypeInferenceContext {
-    // Generate constraints from AST
-    // Solve constraints via unification
-    // Update symbol table with inferred types
+fn infer_types(ctx: TypeContext, expr_id: i32) -> TypeContext {
+    // Simplified: just return unchanged
     ctx
 }
 
-/// Infer type of an expression
-fn infer_expr(ctx: TypeInferenceContext, expr: Expr) -> (TypeInferenceContext, TypeId) {
-    let (constraint_ctx, ty) = generate_constraints_expr(ctx.constraint_ctx, expr);
-    
-    let new_ctx = TypeInferenceContext {
-        type_ctx: ctx.type_ctx,
-        symbol_table: ctx.symbol_table,
-        constraint_ctx: constraint_ctx,
-        diagnostics: ctx.diagnostics
-    };
-    
-    (new_ctx, ty)
+fn solve_constraints(ctx: TypeContext) -> TypeContext {
+    // Simplified: just return unchanged
+    ctx
 }
 
-/// Infer type of a function
-fn infer_function(ctx: TypeInferenceContext, func: Function) -> TypeInferenceContext {
-    let constraint_ctx = generate_constraints_function(ctx.constraint_ctx, func);
-    
-    TypeInferenceContext {
-        type_ctx: ctx.type_ctx,
-        symbol_table: ctx.symbol_table,
-        constraint_ctx: constraint_ctx,
-        diagnostics: ctx.diagnostics
-    }
-}
-
-/// Check if type inference succeeded
-fn has_type_errors(ctx: TypeInferenceContext) -> bool {
-    false  // TODO: Check diagnostics
+fn apply_substitutions(ctx: TypeContext) -> TypeContext {
+    // Simplified: just return unchanged
+    ctx
 }

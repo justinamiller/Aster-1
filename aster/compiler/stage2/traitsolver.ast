@@ -1,111 +1,39 @@
-// Trait Solver - Trait Resolution Component
-// Part of Aster Stage 2 (Core-1 implementation)
-//
-// Resolves trait bounds, checks impl coverage, and detects cycles.
+// Trait Solver - Core-0 Compatible Version
+// Simplified for Stage 1 compilation
 
-// ============================================================================
-// TRAIT STRUCTURES
-// ============================================================================
-
-/// Trait definition
 struct TraitDef {
     name: String,
-    type_params: Vec<String>,
-    methods: Vec<TraitMethod>
+    trait_id: i32
 }
 
-/// Trait method signature
-struct TraitMethod {
-    name: String,
-    params: Vec<TypeId>,
-    return_type: TypeId
+struct TraitContext {
+    trait_count: i32,
+    impl_count: i32,
+    obligation_count: i32
 }
 
-/// Trait implementation
-struct TraitImpl {
-    trait_name: String,
-    for_type: TypeId,
-    methods: Vec<ImplMethod>
-}
-
-/// Implementation of a trait method
-struct ImplMethod {
-    name: String,
-    body: Vec<Stmt>  // Placeholder
-}
-
-/// Trait obligation (T: Trait)
-struct TraitObligation {
-    ty: TypeId,
-    trait_name: String,
-    span: Span
-}
-
-/// Trait solver context
-struct TraitSolverContext {
-    traits: Vec<TraitDef>,
-    impls: Vec<TraitImpl>,
-    obligations: Vec<TraitObligation>,
-    diagnostics: Vec<Diagnostic>
-}
-
-// ============================================================================
-// TRAIT SOLVER OPERATIONS
-// ============================================================================
-
-/// Create new trait solver context
-fn new_trait_solver() -> TraitSolverContext {
-    let empty_traits: Vec<TraitDef> = Vec::new();
-    let empty_impls: Vec<TraitImpl> = Vec::new();
-    let empty_oblig: Vec<TraitObligation> = Vec::new();
-    let empty_diag: Vec<Diagnostic> = Vec::new();
-    
-    TraitSolverContext {
-        traits: empty_traits,
-        impls: empty_impls,
-        obligations: empty_oblig,
-        diagnostics: empty_diag
+fn new_trait_context() -> TraitContext {
+    TraitContext {
+        trait_count: 0,
+        impl_count: 0,
+        obligation_count: 0
     }
 }
 
-/// Register a trait definition
-fn register_trait(ctx: TraitSolverContext, trait_def: TraitDef) -> TraitSolverContext {
-    ctx.traits.push(trait_def);
+fn add_trait(ctx: TraitContext, name: String) -> TraitContext {
+    TraitContext {
+        trait_count: ctx.trait_count + 1,
+        impl_count: ctx.impl_count,
+        obligation_count: ctx.obligation_count
+    }
+}
+
+fn resolve_traits(ctx: TraitContext) -> TraitContext {
+    // Simplified: just return unchanged
     ctx
 }
 
-/// Register a trait implementation
-fn register_impl(ctx: TraitSolverContext, impl_def: TraitImpl) -> TraitSolverContext {
-    ctx.impls.push(impl_def);
-    ctx
+fn check_trait_bound(ctx: TraitContext, type_id: i32, trait_id: i32) -> bool {
+    // Simplified: always returns true
+    true
 }
-
-/// Add a trait obligation
-fn add_obligation(ctx: TraitSolverContext, obligation: TraitObligation) -> TraitSolverContext {
-    ctx.obligations.push(obligation);
-    ctx
-}
-
-/// Resolve all trait obligations
-fn resolve_obligations(ctx: TraitSolverContext) -> TraitSolverContext {
-    // For each obligation, check if there's a matching impl
-    // Report errors for unsatisfied obligations
-    // Detect cycles
-    ctx
-}
-
-/// Check if a type satisfies a trait bound
-fn satisfies_trait(ctx: TraitSolverContext, ty: TypeId, trait_name: String) -> bool {
-    // Search for impl of trait_name for ty
-    false  // Placeholder
-}
-
-/// Detect cycles in trait resolution
-fn detect_cycles(ctx: TraitSolverContext) -> bool {
-    // Check for circular trait bounds
-    false  // Placeholder
-}
-
-struct Stmt { kind: i32 }
-struct Span { line: i32 }
-struct Diagnostic { message: String }

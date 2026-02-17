@@ -1,340 +1,66 @@
-// Main - Entry point for the Aster Stage 2 compiler
-// Part of Aster Stage 2 (Core-1 implementation)
-//
-// Stage 2 extends Stage 1 with type inference, trait resolution,
-// effect system, and basic ownership analysis.
-//
-// Language Subset: Core-1
-// - Uses: functions, traits, generics, effects, ownership
-// - Extends Core-0 with type system and semantic analysis
+// Stage 2 Main - Core-0 Compatible Version
+// Simplified for Stage 1 compilation
 
-// ============================================================================
-// STAGE 2 COMPILATION PIPELINE
-// ============================================================================
-//
-// This implementation integrates all 6 phases:
-// 1. Name Resolution (symboltable.ast, nameresolver.ast)
-// 2. Type Inference (typecontext.ast, constraints.ast, unify.ast, typeinfer.ast)
-// 3. Trait Solver (traitsolver.ast)
-// 4. Effect System (effectsystem.ast)
-// 5. Ownership Analysis (ownership.ast)
-// 6. Integration (this file)
-
-// ============================================================================
-// IMPORTS (Conceptual - handled by compiler)
-// ============================================================================
-// From symboltable.ast: SymbolTable, Symbol, Scope, etc.
-// From nameresolver.ast: NameResolutionContext, resolve_names
-// From typecontext.ast: TypeContext, Type, TypeScheme
-// From typeinfer.ast: TypeInferenceContext, infer_types
-// From traitsolver.ast: TraitSolverContext, resolve_obligations
-// From effectsystem.ast: EffectContext, infer_function_effects
-// From ownership.ast: OwnershipContext, track_move, track_borrow
-
-// ============================================================================
-// STAGE 2 COMPILER CONTEXT
-// ============================================================================
-
-/// Complete compiler context for Stage 2
-struct Stage2Context {
-    // Phase 1: Name Resolution
-    name_ctx: NameResolutionContext,
-    
-    // Phase 2: Type Inference
-    type_ctx: TypeInferenceContext,
-    
-    // Phase 3: Trait Resolution
-    trait_ctx: TraitSolverContext,
-    
-    // Phase 4: Effect System
-    effect_ctx: EffectContext,
-    
-    // Phase 5: Ownership Analysis
-    ownership_ctx: OwnershipContext,
-    
-    // Overall compilation state
-    phase: CompilationPhase,
-    diagnostics: Vec<Diagnostic>,
-    success: bool
+struct CompilationContext {
+    diagnostic_count: i32,
+    phase: i32  // 0=Init, 1=Parse, 2=NameRes, 3=TypeInfer, 4=TraitRes, 5=Effects, 6=Ownership, 7=Done
 }
 
-/// Compilation phases
-enum CompilationPhase {
-    Lexing,
-    Parsing,
-    NameResolution,
-    TypeInference,
-    TraitResolution,
-    EffectChecking,
-    OwnershipAnalysis,
-    Complete
-}
-
-/// Diagnostic message
-struct Diagnostic {
-    level: DiagnosticLevel,
-    message: String,
-    phase: CompilationPhase,
-    span: Span
-}
-
-/// Diagnostic level
-enum DiagnosticLevel {
-    Error,
-    Warning,
-    Info
-}
-
-/// Source location
-struct Span {
-    file: String,
-    line: i32,
-    column: i32,
-    start: i32,
-    length: i32
-}
-
-// ============================================================================
-// STAGE 2 COMPILATION ENTRY POINTS
-// ============================================================================
-
-/// Initialize Stage 2 compiler
-fn init_stage2_compiler() -> Stage2Context {
-    let name_ctx = new_name_context();
-    let symbol_table = name_ctx.symbol_table;
-    let type_ctx = new_type_inference_context(symbol_table);
-    let trait_ctx = new_trait_solver();
-    let effect_ctx = new_effect_context();
-    let ownership_ctx = new_ownership_context();
-    let empty_diag: Vec<Diagnostic> = Vec::new();
-    
-    Stage2Context {
-        name_ctx: name_ctx,
-        type_ctx: type_ctx,
-        trait_ctx: trait_ctx,
-        effect_ctx: effect_ctx,
-        ownership_ctx: ownership_ctx,
-        phase: CompilationPhase::Lexing,
-        diagnostics: empty_diag,
-        success: true
+fn new_compilation_context() -> CompilationContext {
+    CompilationContext {
+        diagnostic_count: 0,
+        phase: 0
     }
 }
 
-/// Run complete Stage 2 compilation pipeline
-fn compile_stage2(source: String, filename: String) -> Stage2Context {
-    let mut ctx = init_stage2_compiler();
-    
+fn compile_file(ctx: CompilationContext, filename: String) -> CompilationContext {
     // Phase 1: Name Resolution
-    ctx = run_name_resolution(ctx);
+    let ctx2 = CompilationContext {
+        diagnostic_count: ctx.diagnostic_count,
+        phase: 2
+    };
     
     // Phase 2: Type Inference
-    ctx = run_type_inference(ctx);
+    let ctx3 = CompilationContext {
+        diagnostic_count: ctx2.diagnostic_count,
+        phase: 3
+    };
     
     // Phase 3: Trait Resolution
-    ctx = run_trait_resolution(ctx);
+    let ctx4 = CompilationContext {
+        diagnostic_count: ctx3.diagnostic_count,
+        phase: 4
+    };
     
     // Phase 4: Effect Checking
-    ctx = run_effect_checking(ctx);
+    let ctx5 = CompilationContext {
+        diagnostic_count: ctx4.diagnostic_count,
+        phase: 5
+    };
     
     // Phase 5: Ownership Analysis
-    ctx = run_ownership_analysis(ctx);
-    
-    // Check for errors
-    ctx = check_compilation_errors(ctx);
-    
-    ctx
-}
-
-/// Run Phase 1: Name Resolution
-fn run_name_resolution(ctx: Stage2Context) -> Stage2Context {
-    let phase_ctx = Stage2Context {
-        name_ctx: ctx.name_ctx,
-        type_ctx: ctx.type_ctx,
-        trait_ctx: ctx.trait_ctx,
-        effect_ctx: ctx.effect_ctx,
-        ownership_ctx: ctx.ownership_ctx,
-        phase: CompilationPhase::NameResolution,
-        diagnostics: ctx.diagnostics,
-        success: ctx.success
+    let ctx6 = CompilationContext {
+        diagnostic_count: ctx5.diagnostic_count,
+        phase: 6
     };
     
-    // TODO: Actually resolve names from AST
-    // name_ctx = resolve_names(name_ctx, ast);
-    
-    phase_ctx
-}
-
-/// Run Phase 2: Type Inference
-fn run_type_inference(ctx: Stage2Context) -> Stage2Context {
-    let phase_ctx = Stage2Context {
-        name_ctx: ctx.name_ctx,
-        type_ctx: ctx.type_ctx,
-        trait_ctx: ctx.trait_ctx,
-        effect_ctx: ctx.effect_ctx,
-        ownership_ctx: ctx.ownership_ctx,
-        phase: CompilationPhase::TypeInference,
-        diagnostics: ctx.diagnostics,
-        success: ctx.success
-    };
-    
-    // TODO: Actually infer types from AST
-    // type_ctx = infer_types(type_ctx, ast);
-    
-    phase_ctx
-}
-
-/// Run Phase 3: Trait Resolution
-fn run_trait_resolution(ctx: Stage2Context) -> Stage2Context {
-    let phase_ctx = Stage2Context {
-        name_ctx: ctx.name_ctx,
-        type_ctx: ctx.type_ctx,
-        trait_ctx: ctx.trait_ctx,
-        effect_ctx: ctx.effect_ctx,
-        ownership_ctx: ctx.ownership_ctx,
-        phase: CompilationPhase::TraitResolution,
-        diagnostics: ctx.diagnostics,
-        success: ctx.success
-    };
-    
-    // Resolve trait obligations
-    let trait_ctx = resolve_obligations(phase_ctx.trait_ctx);
-    
-    Stage2Context {
-        name_ctx: phase_ctx.name_ctx,
-        type_ctx: phase_ctx.type_ctx,
-        trait_ctx: trait_ctx,
-        effect_ctx: phase_ctx.effect_ctx,
-        ownership_ctx: phase_ctx.ownership_ctx,
-        phase: phase_ctx.phase,
-        diagnostics: phase_ctx.diagnostics,
-        success: phase_ctx.success
+    // Done
+    CompilationContext {
+        diagnostic_count: ctx6.diagnostic_count,
+        phase: 7
     }
 }
 
-/// Run Phase 4: Effect Checking
-fn run_effect_checking(ctx: Stage2Context) -> Stage2Context {
-    let phase_ctx = Stage2Context {
-        name_ctx: ctx.name_ctx,
-        type_ctx: ctx.type_ctx,
-        trait_ctx: ctx.trait_ctx,
-        effect_ctx: ctx.effect_ctx,
-        ownership_ctx: ctx.ownership_ctx,
-        phase: CompilationPhase::EffectChecking,
-        diagnostics: ctx.diagnostics,
-        success: ctx.success
-    };
-    
-    // Check effects
-    let effect_ctx = check_effects(phase_ctx.effect_ctx);
-    
-    Stage2Context {
-        name_ctx: phase_ctx.name_ctx,
-        type_ctx: phase_ctx.type_ctx,
-        trait_ctx: phase_ctx.trait_ctx,
-        effect_ctx: effect_ctx,
-        ownership_ctx: phase_ctx.ownership_ctx,
-        phase: phase_ctx.phase,
-        diagnostics: phase_ctx.diagnostics,
-        success: phase_ctx.success
-    }
-}
-
-/// Run Phase 5: Ownership Analysis
-fn run_ownership_analysis(ctx: Stage2Context) -> Stage2Context {
-    let phase_ctx = Stage2Context {
-        name_ctx: ctx.name_ctx,
-        type_ctx: ctx.type_ctx,
-        trait_ctx: ctx.trait_ctx,
-        effect_ctx: ctx.effect_ctx,
-        ownership_ctx: ctx.ownership_ctx,
-        phase: CompilationPhase::OwnershipAnalysis,
-        diagnostics: ctx.diagnostics,
-        success: ctx.success
-    };
-    
-    // TODO: Analyze ownership from AST
-    
-    phase_ctx
-}
-
-/// Check for compilation errors across all phases
-fn check_compilation_errors(ctx: Stage2Context) -> Stage2Context {
-    let has_errors = 
-        has_name_errors(ctx.name_ctx) ||
-        has_type_errors(ctx.type_ctx);
-    
-    let final_phase = if has_errors {
-        CompilationPhase::Complete
-    } else {
-        CompilationPhase::Complete
-    };
-    
-    Stage2Context {
-        name_ctx: ctx.name_ctx,
-        type_ctx: ctx.type_ctx,
-        trait_ctx: ctx.trait_ctx,
-        effect_ctx: ctx.effect_ctx,
-        ownership_ctx: ctx.ownership_ctx,
-        phase: final_phase,
-        diagnostics: ctx.diagnostics,
-        success: !has_errors
-    }
-}
-
-// ============================================================================
-// CLI COMMANDS (Phase 6: Integration)
-// ============================================================================
-
-/// Main entry point for Stage 2
 fn main() {
-    // Stage 2 CLI entry point
-    // 
-    // When Stage 2 is compiled by Stage 1, this will provide:
-    // - aster2 build <file>         - Full compilation with all phases
-    // - aster2 check <file>         - Type check only
-    // - aster2 emit-types <file>    - Emit inferred types
-    // - aster2 emit-traits <file>   - Emit trait resolution
-    // - aster2 emit-effects <file>  - Emit effect annotations
-    // - aster2 emit-ownership <file> - Emit ownership information
-    //
-    // For now, this is a placeholder that will be enhanced when
-    // Stage 2 is actually compiled.
+    let ctx = new_compilation_context();
+    let result = compile_file(ctx, "test.ast");
+    // Compilation complete
 }
 
-// ============================================================================
-// UTILITY FUNCTIONS
-// ============================================================================
-
-/// Create a new span
-fn new_span(file: String, line: i32, column: i32, start: i32, length: i32) -> Span {
-    Span {
-        file: file,
-        line: line,
-        column: column,
-        start: start,
-        length: length
-    }
-}
-
-/// Create a diagnostic
-fn new_diagnostic(level: DiagnosticLevel, message: String, phase: CompilationPhase, span: Span) -> Diagnostic {
-    Diagnostic {
-        level: level,
-        message: message,
-        phase: phase,
-        span: span
-    }
-}
-
-/// Format diagnostics for output
-fn format_diagnostics(diagnostics: Vec<Diagnostic>) -> String {
-    // Format all diagnostics as text
-    // TODO: Implement formatting
-    ""
-}
-
-/// Print compilation summary
-fn print_summary(ctx: Stage2Context) {
-    // Print compilation results
-    // Show errors, warnings, and success status
-}
+// Forward declarations for other modules
+struct SymbolTable { symbol_count: i32, scope_count: i32, current_scope: i32 }
+struct TypeContext { type_count: i32, substitution_count: i32 }
+struct TraitContext { trait_count: i32, impl_count: i32, obligation_count: i32 }
+struct EffectContext { function_count: i32, diagnostic_count: i32 }
+struct OwnershipContext { var_count: i32, borrow_count: i32, diagnostic_count: i32 }
+struct Diagnostic { message: String }
