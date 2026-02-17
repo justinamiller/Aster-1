@@ -121,7 +121,7 @@ test_stage0_build() {
 test_stage0_binary() {
     TOTAL_TESTS=$((TOTAL_TESTS + 1))
     
-    local binary="${PROJECT_ROOT}/src/Aster.CLI/bin/Release/net8.0/Aster.CLI.dll"
+    local binary="${PROJECT_ROOT}/src/Aster.CLI/bin/Release/net10.0/Aster.CLI.dll"
     if [[ -f "$binary" ]]; then
         log_success "Stage 0 binary exists: $binary"
     else
