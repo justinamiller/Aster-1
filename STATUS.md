@@ -15,23 +15,35 @@ This document tracks the implementation status of features across all bootstrap 
 
 **Recommended for all users**: Use Stage 0 (C#) compiler for production projects.
 
-## Bootstrap Progress (Future Development)
+## Self-Hosting Status
+
+❌ **NOT SELF-HOSTING**: Aster cannot yet compile itself. Stage 3 is a stub.
+
+- **Current**: Stage 0 (C#) compiles Aster code ✅
+- **Goal**: Stage 3 (Aster) compiles itself ❌
+- **Requirement**: ~6000-11000 lines of Aster compiler code needed
+- **Timeline**: 12-18 months with dedicated team
+- **Roadmap**: See [SELF_HOSTING_ROADMAP.md](SELF_HOSTING_ROADMAP.md) for complete plan
+
+**Self-hosting test**: `./bootstrap/scripts/verify.sh --self-check` FAILS because Stage 3 cannot compile Aster code yet.
+
+## Bootstrap Progress (Self-Hosting Development)
 
 The bootstrap stages are infrastructure for developing a fully self-hosted Aster-in-Aster compiler. This is separate from production use:
 
 | Stage | Status | Compiler | Language Subset | Purpose |
 |-------|--------|----------|-----------------|---------|
 | **Stage 0** | ✅ PRODUCTION | C# Compiler | Full Aster | **Production compiler - use this** |
-| **Stage 1** | 🚧 20% | Minimal Aster | Core-0 | Bootstrap infrastructure development |
-| **Stage 2** | ✅ Builds | Expanded Aster | Core-1 | Bootstrap infrastructure development |
-| **Stage 3** | ✅ Builds | Full Self-Hosted | Core-2 (Full) | Bootstrap infrastructure development |
+| **Stage 1** | 🚧 20% | Minimal Aster | Core-0 | Lexer/Parser ~80%, Type checking/Codegen needed |
+| **Stage 2** | ⚙️ Structure | Expanded Aster | Core-1 | Type defs exist, implementation needed (~5000 LOC) |
+| **Stage 3** | ⚙️ Structure | Full Self-Hosted | Core-2 (Full) | Type defs exist, implementation needed (~3000 LOC) |
 
 **Legend**:
-- ✅ Complete and tested (or builds with verification)
-- 🚧 In progress
-- ⚙️ Infrastructure ready, implementation pending
+- ✅ Complete and tested
+- 🚧 Partial implementation
+- ⚙️ Infrastructure only (stub implementations)
 
-**Note**: Bootstrap stages 1-3 are for compiler developers working on self-hosting. Production users should use Stage 0.
+**Note**: Bootstrap stages 1-3 are for compiler developers working on self-hosting. They do NOT currently compile Aster code. See [SELF_HOSTING_ROADMAP.md](SELF_HOSTING_ROADMAP.md) for implementation requirements.
 
 ## Language Features by Stage
 
