@@ -1,0 +1,324 @@
+// LLVM Backend for Stage 3
+// Generates LLVM IR from optimized MIR
+
+struct LLVMContext {
+    module: LLVMModule,
+    builder: LLVMBuilder,
+    types: HashMap<TypeId, LLVMType>,
+    functions: HashMap<String, LLVMFunction>,
+}
+
+struct LLVMModule {
+    name: String,
+    functions: Vec<LLVMFunction>,
+    globals: Vec<LLVMGlobal>,
+}
+
+struct LLVMFunction {
+    name: String,
+    signature: LLVMFunctionType,
+    blocks: Vec<LLVMBasicBlock>,
+    params: Vec<LLVMValue>,
+}
+
+struct LLVMBasicBlock {
+    label: String,
+    instructions: Vec<LLVMInstruction>,
+    terminator: LLVMTerminator,
+}
+
+enum LLVMInstruction {
+    Alloca(LLVMValue, LLVMType),
+    Store(LLVMValue, LLVMValue),
+    Load(LLVMValue, LLVMValue),
+    BinOp(String, LLVMValue, LLVMValue, LLVMValue),
+    Call(LLVMValue, Vec<LLVMValue>, LLVMValue),
+    GetElementPtr(LLVMValue, Vec<LLVMValue>, LLVMValue),
+}
+
+enum LLVMTerminator {
+    Ret(Option<LLVMValue>),
+    Br(String),
+    CondBr(LLVMValue, String, String),
+    Unreachable,
+}
+
+struct LLVMValue {
+    name: String,
+    ty: LLVMType,
+}
+
+enum LLVMType {
+    Void,
+    Int(i32),
+    Float(i32),
+    Pointer(Box<LLVMType>),
+    Array(Box<LLVMType>, i32),
+    Struct(Vec<LLVMType>),
+    Function(LLVMFunctionType),
+}
+
+struct LLVMFunctionType {
+    return_type: Box<LLVMType>,
+    param_types: Vec<LLVMType>,
+    varargs: bool,
+}
+
+impl LLVMContext {
+    fn new(module_name: String) -> LLVMContext {
+        LLVMContext {
+            module: LLVMModule {
+                name: module_name,
+                functions: Vec::new(),
+                globals: Vec::new(),
+            },
+            builder: LLVMBuilder::new(),
+            types: HashMap::new(),
+            functions: HashMap::new(),
+        }
+    }
+    
+    fn translate_type(&mut self, ty: &Type) -> LLVMType {
+        match ty {
+            Type::Unit => LLVMType::Void,
+            Type::Bool => LLVMType::Int(1),
+            Type::I32 => LLVMType::Int(32),
+            Type::I64 => LLVMType::Int(64),
+            Type::F32 => LLVMType::Float(32),
+            Type::F64 => LLVMType::Float(64),
+            Type::Pointer(inner) => {
+                let inner_ty = self.translate_type(inner);
+                LLVMType::Pointer(Box::new(inner_ty))
+            }
+            Type::Array(elem, size) => {
+                let elem_ty = self.translate_type(elem);
+                LLVMType::Array(Box::new(elem_ty), *size)
+            }
+            Type::Struct(fields) => {
+                let field_types: Vec<LLVMType> = fields.iter()
+                    .map(|f| self.translate_type(&f.ty))
+                    .collect();
+                LLVMType::Struct(field_types)
+            }
+            _ => LLVMType::Void,
+        }
+    }
+}
+
+fn generate_llvm(mir: &MirProgram) -> Result<LLVMContext, String> {
+    let mut ctx = LLVMContext::new("aster_program".to_string());
+    
+    // Generate function declarations
+    for func in &mir.functions {
+        generate_function_decl(&mut ctx, func)?;
+    }
+    
+    // Generate function bodies
+    for func in &mir.functions {
+        generate_function_body(&mut ctx, func)?;
+    }
+    
+    Ok(ctx)
+}
+
+fn generate_function_decl(ctx: &mut LLVMContext, func: &MirFunction) -> Result<(), String> {
+    // Translate parameter types
+    let param_types: Vec<LLVMType> = func.params.iter()
+        .map(|p| {
+            let decl = func.locals.iter().find(|d| d.local == *p).unwrap();
+            ctx.translate_type(&decl.ty)
+        })
+        .collect();
+    
+    // Translate return type
+    let return_type = Box::new(ctx.translate_type(&func.return_type));
+    
+    let signature = LLVMFunctionType {
+        return_type,
+        param_types,
+        varargs: false,
+    };
+    
+    let llvm_func = LLVMFunction {
+        name: func.name.clone(),
+        signature,
+        blocks: Vec::new(),
+        params: Vec::new(),
+    };
+    
+    ctx.functions.insert(func.name.clone(), llvm_func);
+    Ok(())
+}
+
+fn generate_function_body(ctx: &mut LLVMContext, func: &MirFunction) -> Result<(), String> {
+    let llvm_func = ctx.functions.get_mut(&func.name).unwrap();
+    
+    // Generate basic blocks
+    for block in &func.blocks {
+        let mut llvm_block = LLVMBasicBlock {
+            label: format!("bb{}", block.id),
+            instructions: Vec::new(),
+            terminator: LLVMTerminator::Unreachable,
+        };
+        
+        // Generate instructions for statements
+        for stmt in &block.statements {
+            generate_statement(ctx, stmt, &mut llvm_block)?;
+        }
+        
+        // Generate terminator
+        llvm_block.terminator = generate_terminator(&block.terminator)?;
+        
+        llvm_func.blocks.push(llvm_block);
+    }
+    
+    Ok(())
+}
+
+fn generate_statement(ctx: &mut LLVMContext, stmt: &MirStatement, block: &mut LLVMBasicBlock) -> Result<(), String> {
+    match stmt {
+        MirStatement::Assign(place, rvalue) => {
+            let dest = place_to_llvm_value(place);
+            
+            match rvalue {
+                Rvalue::Use(operand) => {
+                    let src = operand_to_llvm_value(operand);
+                    block.instructions.push(LLVMInstruction::Store(src, dest));
+                }
+                Rvalue::BinaryOp(op, left, right) => {
+                    let left_val = operand_to_llvm_value(left);
+                    let right_val = operand_to_llvm_value(right);
+                    let op_name = match op {
+                        BinOp::Add => "add",
+                        BinOp::Sub => "sub",
+                        BinOp::Mul => "mul",
+                        BinOp::Div => "sdiv",
+                        _ => "unknown",
+                    };
+                    block.instructions.push(LLVMInstruction::BinOp(
+                        op_name.to_string(),
+                        left_val,
+                        right_val,
+                        dest,
+                    ));
+                }
+                _ => {}
+            }
+        }
+        MirStatement::StorageLive(local) => {
+            // Generate alloca
+            let ty = LLVMType::Int(32);  // Placeholder
+            let value = LLVMValue {
+                name: format!("_local{}", local),
+                ty: ty.clone(),
+            };
+            block.instructions.push(LLVMInstruction::Alloca(value, ty));
+        }
+        _ => {}
+    }
+    
+    Ok(())
+}
+
+fn generate_terminator(term: &MirTerminator) -> Result<LLVMTerminator, String> {
+    match term {
+        MirTerminator::Return => Ok(LLVMTerminator::Ret(None)),
+        MirTerminator::ReturnValue(op) => {
+            let val = operand_to_llvm_value(op);
+            Ok(LLVMTerminator::Ret(Some(val)))
+        }
+        MirTerminator::Goto(target) => {
+            Ok(LLVMTerminator::Br(format!("bb{}", target)))
+        }
+        MirTerminator::If { cond, target_true, target_false } => {
+            let cond_val = operand_to_llvm_value(cond);
+            Ok(LLVMTerminator::CondBr(
+                cond_val,
+                format!("bb{}", target_true),
+                format!("bb{}", target_false),
+            ))
+        }
+        _ => Ok(LLVMTerminator::Unreachable),
+    }
+}
+
+fn place_to_llvm_value(place: &Place) -> LLVMValue {
+    LLVMValue {
+        name: format!("_local{}", place.local),
+        ty: LLVMType::Int(32),  // Placeholder
+    }
+}
+
+fn operand_to_llvm_value(op: &Operand) -> LLVMValue {
+    match op {
+        Operand::Copy(place) | Operand::Move(place) => place_to_llvm_value(place),
+        Operand::Constant(c) => {
+            LLVMValue {
+                name: format!("const"),
+                ty: LLVMType::Int(32),  // Placeholder
+            }
+        }
+    }
+}
+
+fn emit_llvm_ir(ctx: &LLVMContext) -> String {
+    let mut ir = String::new();
+    
+    // Module header
+    ir.push_str(&format!("; ModuleID = '{}'\n\n", ctx.module.name));
+    
+    // Emit functions
+    for func in &ctx.module.functions {
+        ir.push_str(&emit_function_ir(func));
+    }
+    
+    ir
+}
+
+fn emit_function_ir(func: &LLVMFunction) -> String {
+    let mut ir = String::new();
+    
+    ir.push_str(&format!("define {} @{}(", type_to_string(&func.signature.return_type), func.name));
+    ir.push_str(") {\n");
+    
+    // Emit blocks
+    for block in &func.blocks {
+        ir.push_str(&format!("{}:\n", block.label));
+        
+        for inst in &block.instructions {
+            ir.push_str(&format!("  {}\n", instruction_to_string(inst)));
+        }
+        
+        ir.push_str(&format!("  {}\n", terminator_to_string(&block.terminator)));
+    }
+    
+    ir.push_str("}\n\n");
+    ir
+}
+
+fn type_to_string(ty: &LLVMType) -> String {
+    match ty {
+        LLVMType::Void => "void".to_string(),
+        LLVMType::Int(n) => format!("i{}", n),
+        LLVMType::Float(32) => "float".to_string(),
+        LLVMType::Float(64) => "double".to_string(),
+        _ => "void".to_string(),
+    }
+}
+
+fn instruction_to_string(inst: &LLVMInstruction) -> String {
+    match inst {
+        LLVMInstruction::BinOp(op, l, r, d) => {
+            format!("%{} = {} {}, {}", d.name, op, l.name, r.name)
+        }
+        _ => "nop".to_string(),
+    }
+}
+
+fn terminator_to_string(term: &LLVMTerminator) -> String {
+    match term {
+        LLVMTerminator::Ret(None) => "ret void".to_string(),
+        LLVMTerminator::Br(label) => format!("br label %{}", label),
+        _ => "unreachable".to_string(),
+    }
+}

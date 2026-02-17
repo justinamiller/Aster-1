@@ -1,0 +1,207 @@
+// Mid-level Intermediate Representation (MIR) for Stage 3
+// Simplified representation suitable for optimization and codegen
+
+struct MirProgram {
+    functions: Vec<MirFunction>,
+    types: Vec<TypeDef>,
+    globals: Vec<Global>,
+}
+
+struct MirFunction {
+    name: String,
+    params: Vec<Local>,
+    return_type: Type,
+    locals: Vec<LocalDecl>,
+    blocks: Vec<MirBasicBlock>,
+    entry_block: i32,
+}
+
+struct LocalDecl {
+    local: Local,
+    ty: Type,
+    mutable: bool,
+}
+
+struct MirBasicBlock {
+    id: i32,
+    statements: Vec<MirStatement>,
+    terminator: MirTerminator,
+}
+
+enum MirStatement {
+    Assign(Place, Rvalue),
+    StorageLive(Local),
+    StorageDead(Local),
+    SetDiscriminant(Place, i32),
+    Deinit(Place),
+    Nop,
+}
+
+enum MirTerminator {
+    Return,
+    ReturnValue(Operand),
+    Goto(i32),
+    If { cond: Operand, target_true: i32, target_false: i32 },
+    Switch { discriminant: Operand, targets: Vec<(i32, i32)>, otherwise: i32 },
+    Call { func: Operand, args: Vec<Operand>, destination: Place, target: i32 },
+    Drop { place: Place, target: i32, unwind: Option<i32> },
+    Unreachable,
+}
+
+enum Rvalue {
+    Use(Operand),
+    Ref(BorrowKind, Place),
+    AddressOf(Mutability, Place),
+    Len(Place),
+    Cast(CastKind, Operand, Type),
+    BinaryOp(BinOp, Operand, Operand),
+    UnaryOp(UnOp, Operand),
+    Aggregate(AggregateKind, Vec<Operand>),
+}
+
+enum Operand {
+    Copy(Place),
+    Move(Place),
+    Constant(Constant),
+}
+
+struct Place {
+    local: Local,
+    projection: Vec<PlaceElem>,
+}
+
+enum PlaceElem {
+    Deref,
+    Field(i32),
+    Index(Local),
+    ConstantIndex { offset: i32, from_end: bool },
+    Downcast(i32),
+}
+
+impl Place {
+    fn local(&self) -> Local {
+        self.local
+    }
+    
+    fn is_indirect(&self) -> bool {
+        self.projection.iter().any(|e| matches!(e, PlaceElem::Deref))
+    }
+}
+
+impl Rvalue {
+    fn operands(&self) -> Vec<Operand> {
+        match self {
+            Rvalue::Use(op) => vec![op.clone()],
+            Rvalue::BinaryOp(_, op1, op2) => vec![op1.clone(), op2.clone()],
+            Rvalue::UnaryOp(_, op) => vec![op.clone()],
+            Rvalue::Cast(_, op, _) => vec![op.clone()],
+            Rvalue::Aggregate(_, ops) => ops.clone(),
+            _ => vec![],
+        }
+    }
+}
+
+impl Operand {
+    fn local(&self) -> Local {
+        match self {
+            Operand::Copy(place) | Operand::Move(place) => place.local(),
+            Operand::Constant(_) => Local(0),  // Constants don't have locals
+        }
+    }
+}
+
+enum AggregateKind {
+    Array(Type),
+    Tuple,
+    Struct(TypeId),
+    Enum(TypeId, i32),
+}
+
+enum CastKind {
+    IntToInt,
+    FloatToInt,
+    IntToFloat,
+    FloatToFloat,
+    PtrToPtr,
+}
+
+enum BinOp {
+    Add, Sub, Mul, Div, Rem,
+    BitAnd, BitOr, BitXor, Shl, Shr,
+    Eq, Lt, Le, Ne, Ge, Gt,
+}
+
+enum UnOp {
+    Not,
+    Neg,
+}
+
+struct Constant {
+    value: ConstValue,
+    ty: Type,
+}
+
+enum ConstValue {
+    Int(i64),
+    Float(f64),
+    Bool(bool),
+    String(String),
+    Unit,
+}
+
+type Local = i32;
+type TypeId = i32;
+
+struct Location {
+    block: i32,
+    statement: i32,
+}
+
+impl MirProgram {
+    fn new() -> MirProgram {
+        MirProgram {
+            functions: Vec::new(),
+            types: Vec::new(),
+            globals: Vec::new(),
+        }
+    }
+    
+    fn add_function(&mut self, func: MirFunction) {
+        self.functions.push(func);
+    }
+    
+    fn get_function(&self, name: &str) -> Option<&MirFunction> {
+        self.functions.iter().find(|f| f.name == name)
+    }
+}
+
+impl MirFunction {
+    fn new(name: String) -> MirFunction {
+        MirFunction {
+            name,
+            params: Vec::new(),
+            return_type: Type::Unit,
+            locals: Vec::new(),
+            blocks: Vec::new(),
+            entry_block: 0,
+        }
+    }
+    
+    fn add_block(&mut self) -> i32 {
+        let id = self.blocks.len() as i32;
+        self.blocks.push(MirBasicBlock {
+            id,
+            statements: Vec::new(),
+            terminator: MirTerminator::Unreachable,
+        });
+        id
+    }
+    
+    fn get_block(&self, id: i32) -> &MirBasicBlock {
+        &self.blocks[id as usize]
+    }
+    
+    fn get_block_mut(&mut self, id: i32) -> &mut MirBasicBlock {
+        &mut self.blocks[id as usize]
+    }
+}

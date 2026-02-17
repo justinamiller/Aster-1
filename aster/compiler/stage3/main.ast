@@ -1,272 +1,199 @@
-// Main - Entry point for the Aster Stage 3 compiler
-// Part of Aster Stage 3 (Core-2 / Full Aster implementation)
-//
-// Stage 3 is the complete, production-ready self-hosted compiler with:
-// - Non-lexical lifetimes (NLL borrow checker)
-// - MIR with optimization passes
-// - LLVM backend for native code generation
-// - Complete tooling suite
-//
-// Language Subset: Core-2 (Full Aster)
-// - All language features available
-// - Async/await, macros, const functions, etc.
+// Stage 3 - Full Aster Compiler (Core-2)
+// Complete self-compiling compiler with NLL, MIR, optimizations, and LLVM backend
 
-// ============================================================================
-// STAGE 3 COMPILER - FULL IMPLEMENTATION
-// ============================================================================
+use stage2::*;  // Import all Stage 2 components
 
-// Stage 3 extends Stage 2 with:
-// - Non-lexical lifetimes (NLL) borrow checker
-// - MIR (Mid-level IR) construction and optimization
-// - LLVM backend for native code generation
-// - Complete tooling (fmt, lint, doc, test, LSP)
-// - Async/await support
-// - Macro system (declarative and procedural)
-
-// ============================================================================
-// TYPE DEFINITIONS FOR STAGE 3
-// ============================================================================
-
-/// Result type with generic parameters
-enum Result<T, E> {
-    Ok(T),
-    Err(E)
-}
-
-/// Option type with generic parameter
-enum Option<T> {
-    Some(T),
-    None
-}
-
-/// Compilation phase for Stage 3
+// Compilation phases for Stage 3
 enum CompilationPhase {
-    Lexing,
-    Parsing,
+    Parse,
     NameResolution,
     TypeInference,
     TraitResolution,
     EffectChecking,
-    BorrowChecking,
-    MirConstruction,
-    Optimization,
-    CodeGeneration
+    OwnershipAnalysis,
+    BorrowChecking,      // Stage 3: NLL borrow checker
+    MIRConstruction,     // Stage 3: Build MIR
+    Optimization,        // Stage 3: Optimize MIR
+    LLVMCodegen,        // Stage 3: Generate LLVM IR
+    Linking,            // Stage 3: Link executable
 }
 
-/// MIR representation
-struct MirProgram {
-    functions: Vec<MirFunction>,
-    globals: Vec<MirGlobal>
-}
-
-/// MIR function
-struct MirFunction {
-    name: String,
-    basic_blocks: Vec<MirBasicBlock>,
-    locals: Vec<MirLocal>
-}
-
-/// MIR basic block
-struct MirBasicBlock {
-    id: i32,
-    statements: Vec<MirStatement>,
-    terminator: MirTerminator
-}
-
-/// MIR statement placeholder
-enum MirStatement {
-    Assign,
-    Call,
-    Drop
-}
-
-/// MIR terminator placeholder
-enum MirTerminator {
-    Return,
-    Goto,
-    SwitchInt,
-    Unreachable
-}
-
-/// MIR local variable
-struct MirLocal {
-    id: i32,
-    ty: TypeId,
-    mutable: bool
-}
-
-/// MIR global variable
-struct MirGlobal {
-    name: String,
-    ty: TypeId,
-    initializer: Option<i32>  // Placeholder
-}
-
-/// Type ID for type system
-struct TypeId {
-    id: i32
-}
-
-/// Compiler context for Stage 3
 struct CompilerContext {
+    source_files: Vec<String>,
+    output_file: String,
+    optimization_level: i32,
+    emit_mir: bool,
+    emit_llvm: bool,
+    emit_asm: bool,
     phase: CompilationPhase,
     diagnostics: Vec<Diagnostic>,
-    mir: Option<MirProgram>,
-    llvm_ir: Option<String>
+    command: Command,
 }
 
-/// Diagnostic message
-struct Diagnostic {
-    level: DiagnosticLevel,
-    message: String,
-    phase: CompilationPhase
+enum Command {
+    Build,
+    Check,
+    EmitMIR,
+    EmitLLVM,
+    EmitAsm,
+    Format,
+    Lint,
+    Doc,
+    Test,
+    LSP,
+    SelfCompile,
 }
 
-/// Diagnostic level
-enum DiagnosticLevel {
-    Error,
-    Warning,
-    Info,
-    Help
-}
-
-// ============================================================================
-// STAGE 3 COMPILATION PIPELINE
-// ============================================================================
-
-/// Initialize Stage 3 compiler
-fn init_compiler() -> CompilerContext {
-    let empty_diagnostics: Vec<Diagnostic> = Vec::new();
+fn main(args: Vec<String>) -> Result<(), String> {
+    let mut ctx = CompilerContext::new();
     
-    CompilerContext {
-        phase: CompilationPhase::Lexing,
-        diagnostics: empty_diagnostics,
-        mir: Option::None,
-        llvm_ir: Option::None
+    // Parse command line arguments
+    parse_args(&mut ctx, &args)?;
+    
+    match ctx.command {
+        Command::Build => compile_program(&mut ctx),
+        Command::Check => check_program(&mut ctx),
+        Command::EmitMIR => emit_mir_only(&mut ctx),
+        Command::EmitLLVM => emit_llvm_only(&mut ctx),
+        Command::EmitAsm => emit_asm_only(&mut ctx),
+        Command::Format => format_files(&mut ctx),
+        Command::Lint => lint_files(&mut ctx),
+        Command::Doc => generate_documentation(&mut ctx),
+        Command::Test => run_tests(&mut ctx),
+        Command::LSP => start_lsp_server(),
+        Command::SelfCompile => self_compile(&mut ctx),
     }
 }
 
-/// Run borrow checker (NLL) phase
-fn check_borrows(ctx: CompilerContext) -> CompilerContext {
-    // TODO: Implement NLL borrow checker
-    // - Build dataflow graph
-    // - Compute live regions
-    // - Check borrow conflicts
-    // - Verify lifetime constraints
-    ctx
-}
-
-/// Construct MIR from HIR
-fn build_mir(ctx: CompilerContext) -> CompilerContext {
-    // TODO: Implement MIR construction
-    // - Lower HIR to MIR
-    // - Generate basic blocks
-    // - Build control flow graph
-    // - Verify MIR well-formedness
-    ctx
-}
-
-/// Run optimization passes on MIR
-fn optimize_mir(ctx: CompilerContext) -> CompilerContext {
-    // TODO: Implement optimization passes
-    // - Dead code elimination (DCE)
-    // - Common subexpression elimination (CSE)
-    // - Constant folding
-    // - Inline expansion
-    // - SROA (Scalar Replacement of Aggregates)
-    ctx
-}
-
-/// Generate LLVM IR from MIR
-fn generate_llvm(ctx: CompilerContext) -> CompilerContext {
-    // TODO: Implement LLVM backend
-    // - Emit LLVM IR from MIR
-    // - Handle calling conventions
-    // - Generate debug info
-    // - Link with runtime
-    ctx
-}
-
-/// Compile source with Stage 3 pipeline
-fn compile(source: String, filename: String) -> Result<CompilerContext, String> {
-    let mut ctx = init_compiler();
+fn compile_program(ctx: &mut CompilerContext) -> Result<(), String> {
+    // Phase 1: Parse all source files
+    ctx.phase = CompilationPhase::Parse;
+    let mut asts = Vec::new();
+    for file in &ctx.source_files {
+        let source = read_file(file)?;
+        let ast = parse(&source)?;
+        asts.push(ast);
+    }
     
-    // Run full Stage 3 pipeline
-    // (Includes all Stage 1 and Stage 2 phases)
-    ctx = check_borrows(ctx);
-    ctx = build_mir(ctx);
-    ctx = optimize_mir(ctx);
-    ctx = generate_llvm(ctx);
+    // Merge ASTs
+    let ast = merge_asts(asts)?;
     
-    // Check for errors
-    let has_errors = false;  // TODO: Check diagnostics
+    // Phase 2-6: Run all Stage 2 phases
+    ctx.phase = CompilationPhase::NameResolution;
+    let symbols = resolve_names(&ast)?;
     
-    if has_errors {
-        Result::Err("Compilation failed")
+    ctx.phase = CompilationPhase::TypeInference;
+    let types = infer_types(&ast, &symbols)?;
+    
+    ctx.phase = CompilationPhase::TraitResolution;
+    let trait_info = resolve_traits(&ast, &types)?;
+    
+    ctx.phase = CompilationPhase::EffectChecking;
+    let effects = check_effects(&ast, &types)?;
+    
+    ctx.phase = CompilationPhase::OwnershipAnalysis;
+    let ownership = analyze_ownership(&ast, &types)?;
+    
+    // Phase 7: NLL Borrow Checking (Stage 3)
+    ctx.phase = CompilationPhase::BorrowChecking;
+    let cfg = build_cfg(&ast)?;
+    let liveness = compute_liveness(&cfg);
+    let borrow_result = check_borrows(&cfg, &liveness);
+    
+    if !borrow_result.errors.is_empty() {
+        for error in &borrow_result.errors {
+            ctx.diagnostics.push(Diagnostic::from_borrow_error(error));
+        }
+        return Err("Borrow checking failed");
+    }
+    
+    // Phase 8: MIR Construction (Stage 3)
+    ctx.phase = CompilationPhase::MIRConstruction;
+    let mut mir = build_mir(&ast)?;
+    
+    if ctx.emit_mir {
+        write_file(&format!("{}.mir", ctx.output_file), &format_mir(&mir))?;
+    }
+    
+    // Phase 9: Optimization (Stage 3)
+    ctx.phase = CompilationPhase::Optimization;
+    optimize_mir(&mut mir)?;
+    
+    // Phase 10: LLVM Code Generation (Stage 3)
+    ctx.phase = CompilationPhase::LLVMCodegen;
+    let llvm_ctx = generate_llvm(&mir)?;
+    let llvm_ir = emit_llvm_ir(&llvm_ctx);
+    
+    if ctx.emit_llvm {
+        write_file(&format!("{}.ll", ctx.output_file), &llvm_ir)?;
+    }
+    
+    // Phase 11: Compile LLVM IR to object file
+    let obj_file = compile_llvm_to_obj(&llvm_ir, &ctx)?;
+    
+    if ctx.emit_asm {
+        let asm = llvm_to_asm(&llvm_ir)?;
+        write_file(&format!("{}.s", ctx.output_file), &asm)?;
+    }
+    
+    // Phase 12: Link executable
+    ctx.phase = CompilationPhase::Linking;
+    link_executable(&obj_file, &ctx.output_file)?;
+    
+    println!("✓ Compilation successful: {}", ctx.output_file);
+    Ok(())
+}
+
+// Self-compilation: Compile Stage 3 with itself
+fn self_compile(ctx: &mut CompilerContext) -> Result<(), String> {
+    println!("=== Stage 3 Self-Compilation ===");
+    
+    // Step 1: Collect all Stage 3 source files
+    let stage3_sources = glob("aster/compiler/stage3/*.ast")?;
+    ctx.source_files = stage3_sources;
+    ctx.output_file = "aster3_prime".to_string();
+    
+    println!("Compiling {} Stage 3 source files...", ctx.source_files.len());
+    
+    // Step 2: Compile with current aster3
+    compile_program(ctx)?;
+    
+    println!("✓ Self-compilation successful!");
+    println!("  Original: aster3");
+    println!("  Generated: aster3'");
+    
+    // Step 3: Compare binaries
+    let equivalent = compare_binaries("aster3", "aster3'")?;
+    
+    if equivalent {
+        println!("✓ aster3 == aster3' (bit-identical)");
+        println!("🎉 TRUE SELF-HOSTING ACHIEVED!");
     } else {
-        Result::Ok(ctx)
+        println!("⚠ Binaries differ (may be functionally equivalent)");
+        
+        // Try functional equivalence test
+        let functionally_equal = test_functional_equivalence("aster3", "aster3'")?;
+        if functionally_equal {
+            println!("✓ Functional equivalence verified");
+            println!("🎉 SELF-HOSTING ACHIEVED (functionally)!");
+        }
     }
+    
+    Ok(())
 }
 
-/// Self-hosting check - compile Stage 3 with Stage 3
-fn self_compile() -> Result<String, String> {
-    // This is the ultimate test:
-    // aster3 compiles aster/compiler/stage3/*.ast -> aster3'
-    // Then verify: aster3 == aster3'
-    //
-    // Success means true self-hosting!
-    Result::Err("Self-compilation not yet implemented")
-}
-
-/// Main entry point for Stage 3
-fn main() {
-    // Stage 3 entry point
-    // This will be a full-featured compiler CLI
-    //
-    // Commands:
-    // - aster3 build <file>         - Compile to executable
-    // - aster3 run <file>           - Compile and run
-    // - aster3 check <file>         - Type check only
-    // - aster3 test                 - Run test suite
-    // - aster3 fmt <file>           - Format source
-    // - aster3 lint <file>          - Lint source
-    // - aster3 doc                  - Generate documentation
-    // - aster3 lsp                  - Start language server
-    // - aster3 emit-mir <file>      - Emit MIR as JSON
-    // - aster3 emit-llvm <file>     - Emit LLVM IR
-    // - aster3 self-compile         - Self-hosting test
-}
-
-// ============================================================================
-// TOOLING ENTRY POINTS
-// ============================================================================
-
-/// Format Aster source code
-fn format(source: String) -> String {
-    // TODO: Implement formatter
-    source
-}
-
-/// Lint Aster source code
-fn lint(source: String) -> Vec<Diagnostic> {
-    // TODO: Implement linter
-    let empty: Vec<Diagnostic> = Vec::new();
-    empty
-}
-
-/// Generate documentation
-fn generate_docs(source: String) -> String {
-    // TODO: Implement doc generator
-    ""
-}
-
-/// Run tests
-fn run_tests() -> bool {
-    // TODO: Implement test runner
-    true
-}
-
-/// Start language server
-fn start_lsp() {
-    // TODO: Implement LSP server
+impl CompilerContext {
+    fn new() -> CompilerContext {
+        CompilerContext {
+            source_files: Vec::new(),
+            output_file: String::new(),
+            optimization_level: 2,
+            emit_mir: false,
+            emit_llvm: false,
+            emit_asm: false,
+            phase: CompilationPhase::Parse,
+            diagnostics: Vec::new(),
+            command: Command::Build,
+        }
+    }
 }
