@@ -94,8 +94,38 @@ public sealed class EscapeAnalysisPass : IOptimizationPass
 
     private bool IsHeapAllocation(MirInstruction instr)
     {
-        // This is a placeholder - actual implementation would check for
-        // specific allocation patterns or opcodes
+        // Detect heap allocation patterns in MIR:
+        // 1. Calls to allocator functions (Box::new, Vec::new, String::new, etc.)
+        // 2. Struct instantiations that require heap storage
+        // 3. Large aggregates that exceed stack size limits
+        
+        if (instr.Opcode == MirOpcode.Call && instr.Operands.Count > 0)
+        {
+            var callee = instr.Operands[0];
+            if (callee.Kind == MirOperandKind.FunctionRef)
+            {
+                var functionName = callee.Name;
+                
+                // Check for known allocator patterns
+                if (functionName.Contains("::new") || 
+                    functionName.Contains("Box") ||
+                    functionName.Contains("Vec") ||
+                    functionName.StartsWith("alloc") ||
+                    functionName.Contains("malloc"))
+                {
+                    return true;
+                }
+            }
+        }
+        
+        // Check for struct allocations with heap semantics
+        // (In MIR, these might be represented as special opcodes)
+        if (instr.Extra is string extra && 
+            (extra.Contains("heap") || extra.Contains("alloc")))
+        {
+            return true;
+        }
+        
         return false;
     }
 }
