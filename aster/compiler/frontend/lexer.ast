@@ -89,6 +89,7 @@ enum TokenKind {
     Equals,
     Dot,
     DotDot,
+    Question,
     // Compound operators
     AmpersandAmpersand,
     PipePipe,
@@ -627,6 +628,7 @@ fn lex_operator_or_punctuation(mut lexer: Lexer) -> LexerTokenResult {
         '>' => TokenKind::Greater,
         '=' => TokenKind::Equals,
         '.' => TokenKind::Dot,
+        '?' => TokenKind::Question,
         '(' => TokenKind::LeftParen,
         ')' => TokenKind::RightParen,
         '{' => TokenKind::LeftBrace,

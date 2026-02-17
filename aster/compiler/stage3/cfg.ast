@@ -1,6 +1,12 @@
 // Control Flow Graph (CFG) for Stage 3
 // Represents program control flow for borrow checking and optimization
 
+// Core-0 compatible: Helper struct for switch cases (instead of tuple)
+struct SwitchCase {
+    value: i32,
+    target: i32,
+}
+
 struct BasicBlock {
     id: i32,
     statements: Vec<Statement>,
@@ -13,7 +19,7 @@ enum Terminator {
     Return(Operand),
     Goto(i32),
     If(Operand, i32, i32),
-    Switch(Operand, Vec<(i32, i32)>, i32),
+    Switch(Operand, Vec<SwitchCase>, i32),
     Unreachable,
 }
 
@@ -30,47 +36,47 @@ struct CFG {
     exit: i32,
 }
 
-impl CFG {
-    fn new() -> CFG {
-        CFG {
-            blocks: Vec::new(),
-            entry: 0,
-            exit: -1,
-        }
-    }
-    
-    fn add_block(&mut self) -> i32 {
-        let id = self.blocks.len() as i32;
-        self.blocks.push(BasicBlock {
-            id,
-            statements: Vec::new(),
-            terminator: Terminator::Unreachable,
-            predecessors: Vec::new(),
-            successors: Vec::new(),
-        });
-        id
-    }
-    
-    fn add_edge(&mut self, from: i32, to: i32) {
-        // Add edge in CFG
-        self.blocks[from as usize].successors.push(to);
-        self.blocks[to as usize].predecessors.push(from);
-    }
-    
-    fn get_block(&self, id: i32) -> &BasicBlock {
-        &self.blocks[id as usize]
-    }
-    
-    fn get_block_mut(&mut self, id: i32) -> &mut BasicBlock {
-        &mut self.blocks[id as usize]
+// Core-0 compatible: Standalone functions instead of impl block
+fn cfg_new() -> CFG {
+    CFG {
+        blocks: Vec::new(),
+        entry: 0,
+        exit: -1,
     }
 }
 
+fn cfg_add_block(cfg: &mut CFG) -> i32 {
+    let id = cfg.blocks.len();
+    cfg.blocks.push(BasicBlock {
+        id: id,
+        statements: Vec::new(),
+        terminator: Terminator::Unreachable,
+        predecessors: Vec::new(),
+        successors: Vec::new(),
+    });
+    id
+}
+
+fn cfg_add_edge(cfg: &mut CFG, from: i32, to: i32) {
+    // Add edge in CFG
+    // Note: Direct i32 indexing (Core-0 compatible)
+    cfg.blocks[from].successors.push(to);
+    cfg.blocks[to].predecessors.push(from);
+}
+
+fn cfg_get_block(cfg: &CFG, id: i32) -> &BasicBlock {
+    &cfg.blocks[id]
+}
+
+fn cfg_get_block_mut(cfg: &mut CFG, id: i32) -> &mut BasicBlock {
+    &mut cfg.blocks[id]
+}
+
 fn build_cfg(ast: &AST) -> Result<CFG, String> {
-    let mut cfg = CFG::new();
+    let mut cfg = cfg_new();
     
     // Create entry block
-    cfg.entry = cfg.add_block();
+    cfg.entry = cfg_add_block(&mut cfg);
     
     // Build CFG from AST
     for item in &ast.items {
@@ -85,7 +91,7 @@ fn build_cfg(ast: &AST) -> Result<CFG, String> {
     Ok(cfg)
 }
 
-fn build_function_cfg(cfg: &mut CFG, func: &Function) -> Result<(), String> {
+fn build_function_cfg(cfg: &mut CFG, func: &Function) -> Result<i32, String> {
     let entry = cfg.entry;
     let mut current_block = entry;
     
@@ -95,29 +101,29 @@ fn build_function_cfg(cfg: &mut CFG, func: &Function) -> Result<(), String> {
     }
     
     // Add exit
-    cfg.exit = cfg.add_block();
-    cfg.add_edge(current_block, cfg.exit);
+    cfg.exit = cfg_add_block(cfg);
+    cfg_add_edge(cfg, current_block, cfg.exit);
     
-    Ok(())
+    Ok(0)
 }
 
 fn build_statement_cfg(cfg: &mut CFG, stmt: &Stmt, current: i32) -> Result<i32, String> {
     match stmt {
-        Stmt::Let { .. } => {
-            cfg.get_block_mut(current).statements.push(Statement::Assign(Place::Local(0), Rvalue::Use(Operand::Constant(0))));
+        Stmt::Let => {
+            cfg_get_block_mut(cfg, current).statements.push(Statement::Assign(Place::Local(0), Rvalue::Use(Operand::Constant(0))));
             Ok(current)
         }
-        Stmt::If { condition, then_branch, else_branch } => {
-            let then_block = cfg.add_block();
-            let else_block = cfg.add_block();
-            let merge_block = cfg.add_block();
+        Stmt::If => {
+            let then_block = cfg_add_block(cfg);
+            let else_block = cfg_add_block(cfg);
+            let merge_block = cfg_add_block(cfg);
             
-            cfg.get_block_mut(current).terminator = Terminator::If(Operand::Constant(0), then_block, else_block);
-            cfg.add_edge(current, then_block);
-            cfg.add_edge(current, else_block);
+            cfg_get_block_mut(cfg, current).terminator = Terminator::If(Operand::Constant(0), then_block, else_block);
+            cfg_add_edge(cfg, current, then_block);
+            cfg_add_edge(cfg, current, else_block);
             
-            cfg.add_edge(then_block, merge_block);
-            cfg.add_edge(else_block, merge_block);
+            cfg_add_edge(cfg, then_block, merge_block);
+            cfg_add_edge(cfg, else_block, merge_block);
             
             Ok(merge_block)
         }

@@ -416,6 +416,7 @@ fn lex_operator_or_punctuation(lexer: &mut Lexer) -> Token {
         '>' => TokenKind::Greater,
         '=' => TokenKind::Equals,
         '.' => TokenKind::Dot,
+        '?' => TokenKind::Question,
         '(' => TokenKind::LeftParen,
         ')' => TokenKind::RightParen,
         '{' => TokenKind::LeftBrace,

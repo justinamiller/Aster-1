@@ -542,6 +542,11 @@ public sealed class AsterParser
                 Expect(TokenKind.RightBracket, "Expected ']'");
                 expr = new IndexExprNode(expr, index, MakeSpan(expr.Span));
             }
+            else if (Check(TokenKind.Question))
+            {
+                Advance();
+                expr = new UnaryExprNode(UnaryOperator.Try, expr, MakeSpan(expr.Span));
+            }
             else
             {
                 break;
