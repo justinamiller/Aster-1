@@ -31,19 +31,38 @@ This document tracks the implementation status of features across all bootstrap 
 
 The bootstrap stages are infrastructure for developing a fully self-hosted Aster-in-Aster compiler. This is separate from production use:
 
-| Stage | Status | Compiler | Language Subset | Purpose |
-|-------|--------|----------|-----------------|---------|
+| Stage | Status | Compiler | Language Subset | Implementation Status |
+|-------|--------|----------|-----------------|----------------------|
 | **Stage 0** | ✅ PRODUCTION | C# Compiler | Full Aster | **Production compiler - use this** |
-| **Stage 1** | 🚧 20% | Minimal Aster | Core-0 | Lexer/Parser ~80%, Type checking/Codegen needed |
+| **Stage 1** | 🚧 50% | Minimal Aster | Core-0 | Lexer 85%, Parser 90%, AST 100%, Type/IR/Codegen 0% |
 | **Stage 2** | ⚙️ Structure | Expanded Aster | Core-1 | Type defs exist, implementation needed (~5000 LOC) |
 | **Stage 3** | ⚙️ Structure | Full Self-Hosted | Core-2 (Full) | Type defs exist, implementation needed (~3000 LOC) |
 
 **Legend**:
 - ✅ Complete and tested
-- 🚧 Partial implementation
+- 🚧 Partial implementation (50% = infrastructure ready, core logic missing)
 - ⚙️ Infrastructure only (stub implementations)
 
-**Note**: Bootstrap stages 1-3 are for compiler developers working on self-hosting. They do NOT currently compile Aster code. See [SELF_HOSTING_ROADMAP.md](SELF_HOSTING_ROADMAP.md) for implementation requirements.
+### Stage 1 Detailed Status
+
+**What Exists** (~2,700 LOC):
+- ✅ Lexer: 85% complete (~850 LOC) - token recognition, span tracking
+- ✅ Parser: 90% complete (~1,581 LOC) - 57 functions, expression/statement/declaration parsing
+- ✅ AST: 100% complete (~284 LOC) - all node types defined
+- ✅ Infrastructure: 90% complete (~590 LOC) - tokens, spans, diagnostics
+
+**What's Missing** (~2,300 LOC):
+- ❌ Type Checking: 0% (~800 LOC needed) - symbol table, type inference, unification
+- ❌ Name Resolution: 0% (~500 LOC needed) - symbol resolution, scope management
+- ❌ IR Generation: 0% (~400 LOC needed) - AST → HIR lowering
+- ❌ Code Generation: 0% (~500 LOC needed) - HIR → LLVM IR
+- ❌ CLI Integration: 5% (~100 LOC needed) - argument parsing, file I/O
+
+**Timeline for Stage 1 Completion**: 7-12 weeks for experienced compiler engineer
+
+See [STAGE1_IMPLEMENTATION_GUIDE.md](STAGE1_IMPLEMENTATION_GUIDE.md) for detailed implementation plan.
+
+**Note**: Bootstrap stages 1-3 are for compiler developers working on self-hosting. They do NOT currently compile Aster code. See [SELF_HOSTING_ROADMAP.md](SELF_HOSTING_ROADMAP.md) for self-hosting requirements and [STAGE1_IMPLEMENTATION_GUIDE.md](STAGE1_IMPLEMENTATION_GUIDE.md) for Stage 1 completion guide.
 
 ## Language Features by Stage
 
