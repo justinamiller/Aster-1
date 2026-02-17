@@ -4,63 +4,34 @@ This document tracks the implementation status of features across all bootstrap 
 
 **Last Updated**: 2026-02-17
 
-## Bootstrap Progress
+## Production Status
 
-| Stage | Status | Compiler | Language Subset | Evidence |
-|-------|--------|----------|-----------------|----------|
-| **Stage 0** | ✅ Complete | C# Seed Compiler | Full Aster | [Build Passing](https://github.com/justinamiller/Aster-1/actions), [119 tests](tests/) |
-| **Stage 1** | 🚧 20% | Minimal Aster | Core-0 | [Source](src/aster1/), [Lexer](src/aster1/lexer.ast) |
-| **Stage 2** | ✅ Builds | Expanded Aster | Core-1 | [Verification](bootstrap/scripts/verify.sh), [Fixtures](bootstrap/fixtures/stage2/) |
-| **Stage 3** | ✅ Builds | Full Self-Hosted | Core-2 (Full) | [Runbook](docs/STAGE3_RUNBOOK.md), [Verification](bootstrap/scripts/verify.sh) |
+✅ **PRODUCTION READY**: The Aster compiler (Stage 0 / C# implementation) is fully functional and ready for production use.
+
+- **Version**: 0.2.0
+- **Test Coverage**: 119 passing unit tests
+- **Features**: Complete language support (HIR, MIR, type checking, borrow checking, effects, optimizations, LLVM backend)
+- **Documentation**: See [PRODUCTION.md](PRODUCTION.md) for production usage guide
+
+**Recommended for all users**: Use Stage 0 (C#) compiler for production projects.
+
+## Bootstrap Progress (Future Development)
+
+The bootstrap stages are infrastructure for developing a fully self-hosted Aster-in-Aster compiler. This is separate from production use:
+
+| Stage | Status | Compiler | Language Subset | Purpose |
+|-------|--------|----------|-----------------|---------|
+| **Stage 0** | ✅ PRODUCTION | C# Compiler | Full Aster | **Production compiler - use this** |
+| **Stage 1** | 🚧 20% | Minimal Aster | Core-0 | Bootstrap infrastructure development |
+| **Stage 2** | ✅ Builds | Expanded Aster | Core-1 | Bootstrap infrastructure development |
+| **Stage 3** | ✅ Builds | Full Self-Hosted | Core-2 (Full) | Bootstrap infrastructure development |
 
 **Legend**:
 - ✅ Complete and tested (or builds with verification)
 - 🚧 In progress
 - ⚙️ Infrastructure ready, implementation pending
-- ❌ Not started
 
-## Stage 3 Status Update (2026-02-17)
-
-### ✅ Completed Components
-
-**Verification Infrastructure**:
-- ✅ Stage 2 verification harness (`verify_stage2()`)
-- ✅ Stage 3 verification harness (`verify_stage3()`)
-- ✅ Deterministic build checking (SHA256 hashes)
-- ✅ Regression test fixtures (compile-pass, compile-fail, run-pass)
-- ✅ Exit code validation
-
-**Semantic Analysis**:
-- ✅ Struct type resolution with field validation
-- ✅ Enum variant resolution (Type::Variant paths)
-- ✅ Type registry for user-defined types
-- ✅ Comprehensive error diagnostics (E0306-E0310)
-
-**MIR & Lowering**:
-- ✅ Async function detection
-- ✅ Await point identification
-- ✅ Diagnostic warnings for async usage
-
-**Optimizations**:
-- ✅ Inlining candidate identification
-- ✅ Heap allocation detection (Box, Vec, allocators)
-- ✅ Escape analysis (call tracking, return tracking)
-
-**Documentation**:
-- ✅ Stage 3 Runbook with reproduction commands
-- ✅ Gap analysis and future work documented
-- ✅ Testing procedures specified
-
-### 📋 Validation Evidence
-
-```bash
-# All passing:
-./bootstrap/scripts/bootstrap.sh --clean --stage 3  # ✅ PASSES
-./bootstrap/scripts/verify.sh --all-stages --skip-tests  # ✅ PASSES
-./bootstrap/scripts/verify.sh --reproducibility  # ✅ WORKING
-```
-
-See [Stage 3 Runbook](docs/STAGE3_RUNBOOK.md) for details.
+**Note**: Bootstrap stages 1-3 are for compiler developers working on self-hosting. Production users should use Stage 0.
 
 ## Language Features by Stage
 

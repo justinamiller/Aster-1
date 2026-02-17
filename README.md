@@ -2,8 +2,11 @@
 
 A production-grade ahead-of-time compiler for the **ASTER** programming language, written in C# (.NET 10).
 
-**Current Status**: Stage 0 (C# Seed Compiler) — Emits LLVM IR  
-**Bootstrap Progress**: 🚧 Working towards self-hosting (see [STATUS.md](STATUS.md))
+**Status**: ✅ **PRODUCTION READY** — Stage 0 (C# compiler) is fully functional  
+**Version**: 0.2.0  
+**Bootstrap Progress**: 🚧 Self-hosted Aster-in-Aster compiler in development (see [STATUS.md](STATUS.md))
+
+> **Note**: The Stage 0 (C#) compiler is production-ready and recommended for all use. Bootstrap stages (1-3) are infrastructure for future self-hosted development. See [PRODUCTION.md](PRODUCTION.md) for production usage guide.
 
 ## Architecture
 
@@ -42,13 +45,14 @@ Source → Lexer → Parser → AST → Name Resolution → HIR → Type Check �
 
 ## Quick Start
 
+### Production Use (Recommended)
+
 ```bash
-# Build the compiler
-dotnet build Aster.slnx
+# Build the production compiler (Stage 0 - C#)
+dotnet build Aster.slnx --configuration Release
 
 # Compile an ASTER source file to LLVM IR
-dotnet run --project src/Aster.CLI -- build hello.ast --emit-llvm
-# Output: hello.ll (LLVM IR text format)
+dotnet run --project src/Aster.CLI -- build hello.ast --emit-llvm -o hello.ll
 
 # Type-check only (no code generation)
 dotnet run --project src/Aster.CLI -- check hello.ast
@@ -58,7 +62,21 @@ clang hello.ll -o hello
 ./hello
 ```
 
-**Complete Toolchain Guide**: See [TOOLCHAIN.md](TOOLCHAIN.md) for detailed compilation instructions.
+**Complete Production Guide**: See [PRODUCTION.md](PRODUCTION.md) for detailed usage, deployment, and CI/CD integration.
+
+### Bootstrap Development (Optional)
+
+The repository includes infrastructure for developing a self-hosted Aster-in-Aster compiler:
+
+```bash
+# Build all bootstrap stages (for compiler developers)
+./bootstrap/scripts/bootstrap.sh --clean --stage 3
+
+# Verify bootstrap infrastructure
+./bootstrap/scripts/verify.sh --all-stages --skip-tests
+```
+
+**Bootstrap Guide**: See [README_BOOTSTRAP.md](README_BOOTSTRAP.md) for bootstrap development.
 
 ## Hello World
 

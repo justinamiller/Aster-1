@@ -2,11 +2,25 @@
 
 **Last Updated**: 2026-02-17  
 **Author**: GitHub Copilot Coding Agent  
-**Purpose**: Document Stage 3 implementation status, validation procedures, and known gaps
+**Purpose**: Document Stage 3 bootstrap infrastructure status, validation procedures, and development roadmap
+
+> **Important**: This document is about **bootstrap infrastructure development**, not production use of the Aster compiler. For production use, see [PRODUCTION.md](../PRODUCTION.md).
 
 ## Executive Summary
 
-Stage 3 of the Aster compiler bootstrap is now **functionally complete** for core compilation pipeline with verification harnesses in place. This document provides the definitive guide to what has been implemented, tested, and what remains as future work.
+Stage 3 bootstrap infrastructure is **functionally complete** for testing the self-hosting validation framework. The Stage 0 (C#) compiler is the **production-ready** compiler. Bootstrap stages are infrastructure for future development of a fully self-hosted Aster-in-Aster compiler.
+
+### Key Distinction
+
+- **Production Use** → Use Stage 0 (C#) compiler ✅
+  - See [PRODUCTION.md](../PRODUCTION.md)
+  - Fully functional, 119 tests passing
+  - Complete feature set
+
+- **Bootstrap Development** → Stages 1-3 (Future work) 🚧
+  - This runbook documents bootstrap infrastructure
+  - For compiler developers only
+  - Long-term self-hosting development
 
 ## Quick Status Check
 
