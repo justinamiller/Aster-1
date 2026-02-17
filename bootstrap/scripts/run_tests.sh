@@ -101,6 +101,22 @@ vlog() {
     fi
 }
 
+# Build Aster.CLI once at the start
+build_aster_cli() {
+    log_step "Building Aster.CLI"
+    
+    cd "${PROJECT_ROOT}"
+    
+    vlog "Building Aster.CLI in Debug mode..."
+    if ! dotnet build src/Aster.CLI/Aster.CLI.csproj --configuration Debug > /dev/null 2>&1; then
+        log_failure "Failed to build Aster.CLI"
+        return 1
+    fi
+    
+    log_success "Aster.CLI built successfully"
+    return 0
+}
+
 # Run Stage 0 C# tests
 run_stage0_tests() {
     log_step "Running Stage 0 (C#) Tests"
@@ -141,12 +157,17 @@ run_stage1_tests() {
             local test_name=$(basename "$test_file")
             vlog "Running $test_name..."
             
-            # Try to compile the test file
-            if dotnet run --project src/Aster.CLI -- build "$test_file" --emit-llvm -o "/tmp/${test_name}.ll" > /dev/null 2>&1; then
+            # Try to compile the test file with timeout
+            if timeout 30 dotnet run --project src/Aster.CLI --no-build -- build "$test_file" --emit-llvm -o "/tmp/${test_name}.ll" > /dev/null 2>&1; then
                 log_success "$test_name - compiles"
                 rm -f "/tmp/${test_name}.ll"
             else
-                log_failure "$test_name - compilation failed"
+                local exit_code=$?
+                if [[ $exit_code -eq 124 ]]; then
+                    log_failure "$test_name - compilation timeout (>30s)"
+                else
+                    log_failure "$test_name - compilation failed"
+                fi
             fi
         fi
     done
@@ -169,11 +190,16 @@ run_stage2_tests() {
                     local test_name=$(basename "$test_file")
                     vlog "Running $test_name..."
                     
-                    if dotnet run --project src/Aster.CLI -- build "$test_file" --emit-llvm -o "/tmp/${test_name}.ll" > /dev/null 2>&1; then
+                    if timeout 30 dotnet run --project src/Aster.CLI --no-build -- build "$test_file" --emit-llvm -o "/tmp/${test_name}.ll" > /dev/null 2>&1; then
                         log_success "$test_name - compiles"
                         rm -f "/tmp/${test_name}.ll"
                     else
-                        log_failure "$test_name - compilation failed"
+                        local exit_code=$?
+                        if [[ $exit_code -eq 124 ]]; then
+                            log_failure "$test_name - compilation timeout (>30s)"
+                        else
+                            log_failure "$test_name - compilation failed"
+                        fi
                     fi
                 fi
             done
@@ -202,11 +228,16 @@ run_stage3_tests() {
                     local test_name=$(basename "$test_file")
                     vlog "Running $test_name..."
                     
-                    if dotnet run --project src/Aster.CLI -- build "$test_file" --emit-llvm -o "/tmp/${test_name}.ll" > /dev/null 2>&1; then
+                    if timeout 30 dotnet run --project src/Aster.CLI --no-build -- build "$test_file" --emit-llvm -o "/tmp/${test_name}.ll" > /dev/null 2>&1; then
                         log_success "$test_name - compiles"
                         rm -f "/tmp/${test_name}.ll"
                     else
-                        log_failure "$test_name - compilation failed"
+                        local exit_code=$?
+                        if [[ $exit_code -eq 124 ]]; then
+                            log_failure "$test_name - compilation timeout (>30s)"
+                        else
+                            log_failure "$test_name - compilation failed"
+                        fi
                     fi
                 fi
             done
@@ -225,6 +256,14 @@ main() {
     echo "Aster Test Suite"
     echo "=========================================="
     echo ""
+    
+    # Build Aster.CLI once if running Aster tests (stages 1-3)
+    if [[ "$TEST_STAGE" == "all" ]] || [[ "$TEST_STAGE" == "1" ]] || [[ "$TEST_STAGE" == "2" ]] || [[ "$TEST_STAGE" == "3" ]]; then
+        if ! build_aster_cli; then
+            log_failure "Failed to build Aster.CLI - cannot run Aster tests"
+            return 1
+        fi
+    fi
     
     # Run tests based on flags
     if [[ "$TEST_STAGE" == "all" || "$TEST_STAGE" == "0" ]]; then
