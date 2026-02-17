@@ -140,15 +140,21 @@ public static class Program
                         int braceDepth = 0;
                         bool inFunction = false;
                         
-                        // Find opening brace
+                        // Find opening brace and count all braces on that line
                         while (i < lines.Length)
                         {
-                            var funcLine = lines[i].Trim();
+                            var funcLine = lines[i];
                             if (funcLine.Contains("{"))
                             {
                                 inFunction = true;
-                                braceDepth = 1;
+                                // Count all braces on this line (handles single-line functions)
+                                braceDepth = funcLine.Count(c => c == '{') - funcLine.Count(c => c == '}');
                                 i++;
+                                // If braceDepth is 0, the function is complete on one line
+                                if (braceDepth == 0)
+                                {
+                                    break;
+                                }
                                 break;
                             }
                             i++;

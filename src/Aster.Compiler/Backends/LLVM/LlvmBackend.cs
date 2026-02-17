@@ -366,8 +366,23 @@ public sealed class LlvmBackend : IBackend
             case MirReturn ret:
                 if (ret.Value != null)
                 {
-                    var type = MapType(ret.Value.Type);
-                    _output.AppendLine($"  ret {type} {FormatOperand(ret.Value)}");
+                    // Use function's return type
+                    var expectedType = MapType(fn.ReturnType);
+                    var actualType = MapType(ret.Value.Type);
+                    
+                    // If types match, emit directly
+                    if (expectedType == actualType)
+                    {
+                        _output.AppendLine($"  ret {expectedType} {FormatOperand(ret.Value)}");
+                    }
+                    else
+                    {
+                        // Types don't match - need to cast
+                        // This handles cases where MIR has wrong types for constants
+                        var tempVar = $"%_ret_cast";
+                        _output.AppendLine($"  {tempVar} = trunc {actualType} {FormatOperand(ret.Value)} to {expectedType}");
+                        _output.AppendLine($"  ret {expectedType} {tempVar}");
+                    }
                 }
                 else
                 {
