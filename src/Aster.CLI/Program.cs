@@ -12,6 +12,7 @@ using Aster.Compiler.Fuzzing;
 using Aster.Compiler.Fuzzing.Harnesses;
 using Aster.Compiler.Differential;
 using Aster.Compiler.Reducers;
+using System.Text;
 using System.Text.Json;
 
 namespace Aster.CLI;
@@ -66,6 +67,74 @@ public static class Program
             "--version" or "-v" => PrintVersion(),
             _ => UnknownCommand(command),
         };
+    }
+
+    /// <summary>
+    /// Merge multiple LLVM IR modules into one, deduplicating external declarations.
+    /// </summary>
+    private static string MergeLlvmIr(List<string> irModules)
+    {
+        if (irModules.Count == 0)
+            return "";
+        
+        if (irModules.Count == 1)
+            return irModules[0];
+
+        var result = new StringBuilder();
+        var seenDeclarations = new HashSet<string>();
+        var seenGlobals = new HashSet<string>();
+        
+        // Track if we've added the header comments
+        bool headerAdded = false;
+        
+        foreach (var ir in irModules)
+        {
+            var lines = ir.Split('\n');
+            
+            foreach (var line in lines)
+            {
+                var trimmed = line.Trim();
+                
+                // Skip empty lines initially
+                if (string.IsNullOrWhiteSpace(trimmed))
+                    continue;
+                
+                // Add header comments only once
+                if (trimmed.StartsWith(";"))
+                {
+                    if (!headerAdded)
+                    {
+                        result.AppendLine(line);
+                    }
+                    continue;
+                }
+                
+                headerAdded = true;
+                
+                // Deduplicate external declarations (declare)
+                if (trimmed.StartsWith("declare "))
+                {
+                    if (!seenDeclarations.Add(trimmed))
+                        continue; // Skip duplicate
+                }
+                // Deduplicate global declarations (starting with @)
+                else if (trimmed.StartsWith("@"))
+                {
+                    // Extract the global name (e.g., "@.str.0" from "@.str.0 = ...")
+                    var nameEnd = trimmed.IndexOf(' ');
+                    if (nameEnd > 0)
+                    {
+                        var globalName = trimmed.Substring(0, nameEnd);
+                        if (!seenGlobals.Add(globalName))
+                            continue; // Skip duplicate
+                    }
+                }
+                
+                result.AppendLine(line);
+            }
+        }
+        
+        return result.ToString();
     }
 
     private static int Build(string[] args)
@@ -127,8 +196,8 @@ public static class Program
             allLlvmIr.Add(llvmIr);
         }
 
-        // Merge LLVM IR (simplified - just concatenate for now)
-        var mergedLlvmIr = string.Join("\n\n", allLlvmIr);
+        // Merge LLVM IR with deduplication of external declarations
+        var mergedLlvmIr = MergeLlvmIr(allLlvmIr);
 
         // Determine output path
         if (outputPath == null)
