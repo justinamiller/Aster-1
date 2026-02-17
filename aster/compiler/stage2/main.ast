@@ -1,0 +1,294 @@
+// Main - Entry point for the Aster Stage 2 compiler
+// Part of Aster Stage 2 (Core-1 implementation)
+//
+// Stage 2 extends Stage 1 with type inference, trait resolution,
+// effect system, and basic ownership analysis.
+//
+// Language Subset: Core-1
+// - Uses: functions, traits, generics, effects, ownership
+// - Extends Core-0 with type system and semantic analysis
+
+// ============================================================================
+// IMPORTS (conceptual - actual imports handled by Stage 1 compiler)
+// ============================================================================
+
+// Stage 2 extends Stage 1 with:
+// - Name resolution and symbol tables
+// - Type inference (Hindley-Milner with constraints)
+// - Trait solver (trait resolution and impl checking)
+// - Effect system (effect inference and checking)
+// - Ownership analysis (move semantics and borrow tracking)
+
+// ============================================================================
+// TYPE DEFINITIONS
+// ============================================================================
+
+/// Generic Result type for Core-1
+enum Result<T, E> {
+    Ok(T),
+    Err(E)
+}
+
+/// Generic Option type for Core-1
+enum Option<T> {
+    Some(T),
+    None
+}
+
+/// Compilation phase for Stage 2
+enum CompilationPhase {
+    Lexing,
+    Parsing,
+    NameResolution,
+    TypeInference,
+    TraitResolution,
+    EffectChecking,
+    OwnershipAnalysis,
+    CodeGeneration
+}
+
+/// Diagnostic level
+enum DiagnosticLevel {
+    Error,
+    Warning,
+    Info
+}
+
+/// Diagnostic message
+struct Diagnostic {
+    level: DiagnosticLevel,
+    message: String,
+    phase: CompilationPhase,
+    span: Span
+}
+
+/// Span for source location tracking
+struct Span {
+    file: String,
+    line: i32,
+    column: i32,
+    start: i32,
+    length: i32
+}
+
+/// Symbol ID for name resolution
+struct SymbolId {
+    id: i32
+}
+
+/// Type ID for type inference
+struct TypeId {
+    id: i32
+}
+
+/// Compiler context for Stage 2
+struct CompilerContext {
+    phase: CompilationPhase,
+    diagnostics: Vec<Diagnostic>,
+    symbol_table: SymbolTable,
+    type_context: TypeContext
+}
+
+/// Symbol table for name resolution
+struct SymbolTable {
+    symbols: Vec<Symbol>,
+    scopes: Vec<Scope>
+}
+
+/// Symbol entry
+struct Symbol {
+    id: SymbolId,
+    name: String,
+    ty: TypeId,
+    span: Span
+}
+
+/// Scope for symbol resolution
+struct Scope {
+    parent: Option<i32>,  // Index of parent scope
+    symbols: Vec<SymbolId>
+}
+
+/// Type context for type inference
+struct TypeContext {
+    types: Vec<Type>,
+    constraints: Vec<TypeConstraint>
+}
+
+/// Type representation
+enum Type {
+    Unknown,
+    Int32,
+    Int64,
+    Float32,
+    Float64,
+    Bool,
+    String,
+    Unit,
+    Function,  // Placeholder for function types
+    Generic,   // Placeholder for generic types
+    Trait      // Placeholder for trait types
+}
+
+/// Type constraint for unification
+struct TypeConstraint {
+    left: TypeId,
+    right: TypeId,
+    span: Span
+}
+
+// ============================================================================
+// STAGE 2 COMPILATION PIPELINE
+// ============================================================================
+
+/// Initialize Stage 2 compiler context
+fn init_compiler() -> CompilerContext {
+    let empty_diagnostics: Vec<Diagnostic> = Vec::new();
+    let empty_symbols: Vec<Symbol> = Vec::new();
+    let empty_scopes: Vec<Scope> = Vec::new();
+    let empty_types: Vec<Type> = Vec::new();
+    let empty_constraints: Vec<TypeConstraint> = Vec::new();
+    
+    let symbol_table = SymbolTable {
+        symbols: empty_symbols,
+        scopes: empty_scopes
+    };
+    
+    let type_context = TypeContext {
+        types: empty_types,
+        constraints: empty_constraints
+    };
+    
+    CompilerContext {
+        phase: CompilationPhase::Lexing,
+        diagnostics: empty_diagnostics,
+        symbol_table: symbol_table,
+        type_context: type_context
+    }
+}
+
+/// Run name resolution phase
+fn resolve_names(ctx: CompilerContext) -> CompilerContext {
+    // TODO: Implement name resolution
+    // - Build symbol table from AST
+    // - Resolve variable references
+    // - Check for undefined symbols
+    // - Handle scoping rules
+    ctx
+}
+
+/// Run type inference phase
+fn infer_types(ctx: CompilerContext) -> CompilerContext {
+    // TODO: Implement type inference
+    // - Generate type constraints from expressions
+    // - Unify types using constraint solving
+    // - Instantiate generic types
+    // - Check type compatibility
+    ctx
+}
+
+/// Run trait resolution phase
+fn resolve_traits(ctx: CompilerContext) -> CompilerContext {
+    // TODO: Implement trait resolution
+    // - Build trait database
+    // - Resolve trait bounds
+    // - Check impl coverage
+    // - Detect cycles
+    ctx
+}
+
+/// Run effect checking phase
+fn check_effects(ctx: CompilerContext) -> CompilerContext {
+    // TODO: Implement effect checking
+    // - Infer effects from function calls
+    // - Propagate effects through call chain
+    // - Check effect annotations
+    // - Verify effect boundaries
+    ctx
+}
+
+/// Run ownership analysis phase
+fn analyze_ownership(ctx: CompilerContext) -> CompilerContext {
+    // TODO: Implement ownership analysis
+    // - Track moves and borrows
+    // - Check use-after-move
+    // - Verify borrow lifetimes
+    // - Detect conflicting borrows
+    ctx
+}
+
+/// Compile source with Stage 2 pipeline
+fn compile(source: String, filename: String) -> Result<CompilerContext, String> {
+    let mut ctx = init_compiler();
+    
+    // Run all compilation phases
+    ctx = resolve_names(ctx);
+    ctx = infer_types(ctx);
+    ctx = resolve_traits(ctx);
+    ctx = check_effects(ctx);
+    ctx = analyze_ownership(ctx);
+    
+    // Check for errors
+    let has_errors = check_diagnostics(ctx.diagnostics);
+    
+    if has_errors {
+        Result::Err("Compilation failed with errors")
+    } else {
+        Result::Ok(ctx)
+    }
+}
+
+/// Check if diagnostics contain errors
+fn check_diagnostics(diagnostics: Vec<Diagnostic>) -> bool {
+    // TODO: Check if any diagnostic is an error
+    false
+}
+
+/// Main entry point for Stage 2
+fn main() {
+    // Stage 2 entry point
+    // Currently a placeholder - actual CLI handling will be added
+    // when Stage 2 is compiled by Stage 1
+    //
+    // Expected commands:
+    // - aster2 build <file>       - Compile with full type checking
+    // - aster2 check <file>       - Type check without codegen
+    // - aster2 emit-types <file>  - Emit inferred types as JSON
+    // - aster2 emit-traits <file> - Emit trait resolution as JSON
+}
+
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+
+/// Create a new span
+fn new_span(file: String, line: i32, column: i32, start: i32, length: i32) -> Span {
+    Span {
+        file: file,
+        line: line,
+        column: column,
+        start: start,
+        length: length
+    }
+}
+
+/// Create a new symbol
+fn new_symbol(name: String, ty: TypeId, span: Span) -> Symbol {
+    let id = SymbolId { id: 0 };  // Will be assigned by symbol table
+    Symbol {
+        id: id,
+        name: name,
+        ty: ty,
+        span: span
+    }
+}
+
+/// Create a diagnostic
+fn new_diagnostic(level: DiagnosticLevel, message: String, phase: CompilationPhase, span: Span) -> Diagnostic {
+    Diagnostic {
+        level: level,
+        message: message,
+        phase: phase,
+        span: span
+    }
+}

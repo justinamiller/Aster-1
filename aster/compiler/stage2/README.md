@@ -1,60 +1,90 @@
-# Stage 2: Expanded Aster Compiler Source
+# Stage 2 Compiler Source
 
-## Overview
+This directory contains the Stage 2 Aster compiler implementation, written in the **Core-1 language subset**.
 
-This directory will contain the **Stage 2 (Aster Core-1)** compiler implementation.
+## Purpose
 
-## Status
+Stage 2 extends Stage 1 with:
+- **Type inference** (Hindley-Milner)
+- **Trait resolution** and impl checking
+- **Effect system** inference and checking
+- **Basic ownership** analysis (move semantics, borrow tracking)
+- **Generics** with trait bounds
 
-⏳ **Not Yet Implemented** - Infrastructure ready, awaiting implementation.
+## Language Subset (Core-1)
 
-## What Goes Here
+Stage 2 is written in Core-1, which includes:
+- All Core-0 features (primitives, functions, structs, enums, control flow)
+- **Generics** with trait bounds
+- **Traits** and implementations
+- **Effect annotations**
+- **Closures**
+- **Basic ownership** semantics
 
-Stage 2 will include the expanded Aster compiler written in **Aster Core-1**:
+## Components
 
-1. **Name Resolution** - Symbol table, cross-module resolution, imports/exports
-2. **Type Inference** - Hindley-Milner constraint generation and unification
-3. **Trait Solver** - Trait resolution, impl database, constraint solving
-4. **Effects System** - Effect inference and propagation
-5. **Ownership Analysis** - Move semantics, borrow tracking, use-after-move detection
+### 1. Name Resolution (`nameresolver.ast`)
+- Symbol table construction
+- Scope management
+- Import/export resolution
+- Cross-module resolution
 
-## Prerequisites
+### 2. Type Inference (`typeinfer.ast`)
+- Constraint generation
+- Unification algorithm
+- Type scheme instantiation
+- Generic type support
 
-Before implementing Stage 2:
-- ✅ Stage 0 (C# seed compiler) must be complete
-- 🚧 Stage 1 (minimal Aster compiler) must be complete (currently 20% done)
+### 3. Trait Solver (`traitsolver.ast`)
+- Trait database construction
+- Obligation resolution
+- Impl lookup with caching
+- Cycle detection
+
+### 4. Effect System (`effectsystem.ast`)
+- Effect inference
+- Effect propagation
+- Effect annotation checking
+
+### 5. Ownership Analysis (`ownership.ast`)
+- Move semantics validation
+- Borrow tracking
+- Use-after-move detection
 
 ## Building
 
-Once implemented, Stage 2 will be built with:
+Stage 2 is compiled by Stage 1:
 
-\`\`\`bash
-# Using Stage 1 compiler
-aster1 build aster/compiler/stage2/*.ast -o build/bootstrap/stage2/aster2
-
-# Or using the bootstrap script
+```bash
+# Using bootstrap script
 ./bootstrap/scripts/bootstrap.sh --stage 2
-\`\`\`
 
-## Verification
+# Manual compilation
+aster1 build aster/compiler/stage2/*.ast -o build/bootstrap/stage2/aster2
+```
 
-Stage 2 will be verified by:
-- Differential tests vs Stage 0 on Core-1 fixtures
-- All Core-0 tests still pass (regression)
-- Self-compilation test: aster2 compiles itself
+## Testing
 
-## Implementation Timeline
+```bash
+# Run Stage 2 tests
+./bootstrap/scripts/verify.sh --stage 2
 
-**Estimated**: 3-4 months after Stage 1 completion
+# Differential testing (compare aster0 vs aster2)
+./bootstrap/scripts/differential.sh --stage 2
+```
 
-**Key Milestones**:
-1. Port name resolution (1 month)
-2. Port type inference (1-1.5 months)
-3. Port trait solver (1 month)
-4. Port effects and ownership (0.5-1 month)
+## Self-Compilation
 
-## See Also
+Stage 2 must be able to compile itself:
 
-- `/bootstrap/spec/bootstrap-stages.md` - Complete stage specifications
-- `/bootstrap/stages/stage2-aster/README.md` - Stage 2 documentation
-- `/bootstrap/spec/aster-core-subsets.md` - Language subset definitions
+```bash
+aster2 build aster/compiler/stage2/*.ast -o aster2'
+# Verify: aster2 == aster2' (should be identical or semantically equivalent)
+```
+
+## Status
+
+**Current**: Initial implementation in progress
+**Next**: Name resolution framework
+
+See `/STATUS.md` for overall bootstrap progress.
