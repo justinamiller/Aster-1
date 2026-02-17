@@ -339,11 +339,11 @@ build_stage2() {
     
     log_info "Found $(echo "$AST_FILES" | wc -l) Stage 2 source files"
     
-    # Compile with aster1
+    # Compile with aster1 using --stage1 flag to generate CLI wrapper
     if [[ $VERBOSE -eq 1 ]]; then
-        "$ASTER1" build $AST_FILES -o "${BUILD_DIR}/stage2/aster2"
+        "$ASTER1" build $AST_FILES --stage1 -o "${BUILD_DIR}/stage2/aster2"
     else
-        "$ASTER1" build $AST_FILES -o "${BUILD_DIR}/stage2/aster2" > /dev/null 2>&1
+        "$ASTER1" build $AST_FILES --stage1 -o "${BUILD_DIR}/stage2/aster2" > /dev/null 2>&1
     fi
     
     if [[ -f "${BUILD_DIR}/stage2/aster2" ]] || [[ -f "${BUILD_DIR}/stage2/aster2.exe" ]]; then
