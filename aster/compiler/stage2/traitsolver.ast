@@ -1,39 +1,91 @@
-// Trait Solver - Core-0 Compatible Version
-// Simplified for Stage 1 compilation
+// Trait Solver - Enhanced for Stage 2
+// Minimal trait resolution and impl checking
 
 struct TraitDef {
     name: String,
     trait_id: i32
 }
 
+struct ImplBlock {
+    trait_id: i32,
+    type_id: i32,
+    impl_id: i32
+}
+
+struct TraitObligation {
+    type_id: i32,
+    trait_id: i32,
+    satisfied: bool
+}
+
 struct TraitContext {
     trait_count: i32,
     impl_count: i32,
-    obligation_count: i32
+    obligation_count: i32,
+    has_errors: bool
 }
 
 fn new_trait_context() -> TraitContext {
     TraitContext {
         trait_count: 0,
         impl_count: 0,
-        obligation_count: 0
+        obligation_count: 0,
+        has_errors: false
     }
 }
 
 fn add_trait(ctx: TraitContext, name: String) -> TraitContext {
+    // Register trait definition
     TraitContext {
         trait_count: ctx.trait_count + 1,
         impl_count: ctx.impl_count,
-        obligation_count: ctx.obligation_count
+        obligation_count: ctx.obligation_count,
+        has_errors: ctx.has_errors
+    }
+}
+
+fn add_impl(ctx: TraitContext, trait_id: i32, type_id: i32) -> TraitContext {
+    // Register trait implementation
+    TraitContext {
+        trait_count: ctx.trait_count,
+        impl_count: ctx.impl_count + 1,
+        obligation_count: ctx.obligation_count,
+        has_errors: ctx.has_errors
+    }
+}
+
+fn add_obligation(ctx: TraitContext, type_id: i32, trait_id: i32) -> TraitContext {
+    // Add trait bound obligation
+    TraitContext {
+        trait_count: ctx.trait_count,
+        impl_count: ctx.impl_count,
+        obligation_count: ctx.obligation_count + 1,
+        has_errors: ctx.has_errors
     }
 }
 
 fn resolve_traits(ctx: TraitContext) -> TraitContext {
-    // Simplified: just return unchanged
+    // Resolve all trait obligations
+    // Simplified: just succeed if we have impls
     ctx
 }
 
 fn check_trait_bound(ctx: TraitContext, type_id: i32, trait_id: i32) -> bool {
-    // Simplified: always returns true
-    true
+    // Check if type satisfies trait bound
+    // Simplified: succeed if we have any impls
+    if ctx.impl_count > 0 {
+        true
+    } else {
+        false
+    }
+}
+
+fn lookup_impl(ctx: TraitContext, type_id: i32, trait_id: i32) -> i32 {
+    // Find impl for type and trait
+    // Simplified: return first impl if exists
+    if ctx.impl_count > 0 {
+        1  // Found
+    } else {
+        -1  // Not found
+    }
 }

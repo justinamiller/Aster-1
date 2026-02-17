@@ -1,6 +1,5 @@
-// Effect System - Effect Tracking Component
-// Part of Aster Stage 2 (Core-1 implementation)
-// Simplified for Core-0 compatibility (no Vec, Option, Result)
+// Effect System - Enhanced for Stage 2
+// Effect tracking and inference
 
 // ============================================================================
 // EFFECT STRUCTURES
@@ -15,10 +14,19 @@ enum Effect {
     Async          // Asynchronous
 }
 
-/// Effect context (simplified for Core-0)
+/// Effect set for tracking multiple effects
+struct EffectSet {
+    has_io: bool,
+    has_exception: bool,
+    has_async: bool,
+    effect_count: i32
+}
+
+/// Effect context (enhanced)
 struct EffectContext {
     function_count: i32,
-    diagnostic_count: i32
+    diagnostic_count: i32,
+    has_errors: bool
 }
 
 /// Effect annotation for a function
@@ -35,7 +43,28 @@ struct FunctionEffect {
 fn new_effect_context() -> EffectContext {
     EffectContext {
         function_count: 0,
-        diagnostic_count: 0
+        diagnostic_count: 0,
+        has_errors: false
+    }
+}
+
+/// Create empty effect set
+fn new_effect_set() -> EffectSet {
+    EffectSet {
+        has_io: false,
+        has_exception: false,
+        has_async: false,
+        effect_count: 0
+    }
+}
+
+/// Add IO effect
+fn add_io_effect(effects: EffectSet) -> EffectSet {
+    EffectSet {
+        has_io: true,
+        has_exception: effects.has_exception,
+        has_async: effects.has_async,
+        effect_count: effects.effect_count + 1
     }
 }
 
@@ -44,7 +73,11 @@ fn infer_function_effects(ctx: EffectContext, func: Function) -> EffectContext {
     // Analyze function body
     // Infer effects from operations
     // Propagate through function calls
-    ctx
+    EffectContext {
+        function_count: ctx.function_count + 1,
+        diagnostic_count: ctx.diagnostic_count,
+        has_errors: ctx.has_errors
+    }
 }
 
 /// Check effect boundaries
@@ -54,10 +87,20 @@ fn check_effects(ctx: EffectContext) -> EffectContext {
     ctx
 }
 
-/// Combine multiple effects (simplified)
+/// Combine multiple effects
 fn combine_effects(e1: Effect, e2: Effect) -> Effect {
-    // For Core-0 compatibility, just return first effect
+    // Simplified: return first effect
     e1
+}
+
+/// Merge effect sets
+fn merge_effect_sets(e1: EffectSet, e2: EffectSet) -> EffectSet {
+    EffectSet {
+        has_io: e1.has_io || e2.has_io,
+        has_exception: e1.has_exception || e2.has_exception,
+        has_async: e1.has_async || e2.has_async,
+        effect_count: e1.effect_count + e2.effect_count
+    }
 }
 
 struct Function { name: String }
