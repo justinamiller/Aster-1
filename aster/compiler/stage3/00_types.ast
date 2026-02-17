@@ -12,31 +12,21 @@
 /// Generic vector type (provided by runtime during bootstrap)
 struct Vec<T> {}
 
-/// Generic result type for error handling
-enum Result<T, E> {
-    Ok(T),
-    Err(E)
-}
+/// Generic result type for error handling (opaque in Core-0)
+struct Result<T, E> {}
 
-/// Generic option type
-enum Option<T> {
-    Some(T),
-    None
-}
+/// Generic option type (opaque in Core-0)
+struct Option<T> {}
 
 // ============================================================================
 // MIR Types (shared across CFG, liveness, borrowchecker, etc.)
 // ============================================================================
 
-/// Local variable identifier
-type Local = i32;
-
-/// Type identifier
-type TypeId = i32;
+// Note: Local and TypeId are i32 throughout the code (no type aliases in Core-0)
 
 /// Place (memory location) in MIR
 struct Place {
-    local: Local,
+    local: i32,
     projection: Vec<PlaceElem>,
 }
 
@@ -44,8 +34,9 @@ struct Place {
 enum PlaceElem {
     Deref,
     Field(i32),
-    Index(Local),
-    ConstantIndex { offset: i32, from_end: bool },
+    Index(i32),
+    ConstantIndexStart(i32),    // offset from start
+    ConstantIndexEnd(i32),      // offset from end
     Downcast(i32),
 }
 
@@ -122,8 +113,8 @@ enum UnOp {
 enum AggregateKind {
     Array(Type),
     Tuple,
-    Struct(TypeId),
-    Enum(TypeId, i32),
+    StructType(i32),    // type_id
+    EnumType(i32, i32), // (type_id, variant)
 }
 
 // ============================================================================
@@ -226,7 +217,7 @@ enum FloatType {
 
 /// Type definition
 struct TypeDef {
-    id: TypeId,
+    id: i32,
     name: String,
     kind: TypeKind,
 }
