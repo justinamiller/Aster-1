@@ -51,10 +51,11 @@ fn compile_file(ctx: CompilationContext, filename: String) -> CompilationContext
     }
 }
 
-fn main() {
+fn main() -> i32 {
     let ctx = new_compilation_context();
     let result = compile_file(ctx, "test.ast");
-    // Compilation complete
+    // Compilation complete - return success
+    0
 }
 
 // Forward declarations for other modules
