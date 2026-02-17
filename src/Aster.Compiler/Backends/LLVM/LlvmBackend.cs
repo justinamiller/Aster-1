@@ -546,7 +546,7 @@ public sealed class LlvmBackend : IBackend
 
     /// <summary>
     /// Emit Stage1 CLI wrapper main function.
-    /// This function handles --help, emit-tokens, emit-ast-json, and emit-symbols-json commands.
+    /// This function handles --help, build, emit-tokens, emit-ast-json, and emit-symbols-json commands.
     /// For these commands, it delegates to aster0 (bootstrap shortcut).
     /// </summary>
     private void EmitStage1CliWrapper()
@@ -554,7 +554,7 @@ public sealed class LlvmBackend : IBackend
         _output.AppendLine("; ============================================================================");
         _output.AppendLine("; Stage1 CLI Wrapper");
         _output.AppendLine("; This wrapper provides a minimal CLI for Stage1 bootstrap.");
-        _output.AppendLine("; It handles: --help, emit-tokens <file>, emit-ast-json <file>, emit-symbols-json <file>");
+        _output.AppendLine("; It handles: --help, build <files> -o <output>, emit-tokens <file>, emit-ast-json <file>, emit-symbols-json <file>");
         _output.AppendLine("; ============================================================================");
         _output.AppendLine();
 
@@ -565,6 +565,7 @@ Usage: aster1 <command> [options]
 
 Commands:
   --help                   Show this help message
+  build <files...> -o <output>  Build executable from source files
   emit-tokens <file>       Emit token stream as JSON
   emit-ast-json <file>     Emit AST as JSON
   emit-symbols-json <file> Emit symbol table as JSON
@@ -579,11 +580,13 @@ For full compiler features, use aster2 or aster3.";
             ["errorUnknownCmd"] = "error: unknown command",
             ["errorNoFile"] = "error: no input file specified",
             ["helpCmd"] = "--help",
+            ["buildCmd"] = "build",
             ["emitTokensCmd"] = "emit-tokens",
             ["emitAstJsonCmd"] = "emit-ast-json",
             ["emitSymbolsJsonCmd"] = "emit-symbols-json",
             ["dotnetCmd"] = "dotnet",
             ["aster0Dll"] = "build/bootstrap/stage0/Aster.CLI.dll",
+            ["buildArg"] = "build",
             ["emitTokensArg"] = "emit-tokens",
             ["emitAstJsonArg"] = "emit-ast-json",
             ["emitSymbolsJsonArg"] = "emit-symbols-json"
@@ -618,7 +621,13 @@ For full compiler features, use aster2 or aster3.";
         _output.AppendLine("  ; Check if command is --help");
         _output.AppendLine("  %is_help = call i32 @strcmp(ptr %cmd_ptr, ptr @.str.helpCmd)");
         _output.AppendLine("  %is_help_zero = icmp eq i32 %is_help, 0");
-        _output.AppendLine("  br i1 %is_help_zero, label %handle_help, label %check_emit_tokens");
+        _output.AppendLine("  br i1 %is_help_zero, label %handle_help, label %check_build");
+        _output.AppendLine();
+        _output.AppendLine("check_build:");
+        _output.AppendLine("  ; Check if command is build");
+        _output.AppendLine("  %is_build = call i32 @strcmp(ptr %cmd_ptr, ptr @.str.buildCmd)");
+        _output.AppendLine("  %is_build_zero = icmp eq i32 %is_build, 0");
+        _output.AppendLine("  br i1 %is_build_zero, label %handle_build, label %check_emit_tokens");
         _output.AppendLine();
         _output.AppendLine("check_emit_tokens:");
         _output.AppendLine("  ; Check if command is emit-tokens");
@@ -641,6 +650,66 @@ For full compiler features, use aster2 or aster3.";
         _output.AppendLine("handle_help:");
         _output.AppendLine("  call i32 @puts(ptr @.str.helpMsg)");
         _output.AppendLine("  ret i32 0");
+        _output.AppendLine();
+        _output.AppendLine("handle_build:");
+        _output.AppendLine("  ; For build command, we need to pass all remaining arguments to aster0");
+        _output.AppendLine("  ; Check if we have at least 2 arguments (build + at least one file)");
+        _output.AppendLine("  %has_build_args = icmp sgt i32 %argc, 2");
+        _output.AppendLine("  br i1 %has_build_args, label %build_run, label %error_no_file");
+        _output.AppendLine();
+        _output.AppendLine("build_run:");
+        _output.AppendLine("  ; Bootstrap shortcut: exec aster0 for build");
+        _output.AppendLine("  ; We need to construct: [\"dotnet\", \"build/bootstrap/stage0/Aster.CLI.dll\", \"build\", arg2, arg3, ..., argN, NULL]");
+        _output.AppendLine("  ; For simplicity, allocate a fixed-size array (max 100 args should be enough)");
+        _output.AppendLine("  %build_argv = alloca [102 x ptr]");
+        _output.AppendLine();
+        _output.AppendLine("  ; Set argv[0] = \"dotnet\"");
+        _output.AppendLine("  %build_argv0_ptr = getelementptr inbounds [102 x ptr], ptr %build_argv, i32 0, i32 0");
+        _output.AppendLine("  store ptr @.str.dotnetCmd, ptr %build_argv0_ptr");
+        _output.AppendLine();
+        _output.AppendLine("  ; Set argv[1] = \"build/bootstrap/stage0/Aster.CLI.dll\"");
+        _output.AppendLine("  %build_argv1_ptr = getelementptr inbounds [102 x ptr], ptr %build_argv, i32 0, i32 1");
+        _output.AppendLine("  store ptr @.str.aster0Dll, ptr %build_argv1_ptr");
+        _output.AppendLine();
+        _output.AppendLine("  ; Set argv[2] = \"build\"");
+        _output.AppendLine("  %build_argv2_ptr = getelementptr inbounds [102 x ptr], ptr %build_argv, i32 0, i32 2");
+        _output.AppendLine("  store ptr @.str.buildArg, ptr %build_argv2_ptr");
+        _output.AppendLine();
+        _output.AppendLine("  ; Copy remaining arguments from original argv (starting from argv[2] -> new argv[3])");
+        _output.AppendLine("  ; Loop to copy arguments");
+        _output.AppendLine("  br label %build_copy_loop");
+        _output.AppendLine();
+        _output.AppendLine("build_copy_loop:");
+        _output.AppendLine("  %build_i = phi i32 [ 2, %build_run ], [ %build_i_next, %build_copy_body ]");
+        _output.AppendLine("  %build_continue = icmp slt i32 %build_i, %argc");
+        _output.AppendLine("  br i1 %build_continue, label %build_copy_body, label %build_copy_done");
+        _output.AppendLine();
+        _output.AppendLine("build_copy_body:");
+        _output.AppendLine("  ; Get argument from original argv");
+        _output.AppendLine("  %build_orig_arg = call ptr @aster_get_argv(i32 %build_i)");
+        _output.AppendLine();
+        _output.AppendLine("  ; Calculate new argv index (i - 2 + 3 = i + 1)");
+        _output.AppendLine("  %build_new_idx = add i32 %build_i, 1");
+        _output.AppendLine();
+        _output.AppendLine("  ; Store in new argv");
+        _output.AppendLine("  %build_new_arg_ptr = getelementptr inbounds [102 x ptr], ptr %build_argv, i32 0, i32 %build_new_idx");
+        _output.AppendLine("  store ptr %build_orig_arg, ptr %build_new_arg_ptr");
+        _output.AppendLine();
+        _output.AppendLine("  %build_i_next = add i32 %build_i, 1");
+        _output.AppendLine("  br label %build_copy_loop");
+        _output.AppendLine();
+        _output.AppendLine("build_copy_done:");
+        _output.AppendLine("  ; Set NULL terminator at end of array");
+        _output.AppendLine("  %build_null_idx = add i32 %argc, 1");
+        _output.AppendLine("  %build_null_ptr = getelementptr inbounds [102 x ptr], ptr %build_argv, i32 0, i32 %build_null_idx");
+        _output.AppendLine("  store ptr null, ptr %build_null_ptr");
+        _output.AppendLine();
+        _output.AppendLine("  ; Replace current process with aster0");
+        _output.AppendLine("  %build_argv_ptr = getelementptr inbounds [102 x ptr], ptr %build_argv, i32 0, i32 0");
+        _output.AppendLine("  %build_exec_result = call i32 @execvp(ptr @.str.dotnetCmd, ptr %build_argv_ptr)");
+        _output.AppendLine();
+        _output.AppendLine("  ; If execvp returns, it failed");
+        _output.AppendLine("  ret i32 1");
         _output.AppendLine();
         _output.AppendLine("handle_emit_tokens:");
         _output.AppendLine("  ; Check if file argument is provided");
