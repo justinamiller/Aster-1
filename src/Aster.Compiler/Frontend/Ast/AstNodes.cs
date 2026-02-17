@@ -394,7 +394,7 @@ public enum BinaryOperator
 
 public enum UnaryOperator
 {
-    Negate, Not, BitNot, Ref, MutRef,
+    Negate, Not, BitNot, Ref, MutRef, Try,
 }
 
 public enum LiteralKind

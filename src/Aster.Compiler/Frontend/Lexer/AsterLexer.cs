@@ -318,6 +318,7 @@ public sealed class AsterLexer : ILexer
             '>' => TokenKind.Greater,
             '=' => TokenKind.Equals,
             '.' => TokenKind.Dot,
+            '?' => TokenKind.Question,
             '(' => TokenKind.LeftParen,
             ')' => TokenKind.RightParen,
             '{' => TokenKind.LeftBrace,
