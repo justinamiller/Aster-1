@@ -1,0 +1,51 @@
+// Name Resolution - Minimal implementation for Stage 1
+// Part of Aster Stage 1 (Core-0 implementation)
+
+// Resolved identifier information
+struct ResolvedName {
+    name: String,
+    is_defined: bool
+}
+
+// Name resolver state
+struct NameResolver {
+    defined_names: Vec<String>,
+    name_count: i32
+}
+
+// Result of name resolution
+struct NameResolveResult {
+    resolver: NameResolver,
+    success: bool
+}
+
+/// Create a new name resolver
+fn new_name_resolver() -> NameResolver {
+    NameResolver {
+        defined_names: Vec::new(),
+        name_count: 0
+    }
+}
+
+/// Define a name
+fn define_name(mut resolver: NameResolver, name: String) -> NameResolver {
+    resolver.name_count = resolver.name_count + 1;
+    resolver
+}
+
+/// Resolve a name (simplified - always succeeds)
+fn resolve_name(resolver: NameResolver, name: String) -> ResolvedName {
+    ResolvedName {
+        name: name,
+        is_defined: true
+    }
+}
+
+/// Resolve all names in module
+fn resolve_module(mut resolver: NameResolver) -> NameResolveResult {
+    // Minimal implementation: just succeed
+    NameResolveResult {
+        resolver: resolver,
+        success: true
+    }
+}

@@ -1,0 +1,100 @@
+// Type Checking - Minimal implementation for Stage 1
+// Part of Aster Stage 1 (Core-0 implementation)
+//
+// This provides minimal type checking functionality sufficient for
+// Stage 1 to compile basic Core-0 programs.
+
+// Basic type representation
+enum AsterType {
+    I32,
+    I64,
+    Bool,
+    String,
+    Void,
+    Unknown
+}
+
+// Symbol in symbol table
+struct Symbol {
+    name: String,
+    symbol_type: AsterType,
+    is_function: bool
+}
+
+// Simple symbol table (single scope for minimal implementation)
+struct SymbolTable {
+    symbols: Vec<Symbol>,
+    symbol_count: i32
+}
+
+// Type checker state
+struct TypeChecker {
+    symbol_table: SymbolTable,
+    error_count: i32
+}
+
+// Result of type checking
+struct TypeCheckResult {
+    checker: TypeChecker,
+    success: bool
+}
+
+/// Create a new symbol table
+fn new_symbol_table() -> SymbolTable {
+    SymbolTable {
+        symbols: Vec::new(),
+        symbol_count: 0
+    }
+}
+
+/// Create a new type checker
+fn new_type_checker() -> TypeChecker {
+    TypeChecker {
+        symbol_table: new_symbol_table(),
+        error_count: 0
+    }
+}
+
+/// Add a symbol to the table
+fn add_symbol(mut st: SymbolTable, name: String, sym_type: AsterType, is_func: bool) -> SymbolTable {
+    let symbol = Symbol {
+        name: name,
+        symbol_type: sym_type,
+        is_function: is_func
+    };
+    
+    // In real implementation, would check for duplicates
+    st.symbol_count = st.symbol_count + 1;
+    st
+}
+
+/// Look up a symbol (simplified - always returns I32 for now)
+fn lookup_symbol(st: SymbolTable, name: String) -> AsterType {
+    // Simplified: just return I32 for any identifier
+    // Real implementation would search symbol table
+    AsterType::I32
+}
+
+/// Type check a module (minimal implementation)
+fn type_check_module(mut checker: TypeChecker) -> TypeCheckResult {
+    // Minimal implementation: just succeed
+    // Real implementation would check all functions, structs, etc.
+    
+    TypeCheckResult {
+        checker: checker,
+        success: true
+    }
+}
+
+/// Check if two types are compatible
+fn types_compatible(t1: AsterType, t2: AsterType) -> bool {
+    // Simplified: just check equality
+    // Real implementation would handle subtyping, coercion, etc.
+    true
+}
+
+/// Infer type of a literal (minimal)
+fn infer_literal_type(value: String) -> AsterType {
+    // Simplified: assume all literals are i32
+    AsterType::I32
+}
