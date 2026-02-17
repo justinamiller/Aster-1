@@ -1,207 +1,83 @@
 // Mid-level Intermediate Representation (MIR) for Stage 3
-// Simplified representation suitable for optimization and codegen
+// Core-0 compatible stub version
+//
+// Note: This is a simplified stub for bootstrap Stage 3 compilation.
+// Full MIR implementation will be added once Core-0 parser limitations are lifted.
+
+// Generic types (provided by runtime)
+struct Vec<T> {}
+struct Option<T> {}
+
+// MIR types are defined in 00_types.ast and imported implicitly
+// This file only contains MIR-specific structs and functions
 
 struct MirProgram {
-    functions: Vec<MirFunction>,
-    types: Vec<TypeDef>,
-    globals: Vec<Global>,
+    function_count: i32,
+    type_count: i32,
+    global_count: i32,
 }
 
 struct MirFunction {
     name: String,
-    params: Vec<Local>,
-    return_type: Type,
-    locals: Vec<LocalDecl>,
-    blocks: Vec<MirBasicBlock>,
+    param_count: i32,
+    local_count: i32,
+    block_count: i32,
     entry_block: i32,
 }
 
 struct LocalDecl {
-    local: Local,
-    ty: Type,
+    local: i32,
     mutable: bool,
 }
 
 struct MirBasicBlock {
     id: i32,
-    statements: Vec<MirStatement>,
-    terminator: MirTerminator,
+    statement_count: i32,
 }
 
+// Core-0 compatible: tuple variants instead of named fields
 enum MirStatement {
-    Assign(Place, Rvalue),
-    StorageLive(Local),
-    StorageDead(Local),
-    SetDiscriminant(Place, i32),
-    Deinit(Place),
+    Assign(i32, i32),          // (place_id, rvalue_id)
+    StorageLive(i32),          // local
+    StorageDead(i32),          // local
+    SetDiscriminant(i32, i32), // (place_id, variant)
+    Deinit(i32),               // place_id
     Nop,
 }
 
+// Core-0 compatible: tuple variants instead of named fields
 enum MirTerminator {
     Return,
-    ReturnValue(Operand),
-    Goto(i32),
-    If { cond: Operand, target_true: i32, target_false: i32 },
-    Switch { discriminant: Operand, targets: Vec<(i32, i32)>, otherwise: i32 },
-    Call { func: Operand, args: Vec<Operand>, destination: Place, target: i32 },
-    Drop { place: Place, target: i32, unwind: Option<i32> },
+    ReturnValue(i32),              // operand_id
+    Goto(i32),                     // target_block
+    IfTerm(i32, i32, i32),         // (cond_operand, target_true, target_false)
+    SwitchTerm(i32, i32),          // (discriminant_operand, default_target)
+    CallTerm(i32, i32, i32),       // (func_operand, destination_place, target_block)
+    DropTerm(i32, i32),            // (place_id, target_block)
     Unreachable,
 }
 
-enum Rvalue {
-    Use(Operand),
-    Ref(BorrowKind, Place),
-    AddressOf(Mutability, Place),
-    Len(Place),
-    Cast(CastKind, Operand, Type),
-    BinaryOp(BinOp, Operand, Operand),
-    UnaryOp(UnOp, Operand),
-    Aggregate(AggregateKind, Vec<Operand>),
-}
-
-enum Operand {
-    Copy(Place),
-    Move(Place),
-    Constant(Constant),
-}
-
-struct Place {
-    local: Local,
-    projection: Vec<PlaceElem>,
-}
-
-enum PlaceElem {
-    Deref,
-    Field(i32),
-    Index(Local),
-    ConstantIndex { offset: i32, from_end: bool },
-    Downcast(i32),
-}
-
-impl Place {
-    fn local(&self) -> Local {
-        self.local
-    }
-    
-    fn is_indirect(&self) -> bool {
-        self.projection.iter().any(|e| matches!(e, PlaceElem::Deref))
+// Helper functions (stubs for Core-0)
+fn new_mir_program() -> MirProgram {
+    MirProgram {
+        function_count: 0,
+        type_count: 0,
+        global_count: 0,
     }
 }
 
-impl Rvalue {
-    fn operands(&self) -> Vec<Operand> {
-        match self {
-            Rvalue::Use(op) => vec![op.clone()],
-            Rvalue::BinaryOp(_, op1, op2) => vec![op1.clone(), op2.clone()],
-            Rvalue::UnaryOp(_, op) => vec![op.clone()],
-            Rvalue::Cast(_, op, _) => vec![op.clone()],
-            Rvalue::Aggregate(_, ops) => ops.clone(),
-            _ => vec![],
-        }
+fn new_mir_function(name: String) -> MirFunction {
+    MirFunction {
+        name: name,
+        param_count: 0,
+        local_count: 0,
+        block_count: 0,
+        entry_block: 0,
     }
 }
 
-impl Operand {
-    fn local(&self) -> Local {
-        match self {
-            Operand::Copy(place) | Operand::Move(place) => place.local(),
-            Operand::Constant(_) => Local(0),  // Constants don't have locals
-        }
-    }
-}
-
-enum AggregateKind {
-    Array(Type),
-    Tuple,
-    Struct(TypeId),
-    Enum(TypeId, i32),
-}
-
-enum CastKind {
-    IntToInt,
-    FloatToInt,
-    IntToFloat,
-    FloatToFloat,
-    PtrToPtr,
-}
-
-enum BinOp {
-    Add, Sub, Mul, Div, Rem,
-    BitAnd, BitOr, BitXor, Shl, Shr,
-    Eq, Lt, Le, Ne, Ge, Gt,
-}
-
-enum UnOp {
-    Not,
-    Neg,
-}
-
-struct Constant {
-    value: ConstValue,
-    ty: Type,
-}
-
-enum ConstValue {
-    Int(i64),
-    Float(f64),
-    Bool(bool),
-    String(String),
-    Unit,
-}
-
-type Local = i32;
-type TypeId = i32;
-
-struct Location {
-    block: i32,
-    statement: i32,
-}
-
-impl MirProgram {
-    fn new() -> MirProgram {
-        MirProgram {
-            functions: Vec::new(),
-            types: Vec::new(),
-            globals: Vec::new(),
-        }
-    }
-    
-    fn add_function(&mut self, func: MirFunction) {
-        self.functions.push(func);
-    }
-    
-    fn get_function(&self, name: &str) -> Option<&MirFunction> {
-        self.functions.iter().find(|f| f.name == name)
-    }
-}
-
-impl MirFunction {
-    fn new(name: String) -> MirFunction {
-        MirFunction {
-            name,
-            params: Vec::new(),
-            return_type: Type::Unit,
-            locals: Vec::new(),
-            blocks: Vec::new(),
-            entry_block: 0,
-        }
-    }
-    
-    fn add_block(&mut self) -> i32 {
-        let id = self.blocks.len() as i32;
-        self.blocks.push(MirBasicBlock {
-            id,
-            statements: Vec::new(),
-            terminator: MirTerminator::Unreachable,
-        });
-        id
-    }
-    
-    fn get_block(&self, id: i32) -> &MirBasicBlock {
-        &self.blocks[id as usize]
-    }
-    
-    fn get_block_mut(&mut self, id: i32) -> &mut MirBasicBlock {
-        &mut self.blocks[id as usize]
-    }
+fn mir_add_block(func: &mut MirFunction) -> i32 {
+    let id = func.block_count;
+    func.block_count = func.block_count + 1;
+    id
 }

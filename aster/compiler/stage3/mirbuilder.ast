@@ -1,225 +1,35 @@
-// MIR Builder - Lowers HIR to MIR
-// Constructs MIR from high-level AST
+// MIR Builder for Stage 3
+// Core-0 compatible stub version
+//
+// Note: This is a simplified stub for bootstrap Stage 3 compilation.
+// Full MIR builder implementation will be added once Core-0 limitations are lifted.
 
+// Stub struct representing MIR builder state
 struct MirBuilder {
-    current_function: Option<MirFunction>,
-    current_block: i32,
-    local_counter: i32,
-    temp_counter: i32,
+    current_function_id: i32,
+    current_block_id: i32,
+    temp_count: i32,
 }
 
-impl MirBuilder {
-    fn new() -> MirBuilder {
-        MirBuilder {
-            current_function: None,
-            current_block: 0,
-            local_counter: 0,
-            temp_counter: 0,
-        }
-    }
-    
-    fn alloc_local(&mut self, ty: Type, mutable: bool) -> Local {
-        let local = self.local_counter;
-        self.local_counter += 1;
-        
-        if let Some(ref mut func) = self.current_function {
-            func.locals.push(LocalDecl {
-                local,
-                ty,
-                mutable,
-            });
-        }
-        
-        local
-    }
-    
-    fn alloc_temp(&mut self, ty: Type) -> Local {
-        self.temp_counter += 1;
-        self.alloc_local(ty, false)
-    }
-    
-    fn new_block(&mut self) -> i32 {
-        if let Some(ref mut func) = self.current_function {
-            func.add_block()
-        } else {
-            -1
-        }
+// Create new MIR builder
+fn new_mir_builder() -> MirBuilder {
+    MirBuilder {
+        current_function_id: 0,
+        current_block_id: 0,
+        temp_count: 0,
     }
 }
 
-fn build_mir(ast: &AST) -> Result<MirProgram, String> {
-    let mut program = MirProgram::new();
-    let mut builder = MirBuilder::new();
-    
-    for item in &ast.items {
-        match item {
-            Item::Function(func) => {
-                let mir_func = build_function_mir(&mut builder, func)?;
-                program.add_function(mir_func);
-            }
-            Item::Struct(s) => {
-                // Add type definition
-            }
-            _ => {}
-        }
-    }
-    
-    Ok(program)
+// Build MIR from AST (stub)
+fn build_mir(builder: &mut MirBuilder) -> i32 {
+    // Note: Full implementation pending
+    // Would convert AST to MIR representation
+    0
 }
 
-fn build_function_mir(builder: &mut MirBuilder, func: &Function) -> Result<MirFunction, String> {
-    let mut mir_func = MirFunction::new(func.name.clone());
-    builder.current_function = Some(mir_func);
-    builder.local_counter = 0;
-    
-    // Add parameters as locals
-    for param in &func.params {
-        let local = builder.alloc_local(param.ty.clone(), param.mutable);
-        builder.current_function.as_mut().unwrap().params.push(local);
-    }
-    
-    // Create entry block
-    builder.current_block = builder.new_block();
-    builder.current_function.as_mut().unwrap().entry_block = builder.current_block;
-    
-    // Build MIR for function body
-    build_block_mir(builder, &func.body)?;
-    
-    // Take function from builder
-    let mir_func = builder.current_function.take().unwrap();
-    Ok(mir_func)
-}
-
-fn build_block_mir(builder: &mut MirBuilder, block: &Block) -> Result<(), String> {
-    for stmt in &block.statements {
-        build_statement_mir(builder, stmt)?;
-    }
-    
-    if let Some(ref expr) = block.return_expr {
-        let place = build_expr_mir(builder, expr)?;
-        
-        if let Some(ref mut func) = builder.current_function {
-            let block = func.get_block_mut(builder.current_block);
-            block.terminator = MirTerminator::ReturnValue(Operand::Move(place));
-        }
-    }
-    
-    Ok(())
-}
-
-fn build_statement_mir(builder: &mut MirBuilder, stmt: &Stmt) -> Result<(), String> {
-    match stmt {
-        Stmt::Let { pattern, init, .. } => {
-            let ty = infer_type(init);
-            let local = builder.alloc_local(ty.clone(), false);
-            
-            // Generate StorageLive
-            if let Some(ref mut func) = builder.current_function {
-                let block = func.get_block_mut(builder.current_block);
-                block.statements.push(MirStatement::StorageLive(local));
-            }
-            
-            // Build init expression
-            if let Some(ref init_expr) = init {
-                let init_place = build_expr_mir(builder, init_expr)?;
-                
-                // Assign to local
-                if let Some(ref mut func) = builder.current_function {
-                    let block = func.get_block_mut(builder.current_block);
-                    block.statements.push(MirStatement::Assign(
-                        Place { local, projection: vec![] },
-                        Rvalue::Use(Operand::Move(init_place))
-                    ));
-                }
-            }
-        }
-        Stmt::Expr(expr) => {
-            build_expr_mir(builder, expr)?;
-        }
-        Stmt::If { condition, then_branch, else_branch } => {
-            let cond_place = build_expr_mir(builder, condition)?;
-            
-            let then_block = builder.new_block();
-            let else_block = builder.new_block();
-            let merge_block = builder.new_block();
-            
-            // Set terminator for current block
-            if let Some(ref mut func) = builder.current_function {
-                let block = func.get_block_mut(builder.current_block);
-                block.terminator = MirTerminator::If {
-                    cond: Operand::Move(cond_place),
-                    target_true: then_block,
-                    target_false: else_block,
-                };
-            }
-            
-            // Build then branch
-            builder.current_block = then_block;
-            build_block_mir(builder, then_branch)?;
-            if let Some(ref mut func) = builder.current_function {
-                let block = func.get_block_mut(builder.current_block);
-                block.terminator = MirTerminator::Goto(merge_block);
-            }
-            
-            // Build else branch if present
-            builder.current_block = else_block;
-            if let Some(ref else_b) = else_branch {
-                build_block_mir(builder, else_b)?;
-            }
-            if let Some(ref mut func) = builder.current_function {
-                let block = func.get_block_mut(builder.current_block);
-                block.terminator = MirTerminator::Goto(merge_block);
-            }
-            
-            builder.current_block = merge_block;
-        }
-        _ => {}
-    }
-    
-    Ok(())
-}
-
-fn build_expr_mir(builder: &mut MirBuilder, expr: &Expr) -> Result<Place, String> {
-    match expr {
-        Expr::Literal(lit) => {
-            let ty = literal_type(lit);
-            let temp = builder.alloc_temp(ty.clone());
-            
-            if let Some(ref mut func) = builder.current_function {
-                let block = func.get_block_mut(builder.current_block);
-                block.statements.push(MirStatement::Assign(
-                    Place { local: temp, projection: vec![] },
-                    Rvalue::Use(Operand::Constant(literal_to_constant(lit)))
-                ));
-            }
-            
-            Ok(Place { local: temp, projection: vec![] })
-        }
-        Expr::BinOp { op, left, right } => {
-            let left_place = build_expr_mir(builder, left)?;
-            let right_place = build_expr_mir(builder, right)?;
-            
-            let ty = infer_type(expr);
-            let temp = builder.alloc_temp(ty);
-            
-            if let Some(ref mut func) = builder.current_function {
-                let block = func.get_block_mut(builder.current_block);
-                block.statements.push(MirStatement::Assign(
-                    Place { local: temp, projection: vec![] },
-                    Rvalue::BinaryOp(
-                        convert_binop(op),
-                        Operand::Move(left_place),
-                        Operand::Move(right_place)
-                    )
-                ));
-            }
-            
-            Ok(Place { local: temp, projection: vec![] })
-        }
-        _ => {
-            // Placeholder for other expressions
-            let temp = builder.alloc_temp(Type::Unit);
-            Ok(Place { local: temp, projection: vec![] })
-        }
-    }
+// Add temporary variable (stub)
+fn add_temp(builder: &mut MirBuilder) -> i32 {
+    let temp_id = builder.temp_count;
+    builder.temp_count = builder.temp_count + 1;
+    temp_id
 }

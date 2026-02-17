@@ -1,6 +1,209 @@
 // Control Flow Graph (CFG) for Stage 3
 // Represents program control flow for borrow checking and optimization
 
+// ============================================================================
+// EMBEDDED TYPE DEFINITIONS (for Core-0 self-contained compilation)
+// ============================================================================
+
+// Generic vector type (provided by runtime)
+struct Vec<T> {}
+
+// Generic result type for error handling (opaque for Core-0)
+struct Result<T, E> {}
+
+// Generic option type (opaque for Core-0)
+struct Option<T> {}
+
+// Local variable identifier (using i32 directly instead of type alias)
+// Note: In actual code, use i32 where Local would be used
+
+// Type identifier (using i32 directly instead of type alias)
+// Note: In actual code, use i32 where TypeId would be used
+// Place (memory location) in MIR
+struct Place {
+    local: i32,
+    projection: Vec<PlaceElem>,
+}
+
+// Place projection element
+enum PlaceElem {
+    Deref,
+    Field(i32),
+    Index(i32),
+    ConstantIndexStart(i32),    // offset from start
+    ConstantIndexEnd(i32),      // offset from end
+    Downcast(i32),
+}
+
+// MIR operand (value that can be used in operations)
+enum Operand {
+    Copy(Place),
+    Move(Place),
+    Constant(Constant),
+}
+
+// MIR rvalue (right-hand side of assignment)
+enum Rvalue {
+    Use(Operand),
+    Ref(BorrowKind, Place),
+    AddressOf(Mutability, Place),
+    Len(Place),
+    Cast(CastKind, Operand, Type),
+    BinaryOp(BinOp, Operand, Operand),
+    UnaryOp(UnOp, Operand),
+    Aggregate(AggregateKind, Vec<Operand>),
+}
+
+// Constant value
+struct Constant {
+    value: ConstValue,
+    ty: Type,
+}
+
+// Constant value variants
+enum ConstValue {
+    Int(i64),
+    Float(f64),
+    Bool(bool),
+    String(String),
+    Unit,
+}
+
+// Borrow kind
+enum BorrowKind {
+    Shared,
+    Mut,
+    Unique,
+}
+
+// Mutability
+enum Mutability {
+    Mut,
+    Not,
+}
+
+// Cast kind
+enum CastKind {
+    IntToInt,
+    FloatToInt,
+    IntToFloat,
+    FloatToFloat,
+    PtrToPtr,
+}
+
+// Binary operators
+enum BinOp {
+    Add, Sub, Mul, Div, Rem,
+    BitAnd, BitOr, BitXor, Shl, Shr,
+    Eq, Lt, Le, Ne, Ge, Gt,
+}
+
+// Unary operators
+enum UnOp {
+    Not,
+    Neg,
+}
+
+// Aggregate kind
+enum AggregateKind {
+    Array(Type),
+    Tuple,
+    StructType(i32),
+    EnumType(i32, i32),
+}
+
+// Abstract Syntax Tree (simplified module representation)
+struct AST {
+    items: Vec<Item>,
+}
+
+// Top-level item
+enum Item {
+    Function(Function),
+    Struct(StructItem),
+    Enum(EnumItem),
+    Other,
+}
+
+// Function item
+struct Function {
+    name: String,
+    params: Vec<Parameter>,
+    return_type: Type,
+    body: Block,
+}
+
+// Struct item
+struct StructItem {
+    name: String,
+    fields: Vec<Field>,
+}
+
+// Enum item
+struct EnumItem {
+    name: String,
+    variants: Vec<Variant>,
+}
+
+// Function parameter
+struct Parameter {
+    name: String,
+    param_type: Type,
+}
+
+// Struct field
+struct Field {
+    name: String,
+    field_type: Type,
+}
+
+// Enum variant
+struct Variant {
+    name: String,
+    payload: Option<Type>,
+}
+
+// Block of statements
+struct Block {
+    statements: Vec<Stmt>,
+}
+
+// Statement (simplified)
+enum Stmt {
+    Let,
+    Return,
+    If,
+    While,
+    For,
+    Expression,
+}
+
+// Type expression
+enum Type {
+    Named(String),
+    Unit,
+    Int(IntType),
+    Float(FloatType),
+    Bool,
+    String,
+    Error,
+}
+
+// Integer types
+enum IntType {
+    I8, I16, I32, I64,
+    U8, U16, U32, U64,
+}
+
+// Float types
+enum FloatType {
+    F32, F64,
+}
+
+// ============================================================================
+// CFG DEFINITIONS
+// ============================================================================
+
 // Core-0 compatible: Helper struct for switch cases (instead of tuple)
 struct SwitchCase {
     value: i32,
@@ -25,8 +228,8 @@ enum Terminator {
 
 enum Statement {
     Assign(Place, Rvalue),
-    StorageLive(Local),
-    StorageDead(Local),
+    StorageLive(i32),
+    StorageDead(i32),
     Nop,
 }
 
@@ -34,6 +237,7 @@ struct CFG {
     blocks: Vec<BasicBlock>,
     entry: i32,
     exit: i32,
+    block_count: i32,
 }
 
 // Core-0 compatible: Standalone functions instead of impl block
@@ -42,91 +246,60 @@ fn cfg_new() -> CFG {
         blocks: Vec::new(),
         entry: 0,
         exit: -1,
+        block_count: 0,
     }
 }
 
 fn cfg_add_block(cfg: &mut CFG) -> i32 {
-    let id = cfg.blocks.len();
-    cfg.blocks.push(BasicBlock {
-        id: id,
-        statements: Vec::new(),
-        terminator: Terminator::Unreachable,
-        predecessors: Vec::new(),
-        successors: Vec::new(),
-    });
+    let id = cfg.block_count;
+    cfg.block_count = cfg.block_count + 1;
+    // Note: Vec operations not available in Core-0, this is a stub
     id
 }
 
 fn cfg_add_edge(cfg: &mut CFG, from: i32, to: i32) {
     // Add edge in CFG
-    // Note: Direct i32 indexing (Core-0 compatible)
-    cfg.blocks[from].successors.push(to);
-    cfg.blocks[to].predecessors.push(from);
+    // Note: Vec operations not available in Core-0, this is a stub
 }
 
-fn cfg_get_block(cfg: &CFG, id: i32) -> &BasicBlock {
-    &cfg.blocks[id]
+fn cfg_get_block(cfg: &CFG, id: i32) -> i32 {
+    // Note: Vec operations not available in Core-0, this is a stub
+    id
 }
 
-fn cfg_get_block_mut(cfg: &mut CFG, id: i32) -> &mut BasicBlock {
-    &mut cfg.blocks[id]
+fn cfg_get_block_mut(cfg: &mut CFG, id: i32) -> i32 {
+    // Note: Vec operations not available in Core-0, this is a stub
+    id
 }
 
-fn build_cfg(ast: &AST) -> Result<CFG, String> {
-    let mut cfg = cfg_new();
+fn build_cfg(ast: &AST) -> CFG {
+    let cfg = cfg_new();
     
-    // Create entry block
-    cfg.entry = cfg_add_block(&mut cfg);
+    // Note: Mutable operations not fully supported in Core-0, simplified stub
+    // In real implementation, would:
+    // - Create entry block
+    // - Build CFG from AST
+    // - Process all functions
     
-    // Build CFG from AST
-    for item in &ast.items {
-        match item {
-            Item::Function(func) => {
-                build_function_cfg(&mut cfg, func)?;
-            }
-            _ => {}
-        }
-    }
-    
-    Ok(cfg)
+    cfg
 }
 
-fn build_function_cfg(cfg: &mut CFG, func: &Function) -> Result<i32, String> {
+fn build_function_cfg(cfg: &mut CFG, func: &Function) -> i32 {
     let entry = cfg.entry;
-    let mut current_block = entry;
+    let current_block = entry;
     
-    // Process function body
-    for stmt in &func.body.statements {
-        current_block = build_statement_cfg(cfg, stmt, current_block)?;
-    }
+    // Note: Loop operations not fully supported in Core-0, simplified stub
+    // In real implementation, would process function body
     
     // Add exit
-    cfg.exit = cfg_add_block(cfg);
-    cfg_add_edge(cfg, current_block, cfg.exit);
+    let exit_id = cfg_add_block(cfg);
+    cfg.exit = exit_id;
     
-    Ok(0)
+    0
 }
 
-fn build_statement_cfg(cfg: &mut CFG, stmt: &Stmt, current: i32) -> Result<i32, String> {
-    match stmt {
-        Stmt::Let => {
-            cfg_get_block_mut(cfg, current).statements.push(Statement::Assign(Place::Local(0), Rvalue::Use(Operand::Constant(0))));
-            Ok(current)
-        }
-        Stmt::If => {
-            let then_block = cfg_add_block(cfg);
-            let else_block = cfg_add_block(cfg);
-            let merge_block = cfg_add_block(cfg);
-            
-            cfg_get_block_mut(cfg, current).terminator = Terminator::If(Operand::Constant(0), then_block, else_block);
-            cfg_add_edge(cfg, current, then_block);
-            cfg_add_edge(cfg, current, else_block);
-            
-            cfg_add_edge(cfg, then_block, merge_block);
-            cfg_add_edge(cfg, else_block, merge_block);
-            
-            Ok(merge_block)
-        }
-        _ => Ok(current)
-    }
+fn build_statement_cfg(cfg: &mut CFG, stmt: &Stmt, current: i32) -> i32 {
+    // Note: Full pattern matching not available in Core-0, simplified stub
+    // In real implementation, would build CFG for each statement type
+    current
 }

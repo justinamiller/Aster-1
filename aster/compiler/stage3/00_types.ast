@@ -1,0 +1,246 @@
+// Stage 3 Shared Types
+// Core-0 compatible type definitions shared across Stage 3 modules
+//
+// This file is prefixed with 00_ to ensure it's compiled first
+// (alphabetical ordering in find command). It defines all the shared
+// types that multiple Stage 3 modules need.
+
+// ============================================================================
+// Standard Library Types (embedded for Core-0 compatibility)
+// ============================================================================
+
+/// Generic vector type (provided by runtime during bootstrap)
+struct Vec<T> {}
+
+/// Generic result type for error handling (opaque in Core-0)
+struct Result<T, E> {}
+
+/// Generic option type (opaque in Core-0)
+struct Option<T> {}
+
+// ============================================================================
+// MIR Types (shared across CFG, liveness, borrowchecker, etc.)
+// ============================================================================
+
+// Note: Local and TypeId are i32 throughout the code (no type aliases in Core-0)
+
+/// Place (memory location) in MIR
+struct Place {
+    local: i32,
+    projection: Vec<PlaceElem>,
+}
+
+/// Place projection element
+enum PlaceElem {
+    Deref,
+    Field(i32),
+    Index(i32),
+    ConstantIndexStart(i32),    // offset from start
+    ConstantIndexEnd(i32),      // offset from end
+    Downcast(i32),
+}
+
+/// MIR operand (value that can be used in operations)
+enum Operand {
+    Copy(Place),
+    Move(Place),
+    Constant(Constant),
+}
+
+/// MIR rvalue (right-hand side of assignment)
+enum Rvalue {
+    Use(Operand),
+    Ref(BorrowKind, Place),
+    AddressOf(Mutability, Place),
+    Len(Place),
+    Cast(CastKind, Operand, Type),
+    BinaryOp(BinOp, Operand, Operand),
+    UnaryOp(UnOp, Operand),
+    Aggregate(AggregateKind, Vec<Operand>),
+}
+
+/// Constant value
+struct Constant {
+    value: ConstValue,
+    ty: Type,
+}
+
+/// Constant value variants
+enum ConstValue {
+    Int(i64),
+    Float(f64),
+    Bool(bool),
+    String(String),
+    Unit,
+}
+
+/// Borrow kind
+enum BorrowKind {
+    Shared,
+    Mut,
+    Unique,
+}
+
+/// Mutability
+enum Mutability {
+    Mut,
+    Not,
+}
+
+/// Cast kind
+enum CastKind {
+    IntToInt,
+    FloatToInt,
+    IntToFloat,
+    FloatToFloat,
+    PtrToPtr,
+}
+
+/// Binary operators
+enum BinOp {
+    Add, Sub, Mul, Div, Rem,
+    BitAnd, BitOr, BitXor, Shl, Shr,
+    Eq, Lt, Le, Ne, Ge, Gt,
+}
+
+/// Unary operators
+enum UnOp {
+    Not,
+    Neg,
+}
+
+/// Aggregate kind
+enum AggregateKind {
+    Array(Type),
+    Tuple,
+    StructType(i32),    // type_id
+    EnumType(i32, i32), // (type_id, variant)
+}
+
+// ============================================================================
+// AST Types (simplified for CFG building)
+// ============================================================================
+
+/// Abstract Syntax Tree (simplified module representation)
+struct AST {
+    items: Vec<Item>,
+}
+
+/// Top-level item
+enum Item {
+    Function(Function),
+    Struct(StructItem),
+    Enum(EnumItem),
+    Other,
+}
+
+/// Function item
+struct Function {
+    name: String,
+    params: Vec<Parameter>,
+    return_type: Type,
+    body: Block,
+}
+
+/// Struct item
+struct StructItem {
+    name: String,
+    fields: Vec<Field>,
+}
+
+/// Enum item
+struct EnumItem {
+    name: String,
+    variants: Vec<Variant>,
+}
+
+/// Function parameter
+struct Parameter {
+    name: String,
+    param_type: Type,
+}
+
+/// Struct field
+struct Field {
+    name: String,
+    field_type: Type,
+}
+
+/// Enum variant
+struct Variant {
+    name: String,
+    payload: Option<Type>,
+}
+
+/// Block of statements
+struct Block {
+    statements: Vec<Stmt>,
+}
+
+/// Statement (simplified)
+enum Stmt {
+    Let,
+    Return,
+    If,
+    While,
+    For,
+    Expression,
+}
+
+/// Type expression
+enum Type {
+    Named(String),
+    Unit,
+    Int(IntType),
+    Float(FloatType),
+    Bool,
+    String,
+    Pointer(Box<Type>),
+    Reference(Mutability, Box<Type>),
+    Error,
+}
+
+/// Integer types
+enum IntType {
+    I8, I16, I32, I64,
+    U8, U16, U32, U64,
+}
+
+/// Float types
+enum FloatType {
+    F32, F64,
+}
+
+// ============================================================================
+// Helper Types
+// ============================================================================
+
+/// Type definition
+struct TypeDef {
+    id: i32,
+    name: String,
+    kind: TypeKind,
+}
+
+/// Type kind
+enum TypeKind {
+    Struct,
+    Enum,
+    Alias,
+}
+
+/// Global variable
+struct Global {
+    name: String,
+    ty: Type,
+    mutable: bool,
+}
+
+/// Source location
+struct Location {
+    block: i32,
+    statement: i32,
+}
+
+/// Box type for heap allocation (provided by runtime)
+struct Box<T> {}

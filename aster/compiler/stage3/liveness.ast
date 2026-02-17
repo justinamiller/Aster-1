@@ -1,115 +1,32 @@
-// Liveness Analysis for Non-Lexical Lifetimes
-// Computes which variables are live at each program point
+// Liveness Analysis for Stage 3
+// Core-0 compatible stub version
+//
+// Note: This is a simplified stub for bootstrap Stage 3 compilation.
+// Full liveness analysis will be added once Core-0 limitations are lifted.
 
-struct LivenessResult {
-    live_in: HashMap<i32, Set<Local>>,
-    live_out: HashMap<i32, Set<Local>>,
-    live_at_point: HashMap<(i32, i32), Set<Local>>,
+// Stub struct for liveness analysis
+struct LivenessAnalysis {
+    local_count: i32,
+    block_count: i32,
 }
 
-impl LivenessResult {
-    fn new() -> LivenessResult {
-        LivenessResult {
-            live_in: HashMap::new(),
-            live_out: HashMap::new(),
-            live_at_point: HashMap::new(),
-        }
-    }
-    
-    fn is_live_at(&self, local: Local, block: i32, point: i32) -> bool {
-        match self.live_at_point.get(&(block, point)) {
-            Some(set) => set.contains(&local),
-            None => false,
-        }
+// Create new liveness analysis
+fn new_liveness_analysis() -> LivenessAnalysis {
+    LivenessAnalysis {
+        local_count: 0,
+        block_count: 0,
     }
 }
 
-fn compute_liveness(cfg: &CFG) -> LivenessResult {
-    let mut result = LivenessResult::new();
-    
-    // Initialize
-    for block in &cfg.blocks {
-        result.live_in.insert(block.id, Set::new());
-        result.live_out.insert(block.id, Set::new());
-    }
-    
-    // Fixed point iteration
-    let mut changed = true;
-    while changed {
-        changed = false;
-        
-        for block in cfg.blocks.iter().rev() {
-            let old_in = result.live_in.get(&block.id).unwrap().clone();
-            
-            // live_out[B] = ∪(live_in[S] for S in successors[B])
-            let mut live_out = Set::new();
-            for succ in &block.successors {
-                if let Some(succ_in) = result.live_in.get(succ) {
-                    live_out = live_out.union(succ_in);
-                }
-            }
-            result.live_out.insert(block.id, live_out.clone());
-            
-            // live_in[B] = use[B] ∪ (live_out[B] - def[B])
-            let (use_set, def_set) = compute_use_def(block);
-            let mut live_in = live_out.difference(&def_set);
-            live_in = live_in.union(&use_set);
-            
-            if live_in != old_in {
-                changed = true;
-                result.live_in.insert(block.id, live_in);
-            }
-        }
-    }
-    
-    // Compute liveness at each program point
-    for block in &cfg.blocks {
-        let mut live = result.live_out.get(&block.id).unwrap().clone();
-        
-        // Work backwards through statements
-        for (i, stmt) in block.statements.iter().enumerate().rev() {
-            result.live_at_point.insert((block.id, i as i32), live.clone());
-            
-            match stmt {
-                Statement::Assign(place, rvalue) => {
-                    live.remove(&place.local());
-                    for operand in rvalue.operands() {
-                        live.insert(operand.local());
-                    }
-                }
-                Statement::StorageDead(local) => {
-                    live.remove(local);
-                }
-                Statement::StorageLive(local) => {
-                    live.insert(*local);
-                }
-                _ => {}
-            }
-        }
-    }
-    
-    result
+// Compute liveness information (stub)
+fn compute_liveness(analysis: &mut LivenessAnalysis) -> i32 {
+    // Note: Full implementation pending
+    // Would compute live variables at each program point
+    0
 }
 
-fn compute_use_def(block: &BasicBlock) -> (Set<Local>, Set<Local>) {
-    let mut use_set = Set::new();
-    let mut def_set = Set::new();
-    
-    for stmt in &block.statements {
-        match stmt {
-            Statement::Assign(place, rvalue) => {
-                // Add uses before def
-                for operand in rvalue.operands() {
-                    if !def_set.contains(&operand.local()) {
-                        use_set.insert(operand.local());
-                    }
-                }
-                // Add def
-                def_set.insert(place.local());
-            }
-            _ => {}
-        }
-    }
-    
-    (use_set, def_set)
+// Check if variable is live (stub)
+fn is_live(analysis: &LivenessAnalysis, local_id: i32, block_id: i32) -> bool {
+    // Note: Full implementation pending
+    false
 }

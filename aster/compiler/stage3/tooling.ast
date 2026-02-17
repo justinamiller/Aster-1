@@ -1,276 +1,44 @@
-// Tooling for Stage 3
-// Code formatter, linter, documentation generator, test runner, LSP server
+// Tooling Support for Stage 3
+// Core-0 compatible stub version
+//
+// Note: This is a simplified stub for bootstrap Stage 3 compilation.
+// Full tooling support will be added once Core-0 limitations are lifted.
 
-// Code Formatter
-fn format_code(source: &str) -> Result<String, String> {
-    // Parse source
-    let ast = parse(source)?;
-    
-    // Format AST back to source
-    let formatted = format_ast(&ast);
-    
-    Ok(formatted)
+// Stub struct for tooling context
+struct ToolingContext {
+    tool_name: String,
+    enabled: bool,
 }
 
-fn format_ast(ast: &AST) -> String {
-    let mut output = String::new();
-    
-    for item in &ast.items {
-        output.push_str(&format_item(item));
-        output.push_str("\n\n");
-    }
-    
-    output
-}
-
-fn format_item(item: &Item) -> String {
-    match item {
-        Item::Function(func) => format_function(func),
-        Item::Struct(s) => format_struct(s),
-        _ => String::new(),
+// Create new tooling context
+fn new_tooling_context(name: String) -> ToolingContext {
+    ToolingContext {
+        tool_name: name,
+        enabled: true,
     }
 }
 
-fn format_function(func: &Function) -> String {
-    let mut s = String::new();
-    s.push_str(&format!("fn {}(", func.name));
-    
-    for (i, param) in func.params.iter().enumerate() {
-        if i > 0 { s.push_str(", "); }
-        s.push_str(&format!("{}: {}", param.name, type_to_string(&param.ty)));
-    }
-    
-    s.push_str(") ");
-    if func.return_type != Type::Unit {
-        s.push_str(&format!("-> {} ", type_to_string(&func.return_type)));
-    }
-    s.push_str("{\n");
-    s.push_str(&format_block(&func.body, 1));
-    s.push_str("}\n");
-    
-    s
+// Run lint checks (stub)
+fn run_lint(ctx: &ToolingContext) -> i32 {
+    // Note: Full implementation pending
+    // Would run various lint checks
+    0
 }
 
-fn format_struct(s: &Struct) -> String {
-    format!("struct {} {{ ... }}\n", s.name)
+// Format code (stub)
+fn format_code(ctx: &ToolingContext, code: String) -> String {
+    // Note: Full implementation pending
+    code
 }
 
-fn format_block(block: &Block, indent: i32) -> String {
-    let mut s = String::new();
-    let indent_str = "    ".repeat(indent as usize);
-    
-    for stmt in &block.statements {
-        s.push_str(&indent_str);
-        s.push_str(&format_statement(stmt));
-        s.push_str("\n");
-    }
-    
-    s
+// Generate documentation (stub)
+fn generate_docs(ctx: &ToolingContext) -> i32 {
+    // Note: Full implementation pending
+    0
 }
 
-fn format_statement(stmt: &Stmt) -> String {
-    match stmt {
-        Stmt::Let { pattern, init, .. } => {
-            format!("let {} = ...;", pattern)
-        }
-        _ => "...;".to_string(),
-    }
-}
-
-// Linter
-struct LintError {
-    message: String,
-    location: Location,
-    severity: Severity,
-}
-
-enum Severity {
-    Error,
-    Warning,
-    Info,
-}
-
-fn lint_code(ast: &AST) -> Vec<LintError> {
-    let mut errors = Vec::new();
-    
-    // Check naming conventions
-    for item in &ast.items {
-        check_naming(item, &mut errors);
-    }
-    
-    // Check for unused variables
-    check_unused_variables(ast, &mut errors);
-    
-    // Check for unreachable code
-    check_unreachable_code(ast, &mut errors);
-    
-    errors
-}
-
-fn check_naming(item: &Item, errors: &mut Vec<LintError>) {
-    match item {
-        Item::Function(func) => {
-            if !is_snake_case(&func.name) {
-                errors.push(LintError {
-                    message: format!("Function name '{}' should be snake_case", func.name),
-                    location: func.location.clone(),
-                    severity: Severity::Warning,
-                });
-            }
-        }
-        _ => {}
-    }
-}
-
-fn check_unused_variables(ast: &AST, errors: &mut Vec<LintError>) {
-    // Would implement proper use tracking
-}
-
-fn check_unreachable_code(ast: &AST, errors: &mut Vec<LintError>) {
-    // Would implement CFG-based reachability analysis
-}
-
-fn is_snake_case(s: &str) -> bool {
-    s.chars().all(|c| c.is_lowercase() || c.is_digit(10) || c == '_')
-}
-
-// Documentation Generator
-fn generate_docs(ast: &AST) -> Result<String, String> {
-    let mut docs = String::new();
-    
-    docs.push_str("# API Documentation\n\n");
-    
-    for item in &ast.items {
-        docs.push_str(&generate_item_docs(item));
-    }
-    
-    Ok(docs)
-}
-
-fn generate_item_docs(item: &Item) -> String {
-    match item {
-        Item::Function(func) => {
-            let mut doc = String::new();
-            doc.push_str(&format!("## {}\n\n", func.name));
-            
-            if let Some(ref comment) = func.doc_comment {
-                doc.push_str(&format!("{}\n\n", comment));
-            }
-            
-            doc.push_str("**Signature:**\n```aster\n");
-            doc.push_str(&format_function(func));
-            doc.push_str("```\n\n");
-            
-            doc
-        }
-        _ => String::new(),
-    }
-}
-
-// Test Runner
-fn run_tests(ast: &AST) -> Result<TestResults, String> {
-    let mut results = TestResults {
-        passed: 0,
-        failed: 0,
-        tests: Vec::new(),
-    };
-    
-    // Find all test functions
-    for item in &ast.items {
-        if let Item::Function(func) = item {
-            if func.annotations.iter().any(|a| a.name == "test") {
-                let result = run_test(func)?;
-                results.tests.push(result.clone());
-                
-                if result.passed {
-                    results.passed += 1;
-                } else {
-                    results.failed += 1;
-                }
-            }
-        }
-    }
-    
-    Ok(results)
-}
-
-struct TestResults {
-    passed: i32,
-    failed: i32,
-    tests: Vec<TestResult>,
-}
-
-struct TestResult {
-    name: String,
-    passed: bool,
-    message: Option<String>,
-}
-
-fn run_test(func: &Function) -> Result<TestResult, String> {
-    // Execute test function
-    // Would need interpreter or compile and run
-    
-    Ok(TestResult {
-        name: func.name.clone(),
-        passed: true,
-        message: None,
-    })
-}
-
-// LSP Server (stub)
-struct LSPServer {
-    workspace: String,
-    open_documents: HashMap<String, String>,
-}
-
-impl LSPServer {
-    fn new() -> LSPServer {
-        LSPServer {
-            workspace: String::new(),
-            open_documents: HashMap::new(),
-        }
-    }
-    
-    fn start(&mut self) -> Result<(), String> {
-        // Initialize LSP server
-        // Listen for JSON-RPC messages
-        Ok(())
-    }
-    
-    fn handle_message(&mut self, message: &str) -> Result<String, String> {
-        // Parse JSON-RPC message
-        // Dispatch to appropriate handler
-        Ok("{}".to_string())
-    }
-    
-    fn handle_completion(&self, file: &str, position: Position) -> Vec<CompletionItem> {
-        // Return completion items at position
-        Vec::new()
-    }
-    
-    fn handle_hover(&self, file: &str, position: Position) -> Option<Hover> {
-        // Return type information at position
-        None
-    }
-}
-
-struct Position {
-    line: i32,
-    character: i32,
-}
-
-struct CompletionItem {
-    label: String,
-    kind: CompletionItemKind,
-}
-
-enum CompletionItemKind {
-    Function,
-    Variable,
-    Struct,
-    Enum,
-}
-
-struct Hover {
-    contents: String,
+// Run tests (stub)
+fn run_tests(ctx: &ToolingContext) -> i32 {
+    // Note: Full implementation pending
+    0
 }
