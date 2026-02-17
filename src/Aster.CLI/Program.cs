@@ -83,6 +83,7 @@ public static class Program
         var result = new StringBuilder();
         var seenDeclarations = new HashSet<string>();
         var seenGlobals = new HashSet<string>();
+        var seenFunctions = new HashSet<string>();
         
         // Track if we've added the header comments
         bool headerAdded = false;
@@ -90,14 +91,19 @@ public static class Program
         foreach (var ir in irModules)
         {
             var lines = ir.Split('\n');
+            int i = 0;
             
-            foreach (var line in lines)
+            while (i < lines.Length)
             {
+                var line = lines[i];
                 var trimmed = line.Trim();
                 
                 // Skip empty lines initially
                 if (string.IsNullOrWhiteSpace(trimmed))
+                {
+                    i++;
                     continue;
+                }
                 
                 // Add header comments only once
                 if (trimmed.StartsWith(";"))
@@ -106,6 +112,7 @@ public static class Program
                     {
                         result.AppendLine(line);
                     }
+                    i++;
                     continue;
                 }
                 
@@ -115,7 +122,51 @@ public static class Program
                 if (trimmed.StartsWith("declare "))
                 {
                     if (!seenDeclarations.Add(trimmed))
+                    {
+                        i++;
                         continue; // Skip duplicate
+                    }
+                }
+                // Deduplicate function definitions (define)
+                else if (trimmed.StartsWith("define "))
+                {
+                    // Extract function name from "define <return_type> @function_name(...)"
+                    var functionName = ExtractFunctionName(trimmed);
+                    
+                    if (functionName != null && !seenFunctions.Add(functionName))
+                    {
+                        // Skip this entire function definition
+                        i++;
+                        int braceDepth = 0;
+                        bool inFunction = false;
+                        
+                        // Find opening brace
+                        while (i < lines.Length)
+                        {
+                            var funcLine = lines[i].Trim();
+                            if (funcLine.Contains("{"))
+                            {
+                                inFunction = true;
+                                braceDepth = 1;
+                                i++;
+                                break;
+                            }
+                            i++;
+                        }
+                        
+                        // Skip until we find the matching closing brace
+                        if (inFunction)
+                        {
+                            while (i < lines.Length && braceDepth > 0)
+                            {
+                                var funcLine = lines[i];
+                                braceDepth += funcLine.Count(c => c == '{');
+                                braceDepth -= funcLine.Count(c => c == '}');
+                                i++;
+                            }
+                        }
+                        continue;
+                    }
                 }
                 // Deduplicate global declarations (starting with @)
                 else if (trimmed.StartsWith("@"))
@@ -126,15 +177,33 @@ public static class Program
                     {
                         var globalName = trimmed.Substring(0, nameEnd);
                         if (!seenGlobals.Add(globalName))
+                        {
+                            i++;
                             continue; // Skip duplicate
+                        }
                     }
                 }
                 
                 result.AppendLine(line);
+                i++;
             }
         }
         
         return result.ToString();
+    }
+
+    private static string? ExtractFunctionName(string defineLine)
+    {
+        // Parse "define <return_type> @function_name(...)" to extract "@function_name"
+        var atIndex = defineLine.IndexOf('@');
+        if (atIndex < 0)
+            return null;
+        
+        var endIndex = defineLine.IndexOf('(', atIndex);
+        if (endIndex < 0)
+            return null;
+        
+        return defineLine.Substring(atIndex, endIndex - atIndex).Trim();
     }
 
     private static int Build(string[] args)
