@@ -1,0 +1,239 @@
+// Symbol Table - Name Resolution Component
+// Part of Aster Stage 2 (Core-1 implementation)
+//
+// Manages symbols, scopes, and name bindings for the compilation process.
+// Supports hierarchical scoping with parent-child relationships.
+
+// ============================================================================
+// SYMBOL TABLE STRUCTURES
+// ============================================================================
+
+/// Unique identifier for a symbol
+struct SymbolId {
+    id: i32
+}
+
+/// Symbol entry in the symbol table
+struct Symbol {
+    id: SymbolId,
+    name: String,
+    kind: SymbolKind,
+    ty: TypeId,
+    span: Span,
+    scope_id: i32
+}
+
+/// Kind of symbol
+enum SymbolKind {
+    Variable,
+    Function,
+    Parameter,
+    Struct,
+    Enum,
+    Trait,
+    TypeAlias
+}
+
+/// Type identifier (forward reference to type system)
+struct TypeId {
+    id: i32
+}
+
+/// Span for source location (forward reference)
+struct Span {
+    file: String,
+    line: i32,
+    column: i32,
+    start: i32,
+    length: i32
+}
+
+/// Scope in the symbol table
+struct Scope {
+    id: i32,
+    parent: Option<i32>,  // Parent scope ID
+    symbols: Vec<SymbolId>,
+    kind: ScopeKind
+}
+
+/// Kind of scope
+enum ScopeKind {
+    Global,
+    Function,
+    Block,
+    Struct,
+    Trait
+}
+
+/// Symbol table managing all symbols and scopes
+struct SymbolTable {
+    symbols: Vec<Symbol>,
+    scopes: Vec<Scope>,
+    current_scope: i32,
+    next_symbol_id: i32,
+    next_scope_id: i32
+}
+
+// ============================================================================
+// SYMBOL TABLE OPERATIONS
+// ============================================================================
+
+/// Create a new empty symbol table
+fn new_symbol_table() -> SymbolTable {
+    let empty_symbols: Vec<Symbol> = Vec::new();
+    let empty_scopes: Vec<Scope> = Vec::new();
+    
+    let mut table = SymbolTable {
+        symbols: empty_symbols,
+        scopes: empty_scopes,
+        current_scope: 0,
+        next_symbol_id: 1,
+        next_scope_id: 1
+    };
+    
+    // Create global scope
+    let global_scope = new_scope(0, Option::None, ScopeKind::Global);
+    table.scopes.push(global_scope);
+    
+    table
+}
+
+/// Create a new scope
+fn new_scope(id: i32, parent: Option<i32>, kind: ScopeKind) -> Scope {
+    let empty_symbols: Vec<SymbolId> = Vec::new();
+    Scope {
+        id: id,
+        parent: parent,
+        symbols: empty_symbols,
+        kind: kind
+    }
+}
+
+/// Enter a new scope (push scope)
+fn enter_scope(table: SymbolTable, kind: ScopeKind) -> SymbolTable {
+    let scope_id = table.next_scope_id;
+    let parent_id = table.current_scope;
+    let new_scope = new_scope(scope_id, Option::Some(parent_id), kind);
+    
+    table.scopes.push(new_scope);
+    
+    SymbolTable {
+        symbols: table.symbols,
+        scopes: table.scopes,
+        current_scope: scope_id,
+        next_symbol_id: table.next_symbol_id,
+        next_scope_id: scope_id + 1
+    }
+}
+
+/// Exit current scope (pop scope)
+fn exit_scope(table: SymbolTable) -> SymbolTable {
+    // Get parent scope ID from current scope
+    let current = get_scope(table, table.current_scope);
+    let parent_id = match current.parent {
+        Option::Some(id) => id,
+        Option::None => 0  // Stay at global if no parent
+    };
+    
+    SymbolTable {
+        symbols: table.symbols,
+        scopes: table.scopes,
+        current_scope: parent_id,
+        next_symbol_id: table.next_symbol_id,
+        next_scope_id: table.next_scope_id
+    }
+}
+
+/// Add a symbol to the current scope
+fn add_symbol(table: SymbolTable, name: String, kind: SymbolKind, ty: TypeId, span: Span) -> SymbolTable {
+    let symbol_id = SymbolId { id: table.next_symbol_id };
+    
+    let symbol = Symbol {
+        id: symbol_id,
+        name: name,
+        kind: kind,
+        ty: ty,
+        span: span,
+        scope_id: table.current_scope
+    };
+    
+    table.symbols.push(symbol);
+    
+    // Add symbol ID to current scope
+    let mut scopes = table.scopes;
+    // TODO: Add symbol_id to current scope's symbols vector
+    
+    SymbolTable {
+        symbols: table.symbols,
+        scopes: scopes,
+        current_scope: table.current_scope,
+        next_symbol_id: table.next_symbol_id + 1,
+        next_scope_id: table.next_scope_id
+    }
+}
+
+/// Lookup a symbol by name in current scope and parent scopes
+fn lookup_symbol(table: SymbolTable, name: String) -> Option<Symbol> {
+    lookup_symbol_in_scope(table, name, table.current_scope)
+}
+
+/// Lookup a symbol in a specific scope and its parents
+fn lookup_symbol_in_scope(table: SymbolTable, name: String, scope_id: i32) -> Option<Symbol> {
+    // Search in current scope
+    let scope = get_scope(table, scope_id);
+    
+    // TODO: Search through symbols in this scope
+    // For now, linear search through all symbols
+    // let found = find_symbol_by_name(table.symbols, name, scope_id);
+    // if found is Some, return it
+    
+    // Search in parent scope
+    match scope.parent {
+        Option::Some(parent_id) => lookup_symbol_in_scope(table, name, parent_id),
+        Option::None => Option::None
+    }
+}
+
+/// Get a scope by ID
+fn get_scope(table: SymbolTable, scope_id: i32) -> Scope {
+    // Linear search for scope
+    // TODO: Optimize with indexing
+    table.scopes[0]  // Placeholder
+}
+
+/// Check if a symbol exists in the current scope (not parent scopes)
+fn symbol_exists_in_current_scope(table: SymbolTable, name: String) -> bool {
+    // TODO: Search only current scope
+    false
+}
+
+/// Get all symbols in the current scope
+fn get_current_scope_symbols(table: SymbolTable) -> Vec<Symbol> {
+    let empty: Vec<Symbol> = Vec::new();
+    empty
+}
+
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+
+/// Create a new span
+fn new_span(file: String, line: i32, column: i32, start: i32, length: i32) -> Span {
+    Span {
+        file: file,
+        line: line,
+        column: column,
+        start: start,
+        length: length
+    }
+}
+
+/// Create a type ID
+fn new_type_id(id: i32) -> TypeId {
+    TypeId { id: id }
+}
+
+/// Create a symbol ID
+fn new_symbol_id(id: i32) -> SymbolId {
+    SymbolId { id: id }
+}

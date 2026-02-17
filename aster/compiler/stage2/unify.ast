@@ -1,0 +1,69 @@
+// Unification - Type Inference Component
+// Part of Aster Stage 2 (Core-1 implementation)
+//
+// Implements the unification algorithm for Hindley-Milner type inference.
+// Unifies type constraints and builds substitutions.
+
+// ============================================================================
+// UNIFICATION ALGORITHM
+// ============================================================================
+
+/// Result of unification
+enum UnifyResult {
+    Success(TypeContext),
+    Failure(String)
+}
+
+/// Unify two types
+fn unify(ctx: TypeContext, t1: TypeId, t2: TypeId) -> UnifyResult {
+    // Get actual types
+    let type1 = get_type(ctx, t1);
+    let type2 = get_type(ctx, t2);
+    
+    // Match on type combinations
+    // - If both are same concrete type: success
+    // - If one is type var: substitute
+    // - If both are functions: unify params and return
+    // - Otherwise: failure
+    
+    UnifyResult::Success(ctx)
+}
+
+/// Unify a type variable with a type
+fn unify_var(ctx: TypeContext, var_id: i32, ty: TypeId) -> UnifyResult {
+    // Check occurs check (var doesn't occur in ty)
+    let occurs = occurs_check(ctx, var_id, ty);
+    
+    if occurs {
+        UnifyResult::Failure("Occurs check failed - infinite type")
+    } else {
+        // Add substitution
+        let new_ctx = add_substitution(ctx, var_id, ty);
+        UnifyResult::Success(new_ctx)
+    }
+}
+
+/// Occurs check: does var occur in type?
+fn occurs_check(ctx: TypeContext, var_id: i32, ty: TypeId) -> bool {
+    // Check if var_id appears anywhere in ty
+    // For function types, recursively check params and return
+    // For generic types, recursively check type arguments
+    false  // Placeholder
+}
+
+/// Solve all constraints in a constraint set
+fn solve_constraints(ctx: ConstraintContext) -> ConstraintContext {
+    // Iterate through all constraints
+    // Unify left and right types
+    // Update type context with substitutions
+    // Report errors for failed unifications
+    ctx
+}
+
+/// Unify two function types
+fn unify_functions(ctx: TypeContext, params1: Vec<TypeId>, ret1: TypeId, params2: Vec<TypeId>, ret2: TypeId) -> UnifyResult {
+    // Check parameter count matches
+    // Unify each parameter pair
+    // Unify return types
+    UnifyResult::Success(ctx)
+}

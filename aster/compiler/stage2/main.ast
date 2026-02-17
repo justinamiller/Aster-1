@@ -9,33 +9,56 @@
 // - Extends Core-0 with type system and semantic analysis
 
 // ============================================================================
-// IMPORTS (conceptual - actual imports handled by Stage 1 compiler)
+// STAGE 2 COMPILATION PIPELINE
+// ============================================================================
+//
+// This implementation integrates all 6 phases:
+// 1. Name Resolution (symboltable.ast, nameresolver.ast)
+// 2. Type Inference (typecontext.ast, constraints.ast, unify.ast, typeinfer.ast)
+// 3. Trait Solver (traitsolver.ast)
+// 4. Effect System (effectsystem.ast)
+// 5. Ownership Analysis (ownership.ast)
+// 6. Integration (this file)
+
+// ============================================================================
+// IMPORTS (Conceptual - handled by compiler)
+// ============================================================================
+// From symboltable.ast: SymbolTable, Symbol, Scope, etc.
+// From nameresolver.ast: NameResolutionContext, resolve_names
+// From typecontext.ast: TypeContext, Type, TypeScheme
+// From typeinfer.ast: TypeInferenceContext, infer_types
+// From traitsolver.ast: TraitSolverContext, resolve_obligations
+// From effectsystem.ast: EffectContext, infer_function_effects
+// From ownership.ast: OwnershipContext, track_move, track_borrow
+
+// ============================================================================
+// STAGE 2 COMPILER CONTEXT
 // ============================================================================
 
-// Stage 2 extends Stage 1 with:
-// - Name resolution and symbol tables
-// - Type inference (Hindley-Milner with constraints)
-// - Trait solver (trait resolution and impl checking)
-// - Effect system (effect inference and checking)
-// - Ownership analysis (move semantics and borrow tracking)
-
-// ============================================================================
-// TYPE DEFINITIONS
-// ============================================================================
-
-/// Generic Result type for Core-1
-enum Result<T, E> {
-    Ok(T),
-    Err(E)
+/// Complete compiler context for Stage 2
+struct Stage2Context {
+    // Phase 1: Name Resolution
+    name_ctx: NameResolutionContext,
+    
+    // Phase 2: Type Inference
+    type_ctx: TypeInferenceContext,
+    
+    // Phase 3: Trait Resolution
+    trait_ctx: TraitSolverContext,
+    
+    // Phase 4: Effect System
+    effect_ctx: EffectContext,
+    
+    // Phase 5: Ownership Analysis
+    ownership_ctx: OwnershipContext,
+    
+    // Overall compilation state
+    phase: CompilationPhase,
+    diagnostics: Vec<Diagnostic>,
+    success: bool
 }
 
-/// Generic Option type for Core-1
-enum Option<T> {
-    Some(T),
-    None
-}
-
-/// Compilation phase for Stage 2
+/// Compilation phases
 enum CompilationPhase {
     Lexing,
     Parsing,
@@ -44,14 +67,7 @@ enum CompilationPhase {
     TraitResolution,
     EffectChecking,
     OwnershipAnalysis,
-    CodeGeneration
-}
-
-/// Diagnostic level
-enum DiagnosticLevel {
-    Error,
-    Warning,
-    Info
+    Complete
 }
 
 /// Diagnostic message
@@ -62,7 +78,14 @@ struct Diagnostic {
     span: Span
 }
 
-/// Span for source location tracking
+/// Diagnostic level
+enum DiagnosticLevel {
+    Error,
+    Warning,
+    Info
+}
+
+/// Source location
 struct Span {
     file: String,
     line: i32,
@@ -71,190 +94,211 @@ struct Span {
     length: i32
 }
 
-/// Symbol ID for name resolution
-struct SymbolId {
-    id: i32
-}
-
-/// Type ID for type inference
-struct TypeId {
-    id: i32
-}
-
-/// Compiler context for Stage 2
-struct CompilerContext {
-    phase: CompilationPhase,
-    diagnostics: Vec<Diagnostic>,
-    symbol_table: SymbolTable,
-    type_context: TypeContext
-}
-
-/// Symbol table for name resolution
-struct SymbolTable {
-    symbols: Vec<Symbol>,
-    scopes: Vec<Scope>
-}
-
-/// Symbol entry
-struct Symbol {
-    id: SymbolId,
-    name: String,
-    ty: TypeId,
-    span: Span
-}
-
-/// Scope for symbol resolution
-struct Scope {
-    parent: Option<i32>,  // Index of parent scope
-    symbols: Vec<SymbolId>
-}
-
-/// Type context for type inference
-struct TypeContext {
-    types: Vec<Type>,
-    constraints: Vec<TypeConstraint>
-}
-
-/// Type representation
-enum Type {
-    Unknown,
-    Int32,
-    Int64,
-    Float32,
-    Float64,
-    Bool,
-    String,
-    Unit,
-    Function,  // Placeholder for function types
-    Generic,   // Placeholder for generic types
-    Trait      // Placeholder for trait types
-}
-
-/// Type constraint for unification
-struct TypeConstraint {
-    left: TypeId,
-    right: TypeId,
-    span: Span
-}
-
 // ============================================================================
-// STAGE 2 COMPILATION PIPELINE
+// STAGE 2 COMPILATION ENTRY POINTS
 // ============================================================================
 
-/// Initialize Stage 2 compiler context
-fn init_compiler() -> CompilerContext {
-    let empty_diagnostics: Vec<Diagnostic> = Vec::new();
-    let empty_symbols: Vec<Symbol> = Vec::new();
-    let empty_scopes: Vec<Scope> = Vec::new();
-    let empty_types: Vec<Type> = Vec::new();
-    let empty_constraints: Vec<TypeConstraint> = Vec::new();
+/// Initialize Stage 2 compiler
+fn init_stage2_compiler() -> Stage2Context {
+    let name_ctx = new_name_context();
+    let symbol_table = name_ctx.symbol_table;
+    let type_ctx = new_type_inference_context(symbol_table);
+    let trait_ctx = new_trait_solver();
+    let effect_ctx = new_effect_context();
+    let ownership_ctx = new_ownership_context();
+    let empty_diag: Vec<Diagnostic> = Vec::new();
     
-    let symbol_table = SymbolTable {
-        symbols: empty_symbols,
-        scopes: empty_scopes
-    };
-    
-    let type_context = TypeContext {
-        types: empty_types,
-        constraints: empty_constraints
-    };
-    
-    CompilerContext {
+    Stage2Context {
+        name_ctx: name_ctx,
+        type_ctx: type_ctx,
+        trait_ctx: trait_ctx,
+        effect_ctx: effect_ctx,
+        ownership_ctx: ownership_ctx,
         phase: CompilationPhase::Lexing,
-        diagnostics: empty_diagnostics,
-        symbol_table: symbol_table,
-        type_context: type_context
+        diagnostics: empty_diag,
+        success: true
     }
 }
 
-/// Run name resolution phase
-fn resolve_names(ctx: CompilerContext) -> CompilerContext {
-    // TODO: Implement name resolution
-    // - Build symbol table from AST
-    // - Resolve variable references
-    // - Check for undefined symbols
-    // - Handle scoping rules
-    ctx
-}
-
-/// Run type inference phase
-fn infer_types(ctx: CompilerContext) -> CompilerContext {
-    // TODO: Implement type inference
-    // - Generate type constraints from expressions
-    // - Unify types using constraint solving
-    // - Instantiate generic types
-    // - Check type compatibility
-    ctx
-}
-
-/// Run trait resolution phase
-fn resolve_traits(ctx: CompilerContext) -> CompilerContext {
-    // TODO: Implement trait resolution
-    // - Build trait database
-    // - Resolve trait bounds
-    // - Check impl coverage
-    // - Detect cycles
-    ctx
-}
-
-/// Run effect checking phase
-fn check_effects(ctx: CompilerContext) -> CompilerContext {
-    // TODO: Implement effect checking
-    // - Infer effects from function calls
-    // - Propagate effects through call chain
-    // - Check effect annotations
-    // - Verify effect boundaries
-    ctx
-}
-
-/// Run ownership analysis phase
-fn analyze_ownership(ctx: CompilerContext) -> CompilerContext {
-    // TODO: Implement ownership analysis
-    // - Track moves and borrows
-    // - Check use-after-move
-    // - Verify borrow lifetimes
-    // - Detect conflicting borrows
-    ctx
-}
-
-/// Compile source with Stage 2 pipeline
-fn compile(source: String, filename: String) -> Result<CompilerContext, String> {
-    let mut ctx = init_compiler();
+/// Run complete Stage 2 compilation pipeline
+fn compile_stage2(source: String, filename: String) -> Stage2Context {
+    let mut ctx = init_stage2_compiler();
     
-    // Run all compilation phases
-    ctx = resolve_names(ctx);
-    ctx = infer_types(ctx);
-    ctx = resolve_traits(ctx);
-    ctx = check_effects(ctx);
-    ctx = analyze_ownership(ctx);
+    // Phase 1: Name Resolution
+    ctx = run_name_resolution(ctx);
+    
+    // Phase 2: Type Inference
+    ctx = run_type_inference(ctx);
+    
+    // Phase 3: Trait Resolution
+    ctx = run_trait_resolution(ctx);
+    
+    // Phase 4: Effect Checking
+    ctx = run_effect_checking(ctx);
+    
+    // Phase 5: Ownership Analysis
+    ctx = run_ownership_analysis(ctx);
     
     // Check for errors
-    let has_errors = check_diagnostics(ctx.diagnostics);
+    ctx = check_compilation_errors(ctx);
     
-    if has_errors {
-        Result::Err("Compilation failed with errors")
-    } else {
-        Result::Ok(ctx)
+    ctx
+}
+
+/// Run Phase 1: Name Resolution
+fn run_name_resolution(ctx: Stage2Context) -> Stage2Context {
+    let phase_ctx = Stage2Context {
+        name_ctx: ctx.name_ctx,
+        type_ctx: ctx.type_ctx,
+        trait_ctx: ctx.trait_ctx,
+        effect_ctx: ctx.effect_ctx,
+        ownership_ctx: ctx.ownership_ctx,
+        phase: CompilationPhase::NameResolution,
+        diagnostics: ctx.diagnostics,
+        success: ctx.success
+    };
+    
+    // TODO: Actually resolve names from AST
+    // name_ctx = resolve_names(name_ctx, ast);
+    
+    phase_ctx
+}
+
+/// Run Phase 2: Type Inference
+fn run_type_inference(ctx: Stage2Context) -> Stage2Context {
+    let phase_ctx = Stage2Context {
+        name_ctx: ctx.name_ctx,
+        type_ctx: ctx.type_ctx,
+        trait_ctx: ctx.trait_ctx,
+        effect_ctx: ctx.effect_ctx,
+        ownership_ctx: ctx.ownership_ctx,
+        phase: CompilationPhase::TypeInference,
+        diagnostics: ctx.diagnostics,
+        success: ctx.success
+    };
+    
+    // TODO: Actually infer types from AST
+    // type_ctx = infer_types(type_ctx, ast);
+    
+    phase_ctx
+}
+
+/// Run Phase 3: Trait Resolution
+fn run_trait_resolution(ctx: Stage2Context) -> Stage2Context {
+    let phase_ctx = Stage2Context {
+        name_ctx: ctx.name_ctx,
+        type_ctx: ctx.type_ctx,
+        trait_ctx: ctx.trait_ctx,
+        effect_ctx: ctx.effect_ctx,
+        ownership_ctx: ctx.ownership_ctx,
+        phase: CompilationPhase::TraitResolution,
+        diagnostics: ctx.diagnostics,
+        success: ctx.success
+    };
+    
+    // Resolve trait obligations
+    let trait_ctx = resolve_obligations(phase_ctx.trait_ctx);
+    
+    Stage2Context {
+        name_ctx: phase_ctx.name_ctx,
+        type_ctx: phase_ctx.type_ctx,
+        trait_ctx: trait_ctx,
+        effect_ctx: phase_ctx.effect_ctx,
+        ownership_ctx: phase_ctx.ownership_ctx,
+        phase: phase_ctx.phase,
+        diagnostics: phase_ctx.diagnostics,
+        success: phase_ctx.success
     }
 }
 
-/// Check if diagnostics contain errors
-fn check_diagnostics(diagnostics: Vec<Diagnostic>) -> bool {
-    // TODO: Check if any diagnostic is an error
-    false
+/// Run Phase 4: Effect Checking
+fn run_effect_checking(ctx: Stage2Context) -> Stage2Context {
+    let phase_ctx = Stage2Context {
+        name_ctx: ctx.name_ctx,
+        type_ctx: ctx.type_ctx,
+        trait_ctx: ctx.trait_ctx,
+        effect_ctx: ctx.effect_ctx,
+        ownership_ctx: ctx.ownership_ctx,
+        phase: CompilationPhase::EffectChecking,
+        diagnostics: ctx.diagnostics,
+        success: ctx.success
+    };
+    
+    // Check effects
+    let effect_ctx = check_effects(phase_ctx.effect_ctx);
+    
+    Stage2Context {
+        name_ctx: phase_ctx.name_ctx,
+        type_ctx: phase_ctx.type_ctx,
+        trait_ctx: phase_ctx.trait_ctx,
+        effect_ctx: effect_ctx,
+        ownership_ctx: phase_ctx.ownership_ctx,
+        phase: phase_ctx.phase,
+        diagnostics: phase_ctx.diagnostics,
+        success: phase_ctx.success
+    }
 }
+
+/// Run Phase 5: Ownership Analysis
+fn run_ownership_analysis(ctx: Stage2Context) -> Stage2Context {
+    let phase_ctx = Stage2Context {
+        name_ctx: ctx.name_ctx,
+        type_ctx: ctx.type_ctx,
+        trait_ctx: ctx.trait_ctx,
+        effect_ctx: ctx.effect_ctx,
+        ownership_ctx: ctx.ownership_ctx,
+        phase: CompilationPhase::OwnershipAnalysis,
+        diagnostics: ctx.diagnostics,
+        success: ctx.success
+    };
+    
+    // TODO: Analyze ownership from AST
+    
+    phase_ctx
+}
+
+/// Check for compilation errors across all phases
+fn check_compilation_errors(ctx: Stage2Context) -> Stage2Context {
+    let has_errors = 
+        has_name_errors(ctx.name_ctx) ||
+        has_type_errors(ctx.type_ctx);
+    
+    let final_phase = if has_errors {
+        CompilationPhase::Complete
+    } else {
+        CompilationPhase::Complete
+    };
+    
+    Stage2Context {
+        name_ctx: ctx.name_ctx,
+        type_ctx: ctx.type_ctx,
+        trait_ctx: ctx.trait_ctx,
+        effect_ctx: ctx.effect_ctx,
+        ownership_ctx: ctx.ownership_ctx,
+        phase: final_phase,
+        diagnostics: ctx.diagnostics,
+        success: !has_errors
+    }
+}
+
+// ============================================================================
+// CLI COMMANDS (Phase 6: Integration)
+// ============================================================================
 
 /// Main entry point for Stage 2
 fn main() {
-    // Stage 2 entry point
-    // Currently a placeholder - actual CLI handling will be added
-    // when Stage 2 is compiled by Stage 1
+    // Stage 2 CLI entry point
+    // 
+    // When Stage 2 is compiled by Stage 1, this will provide:
+    // - aster2 build <file>         - Full compilation with all phases
+    // - aster2 check <file>         - Type check only
+    // - aster2 emit-types <file>    - Emit inferred types
+    // - aster2 emit-traits <file>   - Emit trait resolution
+    // - aster2 emit-effects <file>  - Emit effect annotations
+    // - aster2 emit-ownership <file> - Emit ownership information
     //
-    // Expected commands:
-    // - aster2 build <file>       - Compile with full type checking
-    // - aster2 check <file>       - Type check without codegen
-    // - aster2 emit-types <file>  - Emit inferred types as JSON
-    // - aster2 emit-traits <file> - Emit trait resolution as JSON
+    // For now, this is a placeholder that will be enhanced when
+    // Stage 2 is actually compiled.
 }
 
 // ============================================================================
@@ -272,17 +316,6 @@ fn new_span(file: String, line: i32, column: i32, start: i32, length: i32) -> Sp
     }
 }
 
-/// Create a new symbol
-fn new_symbol(name: String, ty: TypeId, span: Span) -> Symbol {
-    let id = SymbolId { id: 0 };  // Will be assigned by symbol table
-    Symbol {
-        id: id,
-        name: name,
-        ty: ty,
-        span: span
-    }
-}
-
 /// Create a diagnostic
 fn new_diagnostic(level: DiagnosticLevel, message: String, phase: CompilationPhase, span: Span) -> Diagnostic {
     Diagnostic {
@@ -291,4 +324,17 @@ fn new_diagnostic(level: DiagnosticLevel, message: String, phase: CompilationPha
         phase: phase,
         span: span
     }
+}
+
+/// Format diagnostics for output
+fn format_diagnostics(diagnostics: Vec<Diagnostic>) -> String {
+    // Format all diagnostics as text
+    // TODO: Implement formatting
+    ""
+}
+
+/// Print compilation summary
+fn print_summary(ctx: Stage2Context) {
+    // Print compilation results
+    // Show errors, warnings, and success status
 }

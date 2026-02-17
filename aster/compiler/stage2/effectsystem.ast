@@ -1,0 +1,68 @@
+// Effect System - Effect Tracking Component
+// Part of Aster Stage 2 (Core-1 implementation)
+//
+// Infers and checks effects (IO, exceptions, non-determinism, etc.)
+
+// ============================================================================
+// EFFECT STRUCTURES
+// ============================================================================
+
+/// Effect annotation
+enum Effect {
+    Pure,           // No effects
+    IO,            // Input/output
+    Exception,     // May throw
+    NonDet,        // Non-deterministic
+    Async,         // Asynchronous
+    Combined(Vec<Effect>)  // Multiple effects
+}
+
+/// Effect context
+struct EffectContext {
+    function_effects: Vec<FunctionEffect>,
+    diagnostics: Vec<Diagnostic>
+}
+
+/// Effect annotation for a function
+struct FunctionEffect {
+    function_name: String,
+    effects: Effect
+}
+
+// ============================================================================
+// EFFECT OPERATIONS
+// ============================================================================
+
+/// Create new effect context
+fn new_effect_context() -> EffectContext {
+    let empty_func: Vec<FunctionEffect> = Vec::new();
+    let empty_diag: Vec<Diagnostic> = Vec::new();
+    
+    EffectContext {
+        function_effects: empty_func,
+        diagnostics: empty_diag
+    }
+}
+
+/// Infer effects for a function
+fn infer_function_effects(ctx: EffectContext, func: Function) -> EffectContext {
+    // Analyze function body
+    // Infer effects from operations
+    // Propagate through function calls
+    ctx
+}
+
+/// Check effect boundaries
+fn check_effects(ctx: EffectContext) -> EffectContext {
+    // Verify pure functions don't perform IO
+    // Check exception handling
+    ctx
+}
+
+/// Combine multiple effects
+fn combine_effects(e1: Effect, e2: Effect) -> Effect {
+    Effect::Combined(Vec::new())  // Placeholder
+}
+
+struct Function { name: String }
+struct Diagnostic { message: String }

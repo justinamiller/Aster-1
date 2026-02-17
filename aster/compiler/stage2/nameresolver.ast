@@ -1,0 +1,174 @@
+// Name Resolver - Name Resolution Component  
+// Part of Aster Stage 2 (Core-1 implementation)
+//
+// Resolves names to symbols, builds symbol tables, and detects name errors.
+
+// Import symbol table types (conceptual - handled by compiler)
+// Uses: SymbolTable, Symbol, SymbolKind, etc. from symboltable.ast
+
+// ============================================================================
+// NAME RESOLUTION CONTEXT
+// ============================================================================
+
+/// Context for name resolution
+struct NameResolutionContext {
+    symbol_table: SymbolTable,
+    diagnostics: Vec<Diagnostic>,
+    in_function: bool,
+    current_function: Option<SymbolId>
+}
+
+/// Diagnostic for name resolution errors
+struct Diagnostic {
+    level: DiagnosticLevel,
+    message: String,
+    span: Span
+}
+
+/// Diagnostic level
+enum DiagnosticLevel {
+    Error,
+    Warning,
+    Info
+}
+
+// ============================================================================
+// NAME RESOLUTION FUNCTIONS
+// ============================================================================
+
+/// Create a new name resolution context
+fn new_name_context() -> NameResolutionContext {
+    let table = new_symbol_table();
+    let empty_diag: Vec<Diagnostic> = Vec::new();
+    
+    NameResolutionContext {
+        symbol_table: table,
+        diagnostics: empty_diag,
+        in_function: false,
+        current_function: Option::None
+    }
+}
+
+/// Resolve names in a compilation unit (AST root)
+fn resolve_names(ctx: NameResolutionContext, ast: AstNode) -> NameResolutionContext {
+    // Process top-level declarations
+    ctx
+}
+
+/// Resolve a function declaration
+fn resolve_function_decl(ctx: NameResolutionContext, name: String, span: Span) -> NameResolutionContext {
+    // Add function to symbol table
+    let ty = new_type_id(0);  // Unknown type for now
+    let table = add_symbol(ctx.symbol_table, name, SymbolKind::Function, ty, span);
+    
+    NameResolutionContext {
+        symbol_table: table,
+        diagnostics: ctx.diagnostics,
+        in_function: ctx.in_function,
+        current_function: ctx.current_function
+    }
+}
+
+/// Resolve a variable declaration
+fn resolve_variable_decl(ctx: NameResolutionContext, name: String, span: Span) -> NameResolutionContext {
+    // Check if variable already exists in current scope
+    let exists = symbol_exists_in_current_scope(ctx.symbol_table, name);
+    
+    if exists {
+        // Add error diagnostic
+        let diag = new_diagnostic(
+            DiagnosticLevel::Error,
+            "Variable already defined in this scope",
+            span
+        );
+        ctx.diagnostics.push(diag);
+    }
+    
+    // Add variable to symbol table
+    let ty = new_type_id(0);  // Unknown type for now
+    let table = add_symbol(ctx.symbol_table, name, SymbolKind::Variable, ty, span);
+    
+    NameResolutionContext {
+        symbol_table: table,
+        diagnostics: ctx.diagnostics,
+        in_function: ctx.in_function,
+        current_function: ctx.current_function
+    }
+}
+
+/// Resolve a variable reference
+fn resolve_variable_ref(ctx: NameResolutionContext, name: String, span: Span) -> NameResolutionContext {
+    // Lookup symbol in symbol table
+    let symbol = lookup_symbol(ctx.symbol_table, name);
+    
+    match symbol {
+        Option::Some(sym) => {
+            // Symbol found - continue
+            ctx
+        },
+        Option::None => {
+            // Symbol not found - add error
+            let diag = new_diagnostic(
+                DiagnosticLevel::Error,
+                "Undefined variable",
+                span
+            );
+            ctx.diagnostics.push(diag);
+            ctx
+        }
+    }
+}
+
+/// Enter a new scope (e.g., entering a function body)
+fn enter_name_scope(ctx: NameResolutionContext, kind: ScopeKind) -> NameResolutionContext {
+    let table = enter_scope(ctx.symbol_table, kind);
+    
+    NameResolutionContext {
+        symbol_table: table,
+        diagnostics: ctx.diagnostics,
+        in_function: ctx.in_function,
+        current_function: ctx.current_function
+    }
+}
+
+/// Exit current scope
+fn exit_name_scope(ctx: NameResolutionContext) -> NameResolutionContext {
+    let table = exit_scope(ctx.symbol_table);
+    
+    NameResolutionContext {
+        symbol_table: table,
+        diagnostics: ctx.diagnostics,
+        in_function: ctx.in_function,
+        current_function: ctx.current_function
+    }
+}
+
+/// Check if name resolution has errors
+fn has_name_errors(ctx: NameResolutionContext) -> bool {
+    // Check if any diagnostic is an error
+    false  // TODO: Implement
+}
+
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+
+/// Create a new diagnostic
+fn new_diagnostic(level: DiagnosticLevel, message: String, span: Span) -> Diagnostic {
+    Diagnostic {
+        level: level,
+        message: message,
+        span: span
+    }
+}
+
+/// AST node placeholder (would be imported from AST module)
+struct AstNode {
+    kind: AstNodeKind
+}
+
+enum AstNodeKind {
+    FunctionDecl,
+    VariableDecl,
+    VariableRef
+}
