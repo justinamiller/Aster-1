@@ -35,7 +35,7 @@ The bootstrap stages are infrastructure for developing a fully self-hosted Aster
 |-------|--------|----------|-----------------|----------------------|
 | **Stage 0** | ✅ PRODUCTION | C# Compiler | Full Aster | **Production compiler - use this** |
 | **Stage 1** | ✅ COMPLETE | Minimal Aster | Core-0 | **Pipeline complete with ~300 LOC minimal implementation** |
-| **Stage 2** | ⚙️ Structure | Expanded Aster | Core-1 | Type defs exist, implementation needed (~5000 LOC) |
+| **Stage 2** | ✅ COMPLETE | Expanded Aster | Core-1 | **Pipeline complete with ~250 LOC enhancements** |
 | **Stage 3** | ⚙️ Structure | Full Self-Hosted | Core-2 (Full) | Type defs exist, implementation needed (~3000 LOC) |
 
 **Legend**:
