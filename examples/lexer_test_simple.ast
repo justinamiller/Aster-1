@@ -1,0 +1,47 @@
+// Test file for new lexer features (without lifetimes for now)
+//
+// This file tests the newly implemented lexer features:
+// 1. Octal literals
+// 2. Type suffixes  
+// 3. Raw strings
+// 4. Unicode escapes
+
+fn test_octal_literals() {
+    // Octal number literals with 0o prefix
+    let octal1 = 0o52;
+    let octal2 = 0o377;
+    let octal3 = 0o77_77;
+}
+
+fn test_type_suffixes() {
+    // Integer type suffixes
+    let i32_val = 42i32;
+    let i64_val = 100i64;
+    let u8_val = 255u8;
+    let u32_val = 1000u32;
+    
+    // Float type suffixes
+    let f32_val = 1.0f32;
+    let f64_val = 3.14f64;
+}
+
+fn test_raw_strings() {
+    // Basic raw string
+    let raw1 = r"No escape \n here";
+    
+    // Raw string with hash
+    let raw2 = r#"Can have "quotes""#;
+}
+
+fn test_unicode() {
+    // Unicode escapes
+    let unicode_str = "Hello \u{1F600}";
+    let normal = "Line\nTab\t";
+}
+
+fn main() {
+    test_octal_literals();
+    test_type_suffixes();
+    test_raw_strings();
+    test_unicode();
+}
