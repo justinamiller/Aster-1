@@ -45,6 +45,30 @@ log_failure() { echo -e "${RED}[✗]${NC} $1"; FAILED_TESTS=$((FAILED_TESTS + 1)
 log_warning() { echo -e "${YELLOW}[!]${NC} $1"; }
 log_step() { echo ""; echo -e "${GREEN}==>${NC} $1"; }
 
+# Portable timeout detection and wrapper
+has_timeout() {
+    command -v timeout >/dev/null 2>&1
+}
+
+run_with_timeout() {
+    local timeout_seconds="$1"
+    shift
+    
+    if has_timeout; then
+        # Use native timeout command (Linux with coreutils)
+        timeout "$timeout_seconds" "$@"
+        return $?
+    elif command -v perl >/dev/null 2>&1; then
+        # Use perl-based timeout (works on most Unix systems including macOS)
+        perl -e 'alarm shift; exec @ARGV' "$timeout_seconds" "$@"
+        return $?
+    else
+        # No timeout available - run without limit and warn user
+        "$@"
+        return $?
+    fi
+}
+
 # Help
 show_help() {
     cat << EOF
@@ -170,7 +194,7 @@ run_single_test() {
     local start_time=$(date +%s)
     vlog "Command: dotnet run --project src/Aster.CLI --no-build --nologo -- build \"$test_file\" --emit-llvm -o \"$temp_output\""
     
-    if timeout 30 dotnet run \
+    if run_with_timeout 30 dotnet run \
         --project src/Aster.CLI \
         --no-build \
         --nologo \
@@ -313,6 +337,11 @@ main() {
     echo "Aster Test Suite"
     echo "=========================================="
     echo ""
+    
+    # Warn if timeout not available
+    if ! has_timeout && ! command -v perl >/dev/null 2>&1; then
+        log_warning "timeout command not available - tests will run without time limits"
+    fi
     
     # Build Aster.CLI once if running Aster tests (stages 1-3)
     if [[ "$TEST_STAGE" == "all" ]] || [[ "$TEST_STAGE" == "1" ]] || [[ "$TEST_STAGE" == "2" ]] || [[ "$TEST_STAGE" == "3" ]]; then
