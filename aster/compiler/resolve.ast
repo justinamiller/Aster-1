@@ -354,3 +354,207 @@ fn add_error(mut resolver: NameResolver, message: String, span: Span) -> NameRes
 fn has_errors(resolver: NameResolver) -> bool {
     resolver.error_count > 0
 }
+
+// ============================================================================
+// PATH AND QUALIFIED NAME RESOLUTION
+// ============================================================================
+
+/// Path segment (part of A::B::C)
+struct PathSegment {
+    name: String,
+    span: Span
+}
+
+/// Resolved path information
+struct PathResolution {
+    segments: Vec<PathSegment>,
+    final_binding: Binding,
+    resolved: bool
+}
+
+/// Result of path resolution with resolver
+struct PathResolveResult {
+    resolver: NameResolver,
+    resolution: PathResolution
+}
+
+/// Create a path segment
+fn new_path_segment(name: String, span: Span) -> PathSegment {
+    PathSegment {
+        name: name,
+        span: span
+    }
+}
+
+/// Resolve a qualified path (e.g., Vec::new, std::io::println)
+fn resolve_path(mut resolver: NameResolver, segments: Vec<PathSegment>) -> PathResolveResult {
+    // In actual implementation, would:
+    // 1. Resolve first segment in current scope
+    // 2. For each subsequent segment, resolve in namespace of previous
+    // 3. Handle type vs value namespaces
+    // 4. Return fully resolved path
+    
+    // For now, return unresolved
+    let unresolved = PathResolution {
+        segments: segments,
+        final_binding: dummy_binding(),
+        resolved: false
+    };
+    
+    PathResolveResult {
+        resolver: resolver,
+        resolution: unresolved
+    }
+}
+
+/// Resolve a simple identifier as a path
+fn resolve_identifier_as_path(mut resolver: NameResolver, name: String, span: Span) -> PathResolveResult {
+    // Single segment path
+    let segment = new_path_segment(name, span);
+    let mut segments = Vec::new();
+    // Would push segment to segments
+    
+    resolve_path(resolver, segments)
+}
+
+// ============================================================================
+// MODULE IMPORT RESOLUTION
+// ============================================================================
+
+/// Import statement
+struct Import {
+    path: Vec<String>,
+    alias: String,
+    span: Span
+}
+
+/// Resolved import
+struct ResolvedImport {
+    import: Import,
+    binding: Binding,
+    success: bool
+}
+
+/// Result of import resolution
+struct ImportResolveResult {
+    resolver: NameResolver,
+    resolved: ResolvedImport
+}
+
+/// Create an import
+fn new_import(path: Vec<String>, alias: String, span: Span) -> Import {
+    Import {
+        path: path,
+        alias: alias,
+        span: span
+    }
+}
+
+/// Resolve an import statement
+fn resolve_import(mut resolver: NameResolver, import: Import) -> ImportResolveResult {
+    // In actual implementation, would:
+    // 1. Parse module path (e.g., "std::io::println")
+    // 2. Load module from filesystem or cache
+    // 3. Add imported names to current scope
+    // 4. Handle visibility (pub vs private)
+    
+    // For now, create dummy resolved import
+    let resolved = ResolvedImport {
+        import: import,
+        binding: dummy_binding(),
+        success: false
+    };
+    
+    ImportResolveResult {
+        resolver: resolver,
+        resolved: resolved
+    }
+}
+
+/// Resolve multiple imports
+fn resolve_imports(mut resolver: NameResolver, imports: Vec<Import>) -> NameResolver {
+    // In actual implementation, would iterate and resolve each import
+    // For now, just return resolver
+    resolver
+}
+
+// ============================================================================
+// EXPRESSION RESOLUTION
+// ============================================================================
+
+/// Resolve a use of a name in an expression
+fn resolve_name_use(mut resolver: NameResolver, name: String, span: Span) -> NameResolver {
+    // Look up the name
+    let lookup = lookup_name(resolver, name);
+    resolver = lookup.resolver;
+    
+    if !lookup.result.found {
+        // Undefined name error
+        let error_msg = String::from("Undefined identifier");
+        resolver = add_error(resolver, error_msg, span);
+    }
+    
+    resolver
+}
+
+/// Resolve a field access (e.g., point.x)
+fn resolve_field_access(mut resolver: NameResolver, base_name: String, field_name: String, span: Span) -> NameResolver {
+    // In actual implementation, would:
+    // 1. Resolve base name
+    // 2. Look up type of base
+    // 3. Check if type has field
+    // 4. Return field binding
+    
+    // For now, just resolve base
+    resolve_name_use(resolver, base_name, span)
+}
+
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+
+/// Get count of scopes
+fn get_scope_count(resolver: NameResolver) -> i32 {
+    resolver.scope_count
+}
+
+/// Get count of bindings in resolver
+fn get_binding_count(resolver: NameResolver) -> i32 {
+    resolver.next_binding_id
+}
+
+/// Get error count
+fn get_error_count(resolver: NameResolver) -> i32 {
+    resolver.error_count
+}
+
+/// Reset errors (for recovery)
+fn clear_errors(mut resolver: NameResolver) -> NameResolver {
+    resolver.error_count = 0;
+    resolver
+}
+
+/// Create a dummy span for testing
+fn dummy_span() -> Span {
+    let empty = "";
+    Span {
+        file: empty,
+        line: 0,
+        column: 0,
+        start: 0,
+        length: 0
+    }
+}
+
+/// Check if a name is defined in any scope
+fn is_defined(resolver: NameResolver, name: String) -> bool {
+    let lookup = lookup_name(resolver, name);
+    lookup.result.found
+}
+
+/// Get the number of scopes in the stack
+fn scope_stack_depth(resolver: NameResolver) -> i32 {
+    // In actual implementation, would return scopes.len()
+    // For now, return scope_count as approximation
+    resolver.scope_count
+}
