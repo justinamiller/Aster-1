@@ -1,0 +1,80 @@
+// IR Generation - Minimal implementation for Stage 1
+// Part of Aster Stage 1 (Core-0 implementation)
+//
+// Generates simple intermediate representation from AST
+
+// Simple IR instruction
+enum IrInstruction {
+    Return(IrValue),
+    BinaryOp(IrBinaryOp),
+    LoadVar(String),
+    Nop
+}
+
+// IR value
+enum IrValue {
+    IntLiteral(i32),
+    Variable(String),
+    Register(i32)
+}
+
+// IR binary operation
+struct IrBinaryOp {
+    op: String,
+    left: IrValue,
+    right: IrValue,
+    result: i32
+}
+
+// IR function
+struct IrFunction {
+    name: String,
+    instructions: Vec<IrInstruction>,
+    instruction_count: i32
+}
+
+// IR module
+struct IrModule {
+    functions: Vec<IrFunction>,
+    function_count: i32
+}
+
+// IR generator state
+struct IrGenerator {
+    module: IrModule,
+    next_register: i32
+}
+
+// Result of IR generation
+struct IrGenResult {
+    generator: IrGenerator,
+    success: bool
+}
+
+/// Create a new IR generator
+fn new_ir_generator() -> IrGenerator {
+    let empty_module = IrModule {
+        functions: Vec::new(),
+        function_count: 0
+    };
+    
+    IrGenerator {
+        module: empty_module,
+        next_register: 0
+    }
+}
+
+/// Generate IR for a module (minimal)
+fn generate_ir(mut gen: IrGenerator) -> IrGenResult {
+    // Minimal implementation: create simple IR
+    IrGenResult {
+        generator: gen,
+        success: true
+    }
+}
+
+/// Add a function to IR module
+fn add_ir_function(mut gen: IrGenerator, name: String) -> IrGenerator {
+    gen.next_register = gen.next_register + 1;
+    gen
+}

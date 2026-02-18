@@ -1,0 +1,24 @@
+// Stage 2 fixture: Basic type checking and inference
+
+fn identity(x: i32) -> i32 {
+    x
+}
+
+fn add(a: i32, b: i32) -> i32 {
+    a + b
+}
+
+struct Point {
+    x: i32,
+    y: i32
+}
+
+fn make_point() -> Point {
+    Point { x: 10, y: 20 }
+}
+
+fn main() -> i32 {
+    let p = make_point();
+    let sum = add(p.x, p.y);
+    identity(sum)
+}

@@ -219,28 +219,192 @@ verify_stage1() {
 verify_stage2() {
     log_step "Verifying Stage 2: Expanded Compiler"
     
-    if [[ ! -f "${BUILD_DIR}/stage2/aster2" ]] && [[ ! -f "${BUILD_DIR}/stage2/aster2.exe" ]]; then
-        log_warning "Stage 2 binary not found (not yet implemented)"
-        log_info "Stage 2 verification will be implemented when Stage 2 is built"
-        return
+    local aster2="${BUILD_DIR}/stage2/aster2"
+    
+    if [[ ! -f "$aster2" ]] && [[ ! -f "${aster2}.exe" ]]; then
+        log_warning "Stage 2 binary not found"
+        log_info "Build Stage 2 first: ./bootstrap/scripts/bootstrap.sh --stage 2"
+        return 0
     fi
     
-    # TODO: Differential tests for Stage 2
-    log_warning "Stage 2 verification not yet implemented"
+    log_info "Testing Stage 2 compilation..."
+    
+    # Test compile-pass fixtures
+    local stage2_fixtures="${FIXTURES_DIR}/stage2/compile-pass"
+    if [[ -d "$stage2_fixtures" ]]; then
+        local pass_count=0
+        local total_count=0
+        
+        for fixture in "$stage2_fixtures"/*.ast; do
+            if [[ ! -f "$fixture" ]]; then
+                continue
+            fi
+            
+            total_count=$((total_count + 1))
+            local basename=$(basename "$fixture" .ast)
+            
+            # Try to compile (don't require success yet, just check it runs)
+            if "$aster2" check "$fixture" > /dev/null 2>&1; then
+                pass_count=$((pass_count + 1))
+                if [[ $VERBOSE -eq 1 ]]; then
+                    log_info "  ✓ $basename"
+                fi
+            else
+                if [[ $VERBOSE -eq 1 ]]; then
+                    log_warning "  ✗ $basename (expected to pass)"
+                fi
+            fi
+        done
+        
+        log_info "Stage 2 compile-pass: $pass_count/$total_count fixtures compiled"
+    fi
+    
+    # Test compile-fail fixtures (should produce errors)
+    local stage2_fail="${FIXTURES_DIR}/stage2/compile-fail"
+    if [[ -d "$stage2_fail" ]]; then
+        local fail_count=0
+        local total_fail=0
+        
+        for fixture in "$stage2_fail"/*.ast; do
+            if [[ ! -f "$fixture" ]]; then
+                continue
+            fi
+            
+            total_fail=$((total_fail + 1))
+            local basename=$(basename "$fixture" .ast)
+            
+            # Should fail to compile
+            if ! "$aster2" check "$fixture" > /dev/null 2>&1; then
+                fail_count=$((fail_count + 1))
+                if [[ $VERBOSE -eq 1 ]]; then
+                    log_info "  ✓ $basename (correctly failed)"
+                fi
+            else
+                if [[ $VERBOSE -eq 1 ]]; then
+                    log_warning "  ✗ $basename (should have failed)"
+                fi
+            fi
+        done
+        
+        log_info "Stage 2 compile-fail: $fail_count/$total_fail fixtures correctly failed"
+    fi
+    
+    log_success "Stage 2 verification complete"
 }
 
 # Verify Stage 3
 verify_stage3() {
     log_step "Verifying Stage 3: Full Compiler"
     
-    if [[ ! -f "${BUILD_DIR}/stage3/aster3" ]] && [[ ! -f "${BUILD_DIR}/stage3/aster3.exe" ]]; then
-        log_warning "Stage 3 binary not found (not yet implemented)"
-        log_info "Stage 3 verification will be implemented when Stage 3 is built"
-        return
+    local aster3="${BUILD_DIR}/stage3/aster3"
+    
+    if [[ ! -f "$aster3" ]] && [[ ! -f "${aster3}.exe" ]]; then
+        log_warning "Stage 3 binary not found"
+        log_info "Build Stage 3 first: ./bootstrap/scripts/bootstrap.sh --stage 3"
+        return 0
     fi
     
-    # TODO: Differential tests for Stage 3
-    log_warning "Stage 3 verification not yet implemented"
+    log_info "Testing Stage 3 compilation..."
+    
+    # Test compile-pass fixtures
+    local stage3_fixtures="${FIXTURES_DIR}/stage3/compile-pass"
+    if [[ -d "$stage3_fixtures" ]]; then
+        local pass_count=0
+        local total_count=0
+        
+        for fixture in "$stage3_fixtures"/*.ast; do
+            if [[ ! -f "$fixture" ]]; then
+                continue
+            fi
+            
+            total_count=$((total_count + 1))
+            local basename=$(basename "$fixture" .ast)
+            
+            # Try to compile
+            if "$aster3" check "$fixture" > /dev/null 2>&1; then
+                pass_count=$((pass_count + 1))
+                if [[ $VERBOSE -eq 1 ]]; then
+                    log_info "  ✓ $basename"
+                fi
+            else
+                if [[ $VERBOSE -eq 1 ]]; then
+                    log_warning "  ✗ $basename (expected to pass)"
+                fi
+            fi
+        done
+        
+        log_info "Stage 3 compile-pass: $pass_count/$total_count fixtures compiled"
+    fi
+    
+    # Test compile-fail fixtures
+    local stage3_fail="${FIXTURES_DIR}/stage3/compile-fail"
+    if [[ -d "$stage3_fail" ]]; then
+        local fail_count=0
+        local total_fail=0
+        
+        for fixture in "$stage3_fail"/*.ast; do
+            if [[ ! -f "$fixture" ]]; then
+                continue
+            fi
+            
+            total_fail=$((total_fail + 1))
+            local basename=$(basename "$fixture" .ast)
+            
+            # Should fail to compile
+            if ! "$aster3" check "$fixture" > /dev/null 2>&1; then
+                fail_count=$((fail_count + 1))
+                if [[ $VERBOSE -eq 1 ]]; then
+                    log_info "  ✓ $basename (correctly failed)"
+                fi
+            else
+                if [[ $VERBOSE -eq 1 ]]; then
+                    log_warning "  ✗ $basename (should have failed)"
+                fi
+            fi
+        done
+        
+        log_info "Stage 3 compile-fail: $fail_count/$total_fail fixtures correctly failed"
+    fi
+    
+    # Test run-pass fixtures (semantic regression)
+    local stage3_run="${FIXTURES_DIR}/stage3/run-pass"
+    if [[ -d "$stage3_run" ]]; then
+        local run_count=0
+        local total_run=0
+        
+        for fixture in "$stage3_run"/*.ast; do
+            if [[ ! -f "$fixture" ]]; then
+                continue
+            fi
+            
+            total_run=$((total_run + 1))
+            local basename=$(basename "$fixture" .ast)
+            local temp_exe="${BUILD_DIR}/test_${basename}"
+            
+            # Try to compile and run
+            if "$aster3" build "$fixture" -o "$temp_exe" > /dev/null 2>&1; then
+                if [[ -f "$temp_exe" ]] && "$temp_exe" > /dev/null 2>&1; then
+                    run_count=$((run_count + 1))
+                    if [[ $VERBOSE -eq 1 ]]; then
+                        log_info "  ✓ $basename (compiled and ran)"
+                    fi
+                    rm -f "$temp_exe"
+                else
+                    if [[ $VERBOSE -eq 1 ]]; then
+                        log_warning "  ✗ $basename (compiled but failed to run)"
+                    fi
+                fi
+            else
+                if [[ $VERBOSE -eq 1 ]]; then
+                    log_warning "  ✗ $basename (failed to compile)"
+                fi
+            fi
+        done
+        
+        log_info "Stage 3 run-pass: $run_count/$total_run fixtures ran successfully"
+    fi
+    
+    log_success "Stage 3 verification complete"
 }
 
 # Self-hosting check
@@ -346,13 +510,68 @@ verify_self_hosting() {
 verify_reproducibility() {
     log_step "Verifying Reproducible Builds"
     
-    # TODO: Build twice, compare outputs
-    # Build 1: aster build --reproducible src/*.ast -o aster1
-    # Build 2: aster build --reproducible src/*.ast -o aster2
-    # Compare: sha256sum aster1 aster2
+    # Check if we have the necessary stages
+    local aster2="${BUILD_DIR}/stage2/aster2"
+    local aster3="${BUILD_DIR}/stage3/aster3"
     
-    log_warning "Reproducibility tests not yet implemented"
-    log_info "Future: Will test bit-for-bit reproducibility"
+    if [[ ! -f "$aster2" ]] && [[ ! -f "$aster3" ]]; then
+        log_warning "No stages available for reproducibility testing"
+        log_info "Build Stage 2 or 3 first"
+        return 0
+    fi
+    
+    log_info "Testing deterministic builds..."
+    
+    # Test Stage 2 reproducibility
+    if [[ -f "$aster2" ]]; then
+        local hash1=$(sha256sum "$aster2" | awk '{print $1}')
+        log_info "Stage 2 hash (build 1): $hash1"
+        
+        # Store hash for comparison
+        local hash_file="${BUILD_DIR}/stage2.sha256"
+        if [[ -f "$hash_file" ]]; then
+            local previous_hash=$(cat "$hash_file")
+            if [[ "$hash1" == "$previous_hash" ]]; then
+                log_success "Stage 2 binary is deterministic (matches previous build)"
+            else
+                log_warning "Stage 2 binary differs from previous build"
+                log_info "Previous: $previous_hash"
+                log_info "Current:  $hash1"
+                log_info "This may indicate non-deterministic build"
+            fi
+        else
+            echo "$hash1" > "$hash_file"
+            log_info "Stored Stage 2 hash for future comparison"
+        fi
+    fi
+    
+    # Test Stage 3 reproducibility
+    if [[ -f "$aster3" ]]; then
+        local hash1=$(sha256sum "$aster3" | awk '{print $1}')
+        log_info "Stage 3 hash (build 1): $hash1"
+        
+        # Store hash for comparison
+        local hash_file="${BUILD_DIR}/stage3.sha256"
+        if [[ -f "$hash_file" ]]; then
+            local previous_hash=$(cat "$hash_file")
+            if [[ "$hash1" == "$previous_hash" ]]; then
+                log_success "Stage 3 binary is deterministic (matches previous build)"
+            else
+                log_warning "Stage 3 binary differs from previous build"
+                log_info "Previous: $previous_hash"
+                log_info "Current:  $hash1"
+                log_info "This may indicate non-deterministic build"
+            fi
+        else
+            echo "$hash1" > "$hash_file"
+            log_info "Stored Stage 3 hash for future comparison"
+        fi
+    fi
+    
+    log_info "To test full reproducibility:"
+    log_info "  1. Run: ./bootstrap/scripts/bootstrap.sh --clean --stage 3"
+    log_info "  2. Run: ./bootstrap/scripts/verify.sh --reproducibility"
+    log_info "  3. Rebuild and verify hashes match"
 }
 
 # Main

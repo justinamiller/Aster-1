@@ -1,0 +1,10 @@
+// Stage 2 fixture: Should fail type checking
+
+fn takes_int(x: i32) -> i32 {
+    x
+}
+
+fn main() -> i32 {
+    // This should fail: passing bool where i32 expected
+    takes_int(true)
+}

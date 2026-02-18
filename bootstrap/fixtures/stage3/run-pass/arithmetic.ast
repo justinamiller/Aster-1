@@ -1,0 +1,12 @@
+// Stage 3 fixture: End-to-end compile and run
+
+fn compute() -> i32 {
+    let a = 10;
+    let b = 20;
+    let c = 30;
+    a + b + c
+}
+
+fn main() -> i32 {
+    compute()
+}

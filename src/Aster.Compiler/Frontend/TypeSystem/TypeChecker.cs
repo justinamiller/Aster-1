@@ -12,6 +12,8 @@ public sealed class TypeChecker
     private readonly ConstraintSolver _solver = new();
     private readonly TraitSolver _traitSolver = new();
     private readonly Dictionary<int, TypeScheme> _symbolSchemes = new();
+    private readonly Dictionary<string, StructType> _structTypes = new();
+    private readonly Dictionary<string, EnumType> _enumTypes = new();
     public DiagnosticBag Diagnostics { get; } = new();
 
     public TypeChecker()
@@ -22,6 +24,9 @@ public sealed class TypeChecker
     /// <summary>Type-check an HIR program.</summary>
     public void Check(HirProgram program)
     {
+        // Phase 0: Collect type declarations (structs, enums)
+        CollectTypeDeclarations(program);
+
         // Phase 1: Generate constraints
         foreach (var decl in program.Declarations)
         {
@@ -38,6 +43,37 @@ public sealed class TypeChecker
         // Merge diagnostics
         Diagnostics.AddRange(_solver.Diagnostics);
         Diagnostics.AddRange(_traitSolver.Diagnostics);
+    }
+
+    /// <summary>Collect struct and enum declarations for type resolution.</summary>
+    private void CollectTypeDeclarations(HirProgram program)
+    {
+        foreach (var decl in program.Declarations)
+        {
+            if (decl is HirStructDecl structDecl)
+            {
+                var fields = new List<(string, AsterType)>();
+                foreach (var field in structDecl.Fields)
+                {
+                    fields.Add((field.Name, ResolveTypeRef(field.TypeRef)));
+                }
+                var structType = new StructType(structDecl.Symbol.Name, fields);
+                _structTypes[structDecl.Symbol.Name] = structType;
+                structDecl.Symbol.Type = structType;
+            }
+            else if (decl is HirEnumDecl enumDecl)
+            {
+                var variants = new List<(string, IReadOnlyList<AsterType>)>();
+                foreach (var v in enumDecl.Variants)
+                {
+                    var vFields = v.Fields.Select(f => ResolveTypeRef(f)).ToList();
+                    variants.Add((v.Name, vFields));
+                }
+                var enumType = new EnumType(enumDecl.Symbol.Name, variants);
+                _enumTypes[enumDecl.Symbol.Name] = enumType;
+                enumDecl.Symbol.Type = enumType;
+            }
+        }
     }
 
     private AsterType CheckNode(HirNode node) => node switch
@@ -65,15 +101,89 @@ public sealed class TypeChecker
 
     private AsterType CheckStructInit(HirStructInitExpr structInit)
     {
-        // For now, return a type variable
-        // In a full implementation, we'd look up the struct definition and verify fields
-        return new TypeVariable();
+        // Look up the struct type in our registry
+        if (!_structTypes.TryGetValue(structInit.StructName, out var structType))
+        {
+            Diagnostics.ReportError("E0306", $"Unknown struct '{structInit.StructName}'", structInit.Span);
+            return ErrorType.Instance;
+        }
+
+        // Verify all required fields are initialized
+        var requiredFields = structType.Fields.Select(f => f.Name).ToHashSet();
+        var providedFields = new HashSet<string>();
+
+        foreach (var fieldInit in structInit.Fields)
+        {
+            // Check if field exists in struct
+            var field = structType.Fields.FirstOrDefault(f => f.Name == fieldInit.FieldName);
+            if (field.Name == null)
+            {
+                Diagnostics.ReportError("E0307", $"Struct '{structInit.StructName}' has no field '{fieldInit.FieldName}'", fieldInit.Span);
+                continue;
+            }
+
+            // Check duplicate field initialization
+            if (!providedFields.Add(fieldInit.FieldName))
+            {
+                Diagnostics.ReportError("E0308", $"Field '{fieldInit.FieldName}' initialized multiple times", fieldInit.Span);
+                continue;
+            }
+
+            // Type-check the field value
+            var valueType = CheckNode(fieldInit.Value);
+            _solver.AddConstraint(new EqualityConstraint(valueType, field.Type, fieldInit.Value.Span));
+        }
+
+        // Check for missing fields
+        var missingFields = requiredFields.Except(providedFields).ToList();
+        if (missingFields.Count > 0)
+        {
+            Diagnostics.ReportError("E0309", $"Missing fields in struct '{structInit.StructName}' initialization: {string.Join(", ", missingFields)}", structInit.Span);
+        }
+
+        return structType;
     }
 
     private AsterType CheckPath(HirPathExpr path)
     {
-        // For paths like Option::Some, we need to resolve them
-        // For now, return a fresh type variable
+        // For paths like Option::Some or Module::Type, we need to resolve them
+        // For now, handle simple qualified paths (Type::Variant for enums)
+        
+        if (path.Segments.Count == 2)
+        {
+            // Could be EnumType::Variant
+            var typeName = path.Segments[0];
+            var variantName = path.Segments[1];
+
+            if (_enumTypes.TryGetValue(typeName, out var enumType))
+            {
+                // Check if variant exists
+                var variant = enumType.Variants.FirstOrDefault(v => v.Name == variantName);
+                if (variant.Name == null)
+                {
+                    Diagnostics.ReportError("E0310", $"Enum '{typeName}' has no variant '{variantName}'", path.Span);
+                    return ErrorType.Instance;
+                }
+
+                // For enum variant constructors, return a function type if it has fields
+                if (variant.Fields.Count > 0)
+                {
+                    // Variant with fields acts as a constructor function
+                    return new FunctionType(variant.Fields, enumType);
+                }
+                else
+                {
+                    // Variant without fields is just a value of the enum type
+                    return enumType;
+                }
+            }
+            
+            // Could also be Module::Item - for now, return type variable
+            // Full module system implementation would resolve this properly
+        }
+        
+        // For single-segment paths or unresolved multi-segment paths
+        // Return a type variable for now (will be resolved later if possible)
         return new TypeVariable();
     }
 
@@ -397,7 +507,8 @@ public sealed class TypeChecker
     {
         if (typeRef == null) return new TypeVariable();
 
-        return typeRef.Name switch
+        // Check primitive types first
+        var primitiveType = typeRef.Name switch
         {
             "i8" => PrimitiveType.I8,
             "i16" => PrimitiveType.I16,
@@ -413,7 +524,20 @@ public sealed class TypeChecker
             "char" => PrimitiveType.Char,
             "String" => PrimitiveType.StringType,
             "void" => PrimitiveType.Void,
-            _ => typeRef.ResolvedSymbol?.Type ?? new TypeVariable(),
+            _ => null
         };
+        
+        if (primitiveType != null)
+            return primitiveType;
+
+        // Check user-defined types
+        if (_structTypes.TryGetValue(typeRef.Name, out var structType))
+            return structType;
+        
+        if (_enumTypes.TryGetValue(typeRef.Name, out var enumType))
+            return enumType;
+
+        // Fall back to resolved symbol or type variable
+        return typeRef.ResolvedSymbol?.Type ?? new TypeVariable();
     }
 }
