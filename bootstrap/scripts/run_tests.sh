@@ -139,7 +139,6 @@ build_aster_cli() {
     vlog "Building Aster.CLI in Debug mode with non-interactive flags..."
     if ! dotnet build src/Aster.CLI/Aster.CLI.csproj \
         --configuration Debug \
-        --nologo \
         --no-restore \
         --verbosity quiet \
         > /dev/null 2>&1; then
@@ -147,7 +146,6 @@ build_aster_cli() {
         vlog "Retrying with restore enabled..."
         if ! dotnet build src/Aster.CLI/Aster.CLI.csproj \
             --configuration Debug \
-            --nologo \
             --verbosity quiet \
             > /dev/null 2>&1; then
             log_failure "Failed to build Aster.CLI"
@@ -192,11 +190,10 @@ run_single_test() {
     
     # Run with timeout and capture stderr
     local start_time=$(date +%s)
-    vlog "Command: dotnet run --project src/Aster.CLI --nologo --no-build -- build \"$test_file\" --emit-llvm -o \"$temp_output\""
+    vlog "Command: dotnet run --project src/Aster.CLI --no-build -- build \"$test_file\" --emit-llvm -o \"$temp_output\""
     
     if run_with_timeout 30 dotnet run \
         --project src/Aster.CLI \
-        --nologo \
         --no-build \
         -- build "$test_file" --emit-llvm -o "$temp_output" \
         > /dev/null 2>"$temp_stderr"; then
