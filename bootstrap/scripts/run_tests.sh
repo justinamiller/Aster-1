@@ -192,12 +192,12 @@ run_single_test() {
     
     # Run with timeout and capture stderr
     local start_time=$(date +%s)
-    vlog "Command: dotnet run --project src/Aster.CLI --no-build --nologo -- build \"$test_file\" --emit-llvm -o \"$temp_output\""
+    vlog "Command: dotnet run --project src/Aster.CLI --nologo --no-build -- build \"$test_file\" --emit-llvm -o \"$temp_output\""
     
     if run_with_timeout 30 dotnet run \
         --project src/Aster.CLI \
-        --no-build \
         --nologo \
+        --no-build \
         -- build "$test_file" --emit-llvm -o "$temp_output" \
         > /dev/null 2>"$temp_stderr"; then
         # Compilation succeeded
