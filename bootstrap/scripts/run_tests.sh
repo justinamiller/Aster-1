@@ -153,7 +153,7 @@ build_aster_cli() {
         fi
     fi
     
-    log_success "Aster.CLI built successfully"
+    echo -e "${GREEN}[✓]${NC} Aster.CLI built successfully"
     return 0
 }
 
