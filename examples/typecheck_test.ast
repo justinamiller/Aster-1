@@ -1,0 +1,71 @@
+// Test file for type checker
+//
+// This tests the type checker implementation:
+// - Literal type inference
+// - Variable type checking
+// - Function type checking
+// - Binary operation types
+// - If expression types
+
+fn test_literals() {
+    let int_val = 42;           // i32
+    let float_val = 3.14;       // f64
+    let bool_val = true;        // bool
+    let str_val = "hello";      // String
+    let char_val = 'a';         // char
+}
+
+fn test_binary_ops() {
+    let a = 10;
+    let b = 20;
+    
+    // Arithmetic operations
+    let sum = a + b;            // i32
+    let diff = a - b;           // i32
+    let prod = a * b;           // i32
+    let quot = a / b;           // i32
+    
+    // Comparison operations
+    let eq = a == b;            // bool
+    let ne = a != b;            // bool
+    let lt = a < b;             // bool
+    let gt = a > b;             // bool
+}
+
+fn test_if_expressions() {
+    let condition = true;
+    
+    // Both branches must have same type
+    let result = if condition {
+        42
+    } else {
+        24
+    };  // i32
+}
+
+fn add(x: i32, y: i32) -> i32 {
+    x + y
+}
+
+fn test_function_calls() {
+    let result = add(10, 20);   // i32
+}
+
+// Function with generic-like behavior (for future)
+fn identity(x: i32) -> i32 {
+    x
+}
+
+fn test_type_inference() {
+    // Type inference from initializer
+    let x = 42;                 // inferred as i32
+    let y = x + 10;             // inferred as i32
+}
+
+fn main() {
+    test_literals();
+    test_binary_ops();
+    test_if_expressions();
+    test_function_calls();
+    test_type_inference();
+}
