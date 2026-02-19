@@ -1,0 +1,259 @@
+// Aster Compiler Pipeline Integration
+// Connects lexer → parser → resolver → typechecker → irgen → codegen
+// Part of Stage 1 Bootstrap Implementation
+// Session 7: Integration
+
+// ============================================================================
+// Pipeline Result Types
+// ============================================================================
+
+struct CompileResult {
+    success: bool,
+    output_code: String,
+    error_count: i32,
+    errors: Vec<String>
+}
+
+struct PipelineContext {
+    source_file: String,
+    target: i32,  // CodeGenTarget: 1=C, 2=LLVM, 3=Assembly
+    verbose: bool,
+    error_count: i32,
+    errors: Vec<String>
+}
+
+// ============================================================================
+// Factory Functions
+// ============================================================================
+
+fn new_compile_result(success: bool, output: String, err_count: i32) -> CompileResult {
+    let result = CompileResult {
+        success: success,
+        output_code: output,
+        error_count: err_count,
+        errors: Vec::new()
+    };
+    result
+}
+
+fn new_pipeline_context(source: String, target_id: i32) -> PipelineContext {
+    let ctx = PipelineContext {
+        source_file: source,
+        target: target_id,
+        verbose: false,
+        error_count: 0,
+        errors: Vec::new()
+    };
+    ctx
+}
+
+// ============================================================================
+// Main Compilation Pipeline
+// ============================================================================
+
+fn compile_source(source_code: String, target: i32) -> CompileResult {
+    // Full compilation pipeline: Source → C/LLVM
+    
+    // Phase 1: Lexical Analysis
+    // Tokenize source code using lexer.ast
+    let tokens = lex_source(source_code);
+    if has_lex_errors() {
+        let err_msg = "Lexical analysis failed";
+        return new_compile_result(false, "", get_lex_error_count());
+    }
+    
+    // Phase 2: Syntax Analysis (Parser)
+    // Parse tokens into AST using existing parser
+    let ast = parse_tokens(tokens);
+    if has_parse_errors() {
+        let err_msg = "Syntax analysis failed";
+        return new_compile_result(false, "", get_parse_error_count());
+    }
+    
+    // Phase 3: Name Resolution
+    // Resolve all identifiers using resolve.ast
+    let resolved_ast = resolve_names(ast);
+    if has_resolve_errors() {
+        let err_msg = "Name resolution failed";
+        return new_compile_result(false, "", get_resolve_error_count());
+    }
+    
+    // Phase 4: Type Checking
+    // Infer and check types using typecheck.ast
+    let typed_ast = typecheck_ast(resolved_ast);
+    if has_type_errors() {
+        let err_msg = "Type checking failed";
+        return new_compile_result(false, "", get_type_error_count());
+    }
+    
+    // Phase 5: IR Generation
+    // Lower AST to HIR using irgen.ast
+    let hir = generate_hir(typed_ast);
+    if has_ir_errors() {
+        let err_msg = "IR generation failed";
+        return new_compile_result(false, "", get_ir_error_count());
+    }
+    
+    // Phase 6: Code Generation
+    // Generate C or LLVM IR using codegen.ast
+    let output = generate_code(hir, target);
+    if has_codegen_errors() {
+        let err_msg = "Code generation failed";
+        return new_compile_result(false, "", get_codegen_error_count());
+    }
+    
+    // Success!
+    new_compile_result(true, output, 0)
+}
+
+fn compile_file(filename: String, target: i32) -> CompileResult {
+    // Read source file and compile
+    let source = read_file(filename);
+    if source == "" {
+        return new_compile_result(false, "", 1);
+    }
+    
+    compile_source(source, target)
+}
+
+// ============================================================================
+// Phase Integration Functions (Stubs - connect to actual implementations)
+// ============================================================================
+
+fn lex_source(source: String) -> Vec<Token> {
+    // TODO: Call lexer.ast functions
+    // This is a stub - actual implementation would call:
+    // - new_lexer(source)
+    // - tokenize()
+    Vec::new()
+}
+
+fn parse_tokens(tokens: Vec<Token>) -> AST {
+    // TODO: Call parser functions
+    // This is a stub - actual implementation would call existing parser
+    dummy_ast()
+}
+
+fn resolve_names(ast: AST) -> AST {
+    // TODO: Call resolve.ast functions
+    // This is a stub - actual implementation would call:
+    // - new_name_resolver()
+    // - resolve_module()
+    ast
+}
+
+fn typecheck_ast(ast: AST) -> AST {
+    // TODO: Call typecheck.ast functions
+    // This is a stub - actual implementation would call:
+    // - new_type_checker()
+    // - type_check_module()
+    ast
+}
+
+fn generate_hir(ast: AST) -> HIR {
+    // TODO: Call irgen.ast functions
+    // This is a stub - actual implementation would call:
+    // - lower_module()
+    dummy_hir()
+}
+
+fn generate_code(hir: HIR, target: i32) -> String {
+    // TODO: Call codegen.ast functions
+    // This is a stub - actual implementation would call:
+    // - new_code_generator(target)
+    // - generate_module()
+    ""
+}
+
+// ============================================================================
+// Error Checking Functions (Stubs)
+// ============================================================================
+
+fn has_lex_errors() -> bool { false }
+fn get_lex_error_count() -> i32 { 0 }
+
+fn has_parse_errors() -> bool { false }
+fn get_parse_error_count() -> i32 { 0 }
+
+fn has_resolve_errors() -> bool { false }
+fn get_resolve_error_count() -> i32 { 0 }
+
+fn has_type_errors() -> bool { false }
+fn get_type_error_count() -> i32 { 0 }
+
+fn has_ir_errors() -> bool { false }
+fn get_ir_error_count() -> i32 { 0 }
+
+fn has_codegen_errors() -> bool { false }
+fn get_codegen_error_count() -> i32 { 0 }
+
+// ============================================================================
+// File I/O (Stubs)
+// ============================================================================
+
+fn read_file(filename: String) -> String {
+    // TODO: Actual file reading
+    // This would use Core-0 I/O capabilities
+    ""
+}
+
+fn write_file(filename: String, content: String) -> bool {
+    // TODO: Actual file writing
+    // This would use Core-0 I/O capabilities
+    true
+}
+
+// ============================================================================
+// Placeholder Types (Would import from actual modules)
+// ============================================================================
+
+struct Token {
+    kind: i32,
+    value: String
+}
+
+struct AST {
+    dummy: i32
+}
+
+struct HIR {
+    dummy: i32
+}
+
+fn dummy_ast() -> AST {
+    AST { dummy: 0 }
+}
+
+fn dummy_hir() -> HIR {
+    HIR { dummy: 0 }
+}
+
+// ============================================================================
+// Pipeline Statistics
+// ============================================================================
+
+fn get_total_errors(result: CompileResult) -> i32 {
+    result.error_count
+}
+
+fn is_compilation_successful(result: CompileResult) -> bool {
+    result.success
+}
+
+fn get_output_code(result: CompileResult) -> String {
+    result.output_code
+}
+
+// ============================================================================
+// Utility Functions
+// ============================================================================
+
+fn print_pipeline_status(phase: String, success: bool) {
+    // TODO: Print status message
+    // This would output to console
+}
+
+fn format_error_message(phase: String, error: String) -> String {
+    // Format: "[phase] error"
+    phase + ": " + error
+}
