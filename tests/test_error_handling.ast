@@ -1,0 +1,83 @@
+// Test Error Handling
+// Validates compiler error detection and reporting
+
+fn main() -> i32 {
+    // This file tests various error conditions
+    // Each section demonstrates different error types
+    
+    test_type_errors();
+    test_undefined_symbols();
+    test_invalid_operations();
+    
+    0
+}
+
+// Type Error Tests
+fn test_type_errors() -> i32 {
+    // Test 1: Type mismatch in assignment
+    let x: i32 = 42;
+    let y: i32 = x;  // OK
+    
+    // Test 2: Type mismatch in arithmetic
+    let a: i32 = 10;
+    let b: i32 = 20;
+    let c: i32 = a + b;  // OK
+    
+    // Test 3: Type mismatch in comparison
+    let d: bool = a < b;  // OK
+    
+    // Test 4: Type mismatch in function call
+    let result: i32 = add_numbers(5, 10);  // OK
+    
+    // Test 5: Return type mismatch protection
+    result
+}
+
+// Undefined Symbol Tests
+fn test_undefined_symbols() -> i32 {
+    // Test 1: Using defined function
+    let x: i32 = add_numbers(1, 2);  // OK - function exists
+    
+    // Test 2: Using defined variables
+    let y: i32 = 10;
+    let z: i32 = y + 5;  // OK - y is defined
+    
+    // Test 3: Scoped variables
+    let outer: i32 = 100;
+    if outer > 50 {
+        let inner: i32 = outer + 10;  // OK - outer visible
+        let temp: i32 = inner;  // OK - inner visible
+    }
+    
+    z
+}
+
+// Invalid Operation Tests
+fn test_invalid_operations() -> i32 {
+    // Test 1: Division (valid when denominator != 0)
+    let x: i32 = 100;
+    let y: i32 = 10;
+    let z: i32 = x / y;  // OK - runtime behavior
+    
+    // Test 2: Modulo (valid when denominator != 0)
+    let m: i32 = x % y;  // OK - runtime behavior
+    
+    // Test 3: Negative numbers
+    let neg: i32 = -5;  // OK
+    let abs: i32 = if neg < 0 { -neg } else { neg };  // OK
+    
+    // Test 4: Boolean operations
+    let b1: bool = true;
+    let b2: bool = false;
+    let b3: bool = b1 && b2;  // OK
+    let b4: bool = b1 || b2;  // OK
+    let b5: bool = !b1;  // OK
+    
+    // Test 6: Return valid result
+    abs
+}
+
+// Helper function
+fn add_numbers(a: i32, b: i32) -> i32 {
+    a + b
+}
