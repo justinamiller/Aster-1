@@ -134,7 +134,14 @@ public sealed class ConstraintSolver
         }
 
         if (a is PrimitiveType pa && b is PrimitiveType pb)
-            return pa.Kind == pb.Kind;
+        {
+            // Exact match
+            if (pa.Kind == pb.Kind)
+                return true;
+            
+            // Allow numeric type coercion (widening conversions only)
+            return CanCoerce(pa, pb);
+        }
 
         if (a is FunctionType fa && b is FunctionType fb)
         {
@@ -237,5 +244,40 @@ public sealed class ConstraintSolver
                 ta.Arguments.Select(ApplySubstitutions).ToList()),
             _ => type
         };
+    }
+
+    /// <summary>
+    /// Check if type 'from' can be implicitly coerced to type 'to'.
+    /// Supports safe widening conversions for numeric types.
+    /// </summary>
+    private bool CanCoerce(PrimitiveType from, PrimitiveType to)
+    {
+        // Allow widening integer conversions (smaller -> larger, same signedness)
+        var coercionRules = new Dictionary<PrimitiveKind, PrimitiveKind[]>
+        {
+            // Signed integer widening
+            [PrimitiveKind.I8] = new[] { PrimitiveKind.I16, PrimitiveKind.I32, PrimitiveKind.I64 },
+            [PrimitiveKind.I16] = new[] { PrimitiveKind.I32, PrimitiveKind.I64 },
+            [PrimitiveKind.I32] = new[] { PrimitiveKind.I64 },
+            
+            // Unsigned integer widening
+            [PrimitiveKind.U8] = new[] { PrimitiveKind.U16, PrimitiveKind.U32, PrimitiveKind.U64 },
+            [PrimitiveKind.U16] = new[] { PrimitiveKind.U32, PrimitiveKind.U64 },
+            [PrimitiveKind.U32] = new[] { PrimitiveKind.U64 },
+            
+            // Float widening
+            [PrimitiveKind.F32] = new[] { PrimitiveKind.F64 },
+            
+            // Integer to float (lossy but commonly useful)
+            [PrimitiveKind.I32] = new[] { PrimitiveKind.F64 },  // i32 -> f64 is safe
+            [PrimitiveKind.U32] = new[] { PrimitiveKind.F64 },  // u32 -> f64 is safe
+        };
+
+        if (coercionRules.TryGetValue(from.Kind, out var allowedTargets))
+        {
+            return allowedTargets.Contains(to.Kind);
+        }
+
+        return false;
     }
 }
