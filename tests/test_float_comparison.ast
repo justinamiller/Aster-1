@@ -1,0 +1,26 @@
+// Test float comparison codegen fix
+fn test_float_comparison() -> i32 {
+    let x: f64 = 1.5;
+    let y: f64 = 2.5;
+    
+    // Test all comparison operators with floats
+    if x < y {
+        if x <= y {
+            if y > x {
+                if y >= x {
+                    if x == x {
+                        if x != y {
+                            return 1;  // Success
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    return 0;  // Failure
+}
+
+fn main() -> i32 {
+    return test_float_comparison();
+}
