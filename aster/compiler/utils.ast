@@ -1,0 +1,131 @@
+// Aster Compiler Utility Functions
+// String utilities, printing, and helper functions
+// Session 8: Integration utilities
+
+// ============================================================================
+// String Operations
+// ============================================================================
+
+fn int_to_string(n: i32) -> String {
+    // TODO: Actual integer to string conversion
+    // Stub for Core-0 compatibility
+    if n == 0 {
+        return "0";
+    }
+    if n == 1 {
+        return "1";
+    }
+    // Simplified - would use actual conversion logic
+    "<number>"
+}
+
+fn string_concat(a: String, b: String) -> String {
+    // TODO: Actual string concatenation
+    // Stub - would use Core-0 string operations
+    a + b
+}
+
+fn string_length(s: String) -> i32 {
+    // TODO: Actual string length
+    // Stub - would call Core-0 string.len()
+    0
+}
+
+fn string_equals(a: String, b: String) -> bool {
+    // TODO: Actual string comparison
+    // Stub - would use Core-0 string equality
+    a == b
+}
+
+fn string_contains(haystack: String, needle: String) -> bool {
+    // TODO: Actual substring search
+    // Stub - would use Core-0 string contains method
+    false
+}
+
+fn string_starts_with(s: String, prefix: String) -> bool {
+    // TODO: Actual prefix check
+    // Stub - would use Core-0 string starts_with method
+    false
+}
+
+fn string_ends_with(s: String, suffix: String) -> bool {
+    // TODO: Actual suffix check
+    // Stub - would use Core-0 string ends_with method
+    false
+}
+
+fn string_trim(s: String) -> String {
+    // TODO: Actual whitespace trimming
+    // Stub - would use Core-0 string trim method
+    s
+}
+
+// ============================================================================
+// Print Utilities
+// ============================================================================
+
+fn print_message(msg: String) {
+    // TODO: Print to stdout
+    // Stub - would use Core-0 print! macro or stdout
+    let _ = msg;
+}
+
+fn print_error(msg: String) {
+    // TODO: Print to stderr
+    // Stub - would use Core-0 eprintln! macro or stderr
+    let _ = msg;
+}
+
+fn print_status(msg: String) {
+    // TODO: Print status message (might be colored/formatted)
+    // Stub - would use Core-0 printing
+    print_message(msg);
+}
+
+fn print_line() {
+    // Print empty line
+    print_message("");
+}
+
+// ============================================================================
+// String Building
+// ============================================================================
+
+fn build_error_message(phase: String, details: String) -> String {
+    string_concat(string_concat("Error in ", phase), string_concat(": ", details))
+}
+
+fn build_success_message(output_file: String) -> String {
+    string_concat("Successfully compiled to: ", output_file)
+}
+
+// ============================================================================
+// Array/Vector Helpers (for Core-0 compatibility)
+// ============================================================================
+
+fn vec_len<T>(v: Vec<T>) -> i32 {
+    // TODO: Actual vector length
+    // Stub - would use Core-0 vec.len()
+    0
+}
+
+fn vec_is_empty<T>(v: Vec<T>) -> bool {
+    vec_len(v) == 0
+}
+
+// ============================================================================
+// Option Helpers (for Core-0 compatibility)
+// ============================================================================
+
+fn option_is_some<T>(opt: Option<T>) -> bool {
+    // TODO: Check if option has value
+    // Stub - would use Core-0 option.is_some()
+    false
+}
+
+fn option_is_none<T>(opt: Option<T>) -> bool {
+    // TODO: Check if option is none
+    // Stub - would use Core-0 option.is_none()
+    true
+}
