@@ -1,0 +1,108 @@
+// Medium benchmark: More complex algorithms and data structures
+// Purpose: Test compilation performance with moderate complexity
+// Expected: Moderate compilation time (< 500ms)
+
+fn bubble_sort(arr: [i32; 10]) -> [i32; 10] {
+    let mut result = arr;
+    let n = 10;
+    let mut i = 0;
+    while i < n {
+        let mut j = 0;
+        while j < n - i - 1 {
+            if result[j] > result[j + 1] {
+                let temp = result[j];
+                result[j] = result[j + 1];
+                result[j + 1] = temp;
+            }
+            j = j + 1;
+        }
+        i = i + 1;
+    }
+    return result;
+}
+
+fn binary_search(arr: [i32; 10], target: i32) -> i32 {
+    let mut left = 0;
+    let mut right = 9;
+    while left <= right {
+        let mid = (left + right) / 2;
+        if arr[mid] == target {
+            return mid;
+        } else if arr[mid] < target {
+            left = mid + 1;
+        } else {
+            right = mid - 1;
+        }
+    }
+    return -1;
+}
+
+fn matrix_multiply_2x2(
+    a: [[i32; 2]; 2],
+    b: [[i32; 2]; 2]
+) -> [[i32; 2]; 2] {
+    let mut result = [[0, 0], [0, 0]];
+    let mut i = 0;
+    while i < 2 {
+        let mut j = 0;
+        while j < 2 {
+            let mut k = 0;
+            while k < 2 {
+                result[i][j] = result[i][j] + a[i][k] * b[k][j];
+                k = k + 1;
+            }
+            j = j + 1;
+        }
+        i = i + 1;
+    }
+    return result;
+}
+
+fn gcd(a: i32, b: i32) -> i32 {
+    if b == 0 {
+        return a;
+    }
+    return gcd(b, a % b);
+}
+
+fn lcm(a: i32, b: i32) -> i32 {
+    return (a * b) / gcd(a, b);
+}
+
+fn is_prime(n: i32) -> bool {
+    if n <= 1 {
+        return false;
+    }
+    if n <= 3 {
+        return true;
+    }
+    if n % 2 == 0 || n % 3 == 0 {
+        return false;
+    }
+    let mut i = 5;
+    while i * i <= n {
+        if n % i == 0 || n % (i + 2) == 0 {
+            return false;
+        }
+        i = i + 6;
+    }
+    return true;
+}
+
+fn main() -> i32 {
+    let arr = [9, 5, 2, 8, 1, 7, 3, 6, 4, 0];
+    let sorted = bubble_sort(arr);
+    let found = binary_search(sorted, 7);
+    
+    let a = [[1, 2], [3, 4]];
+    let b = [[5, 6], [7, 8]];
+    let product = matrix_multiply_2x2(a, b);
+    
+    let gcd_result = gcd(48, 18);
+    let lcm_result = lcm(12, 18);
+    
+    let prime_count = 0;
+    // Count primes up to 50
+    
+    return found + gcd_result + lcm_result;
+}
