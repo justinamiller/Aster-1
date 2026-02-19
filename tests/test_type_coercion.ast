@@ -1,0 +1,63 @@
+// Type coercion test suite
+// Tests safe widening conversions and type compatibility
+// Part of Phase 1 Week 2 - validates Week 1 type coercion infrastructure
+
+fn test_integer_widening() -> i64 {
+    // Safe integer widening conversions
+    let a: i32 = 42;
+    let b: i64 = a;  // i32 -> i64 (safe widening)
+    
+    b
+}
+
+fn test_float_widening() -> f64 {
+    // Safe float widening conversion
+    let a: f32 = 3.14;
+    let b: f64 = a;  // f32 -> f64 (safe widening)
+    
+    b
+}
+
+fn test_mixed_arithmetic() -> f64 {
+    // Mixed-type arithmetic with widening
+    let i: i32 = 10;
+    let f: f64 = 5.5;
+    
+    // Integer should widen to float for arithmetic
+    let result: f64 = f + 10.0;  // Explicit conversion
+    
+    result
+}
+
+fn test_function_argument_coercion() -> i64 {
+    // Function accepting i64 should work with i32
+    fn takes_i64(x: i64) -> i64 {
+        x * 2
+    }
+    
+    let a: i32 = 21;
+    takes_i64(a)  // i32 -> i64 coercion in argument
+}
+
+fn test_safe_conversions() -> bool {
+    // These conversions are safe (widening only)
+    let i8_val: i32 = 127;
+    let i16_val: i32 = i8_val;   // Widening
+    let i32_val: i64 = i16_val;  // Widening
+    
+    // Float widening
+    let f32_val: f32 = 1.5;
+    let f64_val: f64 = f32_val;  // Widening
+    
+    true
+}
+
+fn main() -> i32 {
+    test_integer_widening();
+    test_float_widening();
+    test_mixed_arithmetic();
+    test_function_argument_coercion();
+    test_safe_conversions();
+    
+    0
+}

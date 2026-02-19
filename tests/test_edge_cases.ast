@@ -1,0 +1,75 @@
+// Edge case test suite
+// Tests boundary conditions and special values
+// Part of Phase 1 Week 2 test coverage
+
+fn test_division_by_constant() -> i32 {
+    // Division by non-zero constant (safe)
+    let a: i32 = 100 / 2;   // 50
+    let b: i32 = 100 / 3;   // 33 (integer division)
+    let c: i32 = 100 / 7;   // 14
+    
+    a + b + c  // 97
+}
+
+fn test_modulo_operations() -> i32 {
+    // Modulo with various values
+    let a: i32 = 10 % 3;    // 1
+    let b: i32 = 15 % 4;    // 3
+    let c: i32 = 20 % 6;    // 2
+    
+    a + b + c  // 6
+}
+
+fn test_large_numbers() -> i32 {
+    // Large but valid integer values
+    let a: i32 = 1000000;
+    let b: i32 = 999999;
+    let c: i32 = a - b;  // 1
+    
+    c
+}
+
+fn test_small_numbers() -> i32 {
+    // Very small positive numbers
+    let a: i32 = 1;
+    let b: i32 = 2;
+    let c: i32 = 3;
+    
+    a + b + c  // 6
+}
+
+fn test_nested_expressions() -> i32 {
+    // Deeply nested arithmetic
+    let a: i32 = ((10 + 5) * (20 - 10)) / (3 + 2);  // (15 * 10) / 5 = 30
+    let b: i32 = (((100 / 10) + 5) * 2) - 10;       // ((10 + 5) * 2) - 10 = 20
+    
+    a + b  // 50
+}
+
+fn test_comparison_chains() -> bool {
+    // Multiple comparisons
+    let a: bool = 1 < 2 && 2 < 3 && 3 < 4;  // true
+    let b: bool = 5 > 4 && 4 > 3 && 3 > 2;  // true
+    
+    a && b
+}
+
+fn test_logical_combinations() -> bool {
+    // Complex logical expressions
+    let a: bool = (true && false) || (true && true);    // false || true = true
+    let b: bool = !(false || false) && (true || false); // true && true = true
+    
+    a && b
+}
+
+fn main() -> i32 {
+    test_division_by_constant();
+    test_modulo_operations();
+    test_large_numbers();
+    test_small_numbers();
+    test_nested_expressions();
+    test_comparison_chains();
+    test_logical_combinations();
+    
+    0
+}
