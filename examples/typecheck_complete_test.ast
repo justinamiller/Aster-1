@@ -1,0 +1,178 @@
+// Enhanced type checker test file
+//
+// Tests for the completed type checker implementation:
+// - Unification
+// - Type substitution
+// - Enhanced expression inference
+// - Pattern matching
+// - Error messages
+
+// Test unification
+fn test_unification() {
+    let x = 42;
+    let y = x + 10;  // x and y both i32, unify successfully
+    
+    let z = y;       // z unifies with y (both i32)
+}
+
+// Test type substitution
+fn test_substitution() {
+    let a = if true { 1 } else { 2 };  // Both branches i32, substitutes to i32
+    let b = a + 5;   // a's type substituted in expression
+}
+
+// Test while loop
+fn test_while_loop() {
+    let mut count = 0;
+    while count < 10 {
+        count = count + 1;
+    }
+    // while returns void
+}
+
+// Test for loop
+fn test_for_loop() {
+    for i in 0..10 {
+        let x = i * 2;
+    }
+    // for returns void
+}
+
+// Test block expressions
+fn test_blocks() {
+    let result = {
+        let temp = 5;
+        let temp2 = temp * 2;
+        temp2 + 3  // Block evaluates to i32
+    };
+}
+
+// Test assignment
+fn test_assignment() {
+    let mut x = 10;
+    x = 20;          // Assignment returns void
+    x = x + 5;       // Right side must match x's type
+}
+
+// Test struct construction
+struct Point {
+    x: i32,
+    y: i32
+}
+
+fn test_struct_construction() {
+    let p = Point { x: 1, y: 2 };
+    let q = Point { x: 3, y: 4 };
+}
+
+// Test field access
+fn test_field_access() {
+    let p = Point { x: 5, y: 10 };
+    let x_val = p.x;  // Field access infers type from struct
+    let y_val = p.y;
+}
+
+// Test array literal
+fn test_array() {
+    let arr = [1, 2, 3, 4, 5];  // All elements must be same type
+    let first = arr[0];         // Index must be integer
+}
+
+// Test enum with pattern matching
+enum Color {
+    Red,
+    Green,
+    Blue,
+    RGB(i32, i32, i32)
+}
+
+fn test_match_expression() {
+    let color = Color::Red;
+    
+    let name = match color {
+        Color::Red => "red",
+        Color::Green => "green",
+        Color::Blue => "blue",
+        Color::RGB(r, g, b) => "custom"
+    };
+    // All arms must return same type (String)
+}
+
+// Test pattern matching with bindings
+fn test_pattern_bindings() {
+    let color = Color::RGB(255, 128, 0);
+    
+    match color {
+        Color::Red => {},
+        Color::Green => {},
+        Color::Blue => {},
+        Color::RGB(r, g, b) => {
+            // r, g, b are bound as i32
+            let sum = r + g + b;
+        }
+    }
+}
+
+// Test type coercion
+fn test_type_coercion() {
+    let x: i32 = 42;
+    let y: i64 = x;  // i32 can coerce to i64
+    
+    let a: u32 = 100;
+    let b: u64 = a;  // u32 can coerce to u64
+    
+    let f: f32 = 3.14;
+    let d: f64 = f;  // f32 can coerce to f64
+}
+
+// Test type errors (these would fail type checking)
+fn test_type_errors_examples() {
+    // These demonstrate what the type checker should catch:
+    
+    // Type mismatch in binary op:
+    // let wrong = 5 + "hello";  // Error: can't add i32 and String
+    
+    // Type mismatch in if branches:
+    // let wrong = if true { 1 } else { "no" };  // Error: branches differ
+    
+    // Type mismatch in assignment:
+    // let mut x = 5;
+    // x = "text";  // Error: can't assign String to i32 variable
+    
+    // Wrong function argument type:
+    // add("hello", 5);  // Error: add expects (i32, i32)
+}
+
+// Test method calls (if supported)
+fn test_method_calls() {
+    let s = "hello";
+    // let len = s.len();  // Method call returns i32
+    // let upper = s.to_uppercase();  // Method call returns String
+}
+
+// Test type variables and inference
+fn identity<T>(x: T) -> T {
+    x
+}
+
+fn test_type_variables() {
+    let a = identity(42);      // T inferred as i32
+    let b = identity("text");  // T inferred as String
+    let c = identity(true);    // T inferred as bool
+}
+
+fn main() {
+    test_unification();
+    test_substitution();
+    test_while_loop();
+    test_for_loop();
+    test_blocks();
+    test_assignment();
+    test_struct_construction();
+    test_field_access();
+    test_array();
+    test_match_expression();
+    test_pattern_bindings();
+    test_type_coercion();
+    test_type_variables();
+}

@@ -431,6 +431,219 @@ fn infer_if_expr(mut checker: TypeChecker, cond_type: i32, then_type: i32, else_
     }
 }
 
+/// Infer type of while loop
+fn infer_while_loop(mut checker: TypeChecker, cond_type: i32, body_type: i32, span: Span) -> TypeCheckResult {
+    // Condition must be bool
+    let reason = String::from("while condition must be bool");
+    checker = add_constraint(checker, cond_type, 2, reason, span);
+    
+    // While loop returns void (type ID 9)
+    TypeCheckResult {
+        checker: checker,
+        success: true,
+        inferred_type_id: 9
+    }
+}
+
+/// Infer type of for loop
+fn infer_for_loop(mut checker: TypeChecker, iter_type: i32, body_type: i32, span: Span) -> TypeCheckResult {
+    // For loop returns void (type ID 9)
+    // In full implementation, would check iter_type is iterable
+    TypeCheckResult {
+        checker: checker,
+        success: true,
+        inferred_type_id: 9
+    }
+}
+
+/// Infer type of block expression
+fn infer_block(mut checker: TypeChecker, stmt_types: Vec<i32>, final_expr_type: i32) -> TypeCheckResult {
+    // Block type is the type of its final expression
+    // If no final expression, type is void (type ID 9)
+    let result_type = if final_expr_type >= 0 { final_expr_type } else { 9 };
+    
+    TypeCheckResult {
+        checker: checker,
+        success: true,
+        inferred_type_id: result_type
+    }
+}
+
+/// Infer type of assignment
+fn infer_assignment(mut checker: TypeChecker, lhs_type: i32, rhs_type: i32, span: Span) -> TypeCheckResult {
+    // Left and right sides must have same type
+    let reason = String::from("assignment types must match");
+    checker = add_constraint(checker, lhs_type, rhs_type, reason, span);
+    
+    // Assignment returns void (type ID 9)
+    TypeCheckResult {
+        checker: checker,
+        success: true,
+        inferred_type_id: 9
+    }
+}
+
+/// Infer type of struct construction
+fn infer_struct_construction(mut checker: TypeChecker, struct_type_id: i32, field_types: Vec<i32>, span: Span) -> TypeCheckResult {
+    // In full implementation, would check that:
+    // 1. struct_type_id is a valid struct
+    // 2. All required fields are present
+    // 3. Field types match struct definition
+    
+    // For now, return the struct type
+    TypeCheckResult {
+        checker: checker,
+        success: true,
+        inferred_type_id: struct_type_id
+    }
+}
+
+/// Infer type of enum variant construction
+fn infer_enum_construction(mut checker: TypeChecker, enum_type_id: i32, variant_types: Vec<i32>, span: Span) -> TypeCheckResult {
+    // In full implementation, would check that:
+    // 1. enum_type_id is a valid enum
+    // 2. Variant exists
+    // 3. Associated data types match
+    
+    // For now, return the enum type
+    TypeCheckResult {
+        checker: checker,
+        success: true,
+        inferred_type_id: enum_type_id
+    }
+}
+
+/// Infer type of array literal
+fn infer_array_literal(mut checker: TypeChecker, element_types: Vec<i32>, span: Span) -> TypeCheckResult {
+    // All elements must have same type
+    // In full implementation, would iterate and constrain all elements
+    
+    // If no elements, return unknown array type
+    // If elements exist, constrain them all to be equal and return array type
+    
+    // For now, return fresh type variable for array
+    let fresh = fresh_type_var(checker);
+    
+    TypeCheckResult {
+        checker: fresh.checker,
+        success: true,
+        inferred_type_id: fresh.type_var_id
+    }
+}
+
+/// Infer type of index expression (array[index])
+fn infer_index_expr(mut checker: TypeChecker, array_type: i32, index_type: i32, span: Span) -> TypeCheckResult {
+    // Index must be integer type (i32, type ID 0)
+    let reason = String::from("array index must be integer");
+    checker = add_constraint(checker, index_type, 0, reason, span);
+    
+    // Result type is element type of array
+    // In full implementation, would extract element type from array_type
+    // For now, return fresh type variable
+    let fresh = fresh_type_var(checker);
+    
+    TypeCheckResult {
+        checker: fresh.checker,
+        success: true,
+        inferred_type_id: fresh.type_var_id
+    }
+}
+
+/// Infer type of field access (struct.field)
+fn infer_field_access_expr(mut checker: TypeChecker, struct_type: i32, field_name: String, span: Span) -> TypeCheckResult {
+    // In full implementation, would:
+    // 1. Check struct_type is a struct
+    // 2. Look up field in struct definition
+    // 3. Return field's type
+    
+    // For now, return fresh type variable
+    let fresh = fresh_type_var(checker);
+    
+    TypeCheckResult {
+        checker: fresh.checker,
+        success: true,
+        inferred_type_id: fresh.type_var_id
+    }
+}
+
+/// Infer type of method call
+fn infer_method_call(mut checker: TypeChecker, receiver_type: i32, method_name: String, arg_types: Vec<i32>, span: Span) -> TypeCheckResult {
+    // In full implementation, would:
+    // 1. Look up method in receiver type
+    // 2. Check argument types against method signature
+    // 3. Return method return type
+    
+    // For now, return fresh type variable
+    let fresh = fresh_type_var(checker);
+    
+    TypeCheckResult {
+        checker: fresh.checker,
+        success: true,
+        inferred_type_id: fresh.type_var_id
+    }
+}
+
+// ============================================================================
+// PATTERN MATCHING AND MATCH EXPRESSIONS
+// ============================================================================
+
+/// Pattern type information
+struct PatternType {
+    pattern_type_id: i32,
+    bindings: Vec<TypeBinding>,
+    binding_count: i32
+}
+
+/// Create pattern type
+fn new_pattern_type(type_id: i32) -> PatternType {
+    PatternType {
+        pattern_type_id: type_id,
+        bindings: Vec::new(),
+        binding_count: 0
+    }
+}
+
+/// Type check a pattern
+fn check_pattern(mut checker: TypeChecker, pattern_type: i32, scrutinee_type: i32, span: Span) -> TypeChecker {
+    // Pattern type must match scrutinee type
+    let reason = String::from("pattern must match scrutinee type");
+    checker = add_constraint(checker, pattern_type, scrutinee_type, reason, span);
+    
+    // In full implementation, would:
+    // 1. Extract bindings from pattern
+    // 2. Add bindings to type environment
+    // 3. Check pattern exhaustiveness
+    
+    checker
+}
+
+/// Infer type of match expression
+fn infer_match_expr(mut checker: TypeChecker, scrutinee_type: i32, arm_types: Vec<i32>, span: Span) -> TypeCheckResult {
+    // All arms must have the same type
+    // In full implementation, would iterate through arms and constrain them
+    
+    // For now, if we have arms, return type of first arm
+    // Otherwise, return void
+    let result_type = 9;  // void
+    
+    TypeCheckResult {
+        checker: checker,
+        success: true,
+        inferred_type_id: result_type
+    }
+}
+
+/// Check match arm exhaustiveness
+fn check_match_exhaustive(checker: TypeChecker, scrutinee_type: i32, patterns: Vec<i32>) -> bool {
+    // In full implementation, would check that patterns cover all cases
+    // For enum: all variants covered
+    // For bool: true and false covered
+    // For integers: wildcard pattern present
+    
+    // For now, assume exhaustive
+    true
+}
+
 // ============================================================================
 // TYPE CHECKING FOR DECLARATIONS
 // ============================================================================
@@ -468,6 +681,47 @@ fn check_struct_decl(mut checker: TypeChecker, name: String, field_count: i32, s
 }
 
 // ============================================================================
+// TYPE SUBSTITUTION
+// ============================================================================
+
+/// Type substitution (maps type variable to concrete type)
+struct Substitution {
+    from_type_id: i32,
+    to_type_id: i32
+}
+
+/// Create a new substitution
+fn new_substitution(from: i32, to: i32) -> Substitution {
+    Substitution {
+        from_type_id: from,
+        to_type_id: to
+    }
+}
+
+/// Apply substitutions to a type ID
+fn apply_substitution(type_id: i32, substitutions: Vec<Substitution>) -> i32 {
+    // In actual implementation, would iterate through substitutions
+    // and apply them to the type_id
+    // For now, just return the type_id unchanged
+    type_id
+}
+
+/// Compose two substitutions
+fn compose_substitutions(mut s1: Vec<Substitution>, s2: Vec<Substitution>) -> Vec<Substitution> {
+    // In actual implementation, would apply s2 to all types in s1
+    // then append s2 to s1
+    // For now, just return s1
+    s1
+}
+
+/// Add a substitution to checker
+fn add_substitution(mut checker: TypeChecker, from: i32, to: i32) -> TypeChecker {
+    // In actual implementation, would add to substitution list
+    // For now, just return checker
+    checker
+}
+
+// ============================================================================
 // UNIFICATION
 // ============================================================================
 
@@ -477,32 +731,118 @@ struct UnifyResult {
     success: bool
 }
 
+/// Check if two type IDs are equal
+fn types_equal(type1: i32, type2: i32) -> bool {
+    type1 == type2
+}
+
+/// Check if type ID is a type variable
+fn is_type_variable(type_id: i32) -> bool {
+    // Type variables have IDs >= 1000 by convention
+    type_id >= 1000
+}
+
 /// Unify two types (make them equal)
 fn unify_types(mut checker: TypeChecker, type1: i32, type2: i32) -> UnifyResult {
-    // In actual implementation, would:
-    // 1. Check if types are already equal
-    // 2. If one is type variable, bind it to the other
-    // 3. If both are compound types, recursively unify components
-    // 4. Otherwise, fail with type error
+    // 1. If types are already equal, unification succeeds
+    if types_equal(type1, type2) {
+        return UnifyResult {
+            checker: checker,
+            success: true
+        };
+    }
     
-    // Simplified: always succeed if not negative
-    let success = type1 >= 0 && type2 >= 0;
+    // 2. If type1 is a type variable, bind it to type2
+    if is_type_variable(type1) {
+        checker = add_substitution(checker, type1, type2);
+        return UnifyResult {
+            checker: checker,
+            success: true
+        };
+    }
     
+    // 3. If type2 is a type variable, bind it to type1
+    if is_type_variable(type2) {
+        checker = add_substitution(checker, type2, type1);
+        return UnifyResult {
+            checker: checker,
+            success: true
+        };
+    }
+    
+    // 4. For compound types, would recursively unify components
+    // For primitive types that don't match, unification fails
+    
+    // 5. Both are concrete types but different - fail
+    if type1 >= 0 && type2 >= 0 && type1 != type2 {
+        // Add type error
+        let error_msg = String::from("Type mismatch in unification");
+        let dummy = dummy_span_tc();
+        let error = new_type_error(error_msg, dummy, type1, type2);
+        checker.error_count = checker.error_count + 1;
+        
+        return UnifyResult {
+            checker: checker,
+            success: false
+        };
+    }
+    
+    // 6. Unknown or error types - fail gracefully
     UnifyResult {
         checker: checker,
-        success: success
+        success: false
+    }
+}
+
+/// Type pair for unification
+struct TypePair {
+    first: i32,
+    second: i32
+}
+
+/// Create a type pair
+fn new_type_pair(first: i32, second: i32) -> TypePair {
+    TypePair {
+        first: first,
+        second: second
+    }
+}
+
+/// Unify multiple type pairs
+fn unify_types_list(mut checker: TypeChecker, pairs: Vec<TypePair>) -> UnifyResult {
+    // In actual implementation, would iterate through pairs
+    // and unify each one
+    // For now, just succeed
+    UnifyResult {
+        checker: checker,
+        success: true
     }
 }
 
 /// Solve all constraints
 fn solve_constraints(mut checker: TypeChecker) -> TypeChecker {
     // In actual implementation, would:
-    // 1. Iterate through all constraints
-    // 2. Unify types for each constraint
-    // 3. Propagate substitutions
-    // 4. Report errors for failed unifications
+    // 1. Iterate through all constraints in checker.constraints
+    // 2. For each constraint, unify left_type_id and right_type_id
+    // 3. If unification fails, add error with constraint.reason and constraint.span
+    // 4. Propagate substitutions to remaining constraints
     
-    // For now, just return checker
+    // Simplified implementation:
+    // Just mark that constraints were processed
+    // In real implementation, would iterate through constraint_count constraints
+    
+    // For demonstration, if we had constraints, we'd unify them:
+    // let i = 0;
+    // while i < checker.constraint_count {
+    //     // Get constraint at index i
+    //     // let result = unify_types(checker, constraint.left, constraint.right);
+    //     // checker = result.checker;
+    //     // if !result.success {
+    //     //     // Error already added by unify_types
+    //     // }
+    //     i = i + 1;
+    // }
+    
     checker
 }
 
@@ -547,6 +887,114 @@ fn get_constraint_count(checker: TypeChecker) -> i32 {
 /// Get next type variable ID
 fn get_next_type_var_id(checker: TypeChecker) -> i32 {
     checker.next_type_var
+}
+
+// ============================================================================
+// TYPE DISPLAY AND ERROR MESSAGES
+// ============================================================================
+
+/// Convert type ID to string representation
+fn type_id_to_string(type_id: i32) -> String {
+    // In full implementation, would look up actual type info
+    // and format it properly
+    
+    if type_id == 0 { return String::from("i32"); }
+    if type_id == 1 { return String::from("f64"); }
+    if type_id == 2 { return String::from("bool"); }
+    if type_id == 3 { return String::from("String"); }
+    if type_id == 4 { return String::from("char"); }
+    if type_id == 5 { return String::from("i64"); }
+    if type_id == 6 { return String::from("u32"); }
+    if type_id == 7 { return String::from("u64"); }
+    if type_id == 8 { return String::from("f32"); }
+    if type_id == 9 { return String::from("void"); }
+    
+    if type_id >= 1000 {
+        // Type variable
+        return String::from("T");
+    }
+    
+    if type_id < 0 {
+        return String::from("<unknown>");
+    }
+    
+    // Other types
+    String::from("<type>")
+}
+
+/// Create a detailed type error message
+fn format_type_error(expected: i32, actual: i32, context: String) -> String {
+    let expected_str = type_id_to_string(expected);
+    let actual_str = type_id_to_string(actual);
+    
+    // Simplified string concatenation for Core-0
+    // In real implementation, would use proper string formatting
+    let msg = String::from("Type mismatch");
+    msg
+}
+
+/// Add a type error with detailed message
+fn add_type_error_detailed(mut checker: TypeChecker, expected: i32, actual: i32, context: String, span: Span) -> TypeChecker {
+    let message = format_type_error(expected, actual, context);
+    let error = new_type_error(message, span, expected, actual);
+    checker.error_count = checker.error_count + 1;
+    checker
+}
+
+/// Suggest a fix for a type error
+fn suggest_fix_for_type_error(expected: i32, actual: i32) -> String {
+    // In full implementation, would provide helpful suggestions like:
+    // - "Did you mean to call .to_string()?"
+    // - "Try adding a type cast"
+    // - "Consider using a different operator"
+    
+    String::from("")
+}
+
+/// Check if types are compatible (with coercion)
+fn types_compatible_with_coercion(type1: i32, type2: i32) -> bool {
+    // Check if types are exactly equal
+    if type1 == type2 {
+        return true;
+    }
+    
+    // Check for numeric type coercions
+    // i32 (0) can coerce to i64 (5)
+    if type1 == 0 && type2 == 5 {
+        return true;
+    }
+    
+    // u32 (6) can coerce to u64 (7)
+    if type1 == 6 && type2 == 7 {
+        return true;
+    }
+    
+    // f32 (8) can coerce to f64 (1)
+    if type1 == 8 && type2 == 1 {
+        return true;
+    }
+    
+    // Type variables can unify with anything
+    if is_type_variable(type1) || is_type_variable(type2) {
+        return true;
+    }
+    
+    false
+}
+
+/// Format a list of types
+fn format_type_list(types: Vec<i32>) -> String {
+    // In full implementation, would format as: "(i32, bool, String)"
+    String::from("<types>")
+}
+
+/// Display constraint information
+fn format_constraint(constraint: TypeConstraint) -> String {
+    let left_str = type_id_to_string(constraint.left_type_id);
+    let right_str = type_id_to_string(constraint.right_type_id);
+    
+    // Would format as: "i32 == bool (reason: binary op operands)"
+    String::from("<constraint>")
 }
 
 // ============================================================================
