@@ -1,0 +1,82 @@
+// Test file for code generation
+// Tests all expression and statement types
+
+// Test 1: Simple function with literals
+fn test_literals() -> i32 {
+    let x = 42;
+    let y = 3.14;
+    let z = true;
+    let s = "hello";
+    let c = 'a';
+    return x;
+}
+
+// Test 2: Binary operations
+fn test_binary_ops(a: i32, b: i32) -> i32 {
+    let sum = a + b;
+    let diff = a - b;
+    let prod = a * b;
+    let quot = a / b;
+    let is_equal = a == b;
+    let is_greater = a > b;
+    return sum;
+}
+
+// Test 3: Control flow
+fn test_control_flow(x: i32) -> i32 {
+    if x > 10 {
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+// Test 4: Loops
+fn test_loops(n: i32) -> i32 {
+    let mut sum = 0;
+    let mut i = 0;
+    
+    while i < n {
+        sum = sum + i;
+        i = i + 1;
+    }
+    
+    return sum;
+}
+
+// Test 5: Function calls
+fn helper(x: i32) -> i32 {
+    return x * 2;
+}
+
+fn test_calls(x: i32) -> i32 {
+    let result = helper(x);
+    return result;
+}
+
+// Test 6: Struct (simplified)
+struct Point {
+    x: i32,
+    y: i32
+}
+
+fn test_struct() -> i32 {
+    let p = Point { x: 10, y: 20 };
+    return p.x;
+}
+
+// Test 7: Array
+fn test_array() -> i32 {
+    let arr = [1, 2, 3, 4, 5];
+    let first = arr[0];
+    return first;
+}
+
+// Main function
+fn main() -> i32 {
+    let x = test_literals();
+    let y = test_binary_ops(10, 5);
+    let z = test_control_flow(15);
+    let w = test_loops(10);
+    return 0;
+}
