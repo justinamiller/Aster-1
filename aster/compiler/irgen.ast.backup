@@ -343,18 +343,6 @@ fn new_ir_generator() -> IrGenerator {
     }
 }
 
-/// Result of lowering an expression
-struct LowerExprResult {
-    generator: IrGenerator,
-    expression: HirExpression
-}
-
-/// Result of lowering a statement
-struct LowerStmtResult {
-    generator: IrGenerator,
-    statement: HirStatement
-}
-
 /// Generate IR for a module (minimal)
 fn generate_ir(mut gen: IrGenerator) -> IrGenResult {
     // Minimal implementation: create simple IR
@@ -415,7 +403,7 @@ fn lower_function(mut gen: IrGenerator, name: String, return_type: i32) -> IrGen
 }
 
 /// Lower an expression to HIR
-fn lower_expression(gen: IrGenerator, expr_type: i32) -> LowerExprResult {
+fn lower_expression(gen: IrGenerator, expr_type: i32) -> (IrGenerator, HirExpression) {
     // In full implementation, would match on AST expression type:
     // - Literal → HirLiteral
     // - Variable → HirVariable
@@ -432,32 +420,32 @@ fn lower_expression(gen: IrGenerator, expr_type: i32) -> LowerExprResult {
     // - Array literal → HirArrayLit
     
     // Placeholder: return invalid expression
-    LowerExprResult { generator: gen, expression: invalid_hir_expr() }
+    (gen, invalid_hir_expr())
 }
 
 /// Lower a literal expression
-fn lower_literal(gen: IrGenerator, value: i32, type_id: i32) -> LowerExprResult {
+fn lower_literal(gen: IrGenerator, value: i32, type_id: i32) -> (IrGenerator, HirExpression) {
     let lit = HirLiteral {
         kind: HirLiteralKind::Int(value),
         type_id: type_id
     };
     
-    LowerExprResult { generator: gen, expression: HirExpression::Literal(lit) }
+    (gen, HirExpression::Literal(lit))
 }
 
 /// Lower a variable reference
-fn lower_variable(gen: IrGenerator, name: String, type_id: i32) -> LowerExprResult {
+fn lower_variable(gen: IrGenerator, name: String, type_id: i32) -> (IrGenerator, HirExpression) {
     let var = HirVariable {
         name: name,
         local_index: -1,  // Would be resolved during lowering
         type_id: type_id
     };
     
-    LowerExprResult { generator: gen, expression: HirExpression::Variable(var) }
+    (gen, HirExpression::Variable(var))
 }
 
 /// Lower a binary operation
-fn lower_binary_op(mut gen: IrGenerator, op: String, left_type: i32, right_type: i32, result_type: i32) -> LowerExprResult {
+fn lower_binary_op(mut gen: IrGenerator, op: String, left_type: i32, right_type: i32, result_type: i32) -> (IrGenerator, HirExpression) {
     // In full implementation, would recursively lower left and right
     // For now, create structure with invalid operands
     
@@ -468,11 +456,11 @@ fn lower_binary_op(mut gen: IrGenerator, op: String, left_type: i32, right_type:
         type_id: result_type
     };
     
-    LowerExprResult { generator: gen, expression: HirExpression::BinaryOp(bin_op) }
+    (gen, HirExpression::BinaryOp(bin_op))
 }
 
 /// Lower a function call
-fn lower_call(gen: IrGenerator, func_name: String, arg_count: i32, return_type: i32) -> LowerExprResult {
+fn lower_call(gen: IrGenerator, func_name: String, arg_count: i32, return_type: i32) -> (IrGenerator, HirExpression) {
     let call = HirCall {
         func_name: func_name,
         args: Vec::new(),
@@ -480,11 +468,11 @@ fn lower_call(gen: IrGenerator, func_name: String, arg_count: i32, return_type: 
         type_id: return_type
     };
     
-    LowerExprResult { generator: gen, expression: HirExpression::Call(call) }
+    (gen, HirExpression::Call(call))
 }
 
 /// Lower an if expression
-fn lower_if(gen: IrGenerator, has_else: bool, type_id: i32) -> LowerExprResult {
+fn lower_if(gen: IrGenerator, has_else: bool, type_id: i32) -> (IrGenerator, HirExpression) {
     let if_expr = HirIf {
         condition: Box::new(invalid_hir_expr()),
         then_block: empty_hir_block(),
@@ -493,22 +481,22 @@ fn lower_if(gen: IrGenerator, has_else: bool, type_id: i32) -> LowerExprResult {
         type_id: type_id
     };
     
-    LowerExprResult { generator: gen, expression: HirExpression::If(if_expr) }
+    (gen, HirExpression::If(if_expr))
 }
 
 /// Lower a while loop
-fn lower_while(gen: IrGenerator, type_id: i32) -> LowerExprResult {
+fn lower_while(gen: IrGenerator, type_id: i32) -> (IrGenerator, HirExpression) {
     let while_expr = HirWhile {
         condition: Box::new(invalid_hir_expr()),
         body: empty_hir_block(),
         type_id: type_id
     };
     
-    LowerExprResult { generator: gen, expression: HirExpression::While(while_expr) }
+    (gen, HirExpression::While(while_expr))
 }
 
 /// Lower a for loop
-fn lower_for(gen: IrGenerator, pattern: String, type_id: i32) -> LowerExprResult {
+fn lower_for(gen: IrGenerator, pattern: String, type_id: i32) -> (IrGenerator, HirExpression) {
     let for_expr = HirFor {
         pattern: pattern,
         iterator: Box::new(invalid_hir_expr()),
@@ -516,20 +504,20 @@ fn lower_for(gen: IrGenerator, pattern: String, type_id: i32) -> LowerExprResult
         type_id: type_id
     };
     
-    LowerExprResult { generator: gen, expression: HirExpression::For(for_expr) }
+    (gen, HirExpression::For(for_expr))
 }
 
 /// Lower a block expression
-fn lower_block(gen: IrGenerator, type_id: i32) -> LowerExprResult {
+fn lower_block(gen: IrGenerator, type_id: i32) -> (IrGenerator, HirExpression) {
     let block_expr = HirBlockExpr {
         block: empty_hir_block()
     };
     
-    LowerExprResult { generator: gen, expression: HirExpression::Block(block_expr) }
+    (gen, HirExpression::Block(block_expr))
 }
 
 /// Lower a match expression
-fn lower_match(gen: IrGenerator, type_id: i32) -> LowerExprResult {
+fn lower_match(gen: IrGenerator, type_id: i32) -> (IrGenerator, HirExpression) {
     let match_expr = HirMatch {
         scrutinee: Box::new(invalid_hir_expr()),
         arms: Vec::new(),
@@ -537,51 +525,51 @@ fn lower_match(gen: IrGenerator, type_id: i32) -> LowerExprResult {
         type_id: type_id
     };
     
-    LowerExprResult { generator: gen, expression: HirExpression::Match(match_expr) }
+    (gen, HirExpression::Match(match_expr))
 }
 
 /// Lower a field access
-fn lower_field_access(gen: IrGenerator, field_name: String, type_id: i32) -> LowerExprResult {
+fn lower_field_access(gen: IrGenerator, field_name: String, type_id: i32) -> (IrGenerator, HirExpression) {
     let field_access = HirFieldAccess {
         base: Box::new(invalid_hir_expr()),
         field_name: field_name,
         type_id: type_id
     };
     
-    LowerExprResult { generator: gen, expression: HirExpression::FieldAccess(field_access) }
+    (gen, HirExpression::FieldAccess(field_access))
 }
 
 /// Lower an index access
-fn lower_index_access(gen: IrGenerator, type_id: i32) -> LowerExprResult {
+fn lower_index_access(gen: IrGenerator, type_id: i32) -> (IrGenerator, HirExpression) {
     let index_access = HirIndexAccess {
         base: Box::new(invalid_hir_expr()),
         index: Box::new(invalid_hir_expr()),
         type_id: type_id
     };
     
-    LowerExprResult { generator: gen, expression: HirExpression::IndexAccess(index_access) }
+    (gen, HirExpression::IndexAccess(index_access))
 }
 
 /// Lower a struct literal
-fn lower_struct_lit(gen: IrGenerator, struct_name: String, field_count: i32, type_id: i32) -> LowerExprResult {
+fn lower_struct_lit(gen: IrGenerator, struct_name: String, field_count: i32, type_id: i32) -> (IrGenerator, HirExpression) {
     let struct_lit = HirStructLit {
         struct_name: struct_name,
         field_count: field_count,
         type_id: type_id
     };
     
-    LowerExprResult { generator: gen, expression: HirExpression::StructLit(struct_lit) }
+    (gen, HirExpression::StructLit(struct_lit))
 }
 
 /// Lower an array literal
-fn lower_array_lit(gen: IrGenerator, element_count: i32, type_id: i32) -> LowerExprResult {
+fn lower_array_lit(gen: IrGenerator, element_count: i32, type_id: i32) -> (IrGenerator, HirExpression) {
     let array_lit = HirArrayLit {
         elements: Vec::new(),
         element_count: element_count,
         type_id: type_id
     };
     
-    LowerExprResult { generator: gen, expression: HirExpression::ArrayLit(array_lit) }
+    (gen, HirExpression::ArrayLit(array_lit))
 }
 
 // ============================================================================
@@ -589,14 +577,14 @@ fn lower_array_lit(gen: IrGenerator, element_count: i32, type_id: i32) -> LowerE
 // ============================================================================
 
 /// Lower a statement
-fn lower_statement(gen: IrGenerator) -> LowerStmtResult {
+fn lower_statement(gen: IrGenerator) -> (IrGenerator, HirStatement) {
     // In full implementation, would match on AST statement type
     // For now, return empty statement
-    LowerStmtResult { generator: gen, statement: HirStatement::Empty }
+    (gen, HirStatement::Empty)
 }
 
 /// Lower a let statement
-fn lower_let_stmt(gen: IrGenerator, name: String, type_id: i32, is_mutable: bool) -> LowerStmtResult {
+fn lower_let_stmt(gen: IrGenerator, name: String, type_id: i32, is_mutable: bool) -> (IrGenerator, HirStatement) {
     let local = HirLocal {
         name: name,
         type_id: type_id,
@@ -610,11 +598,11 @@ fn lower_let_stmt(gen: IrGenerator, name: String, type_id: i32, is_mutable: bool
         has_init: false
     };
     
-    LowerStmtResult { generator: gen, statement: HirStatement::Let(let_stmt) }
+    (gen, HirStatement::Let(let_stmt))
 }
 
 /// Lower an assignment statement
-fn lower_assign_stmt(gen: IrGenerator, local_index: i32, type_id: i32) -> LowerStmtResult {
+fn lower_assign_stmt(gen: IrGenerator, local_index: i32, type_id: i32) -> (IrGenerator, HirStatement) {
     let place = HirPlace {
         kind: HirPlaceKind::Local(local_index),
         type_id: type_id
@@ -625,26 +613,26 @@ fn lower_assign_stmt(gen: IrGenerator, local_index: i32, type_id: i32) -> LowerS
         value: invalid_hir_expr()
     };
     
-    LowerStmtResult { generator: gen, statement: HirStatement::Assign(assign_stmt) }
+    (gen, HirStatement::Assign(assign_stmt))
 }
 
 /// Lower an expression statement
-fn lower_expr_stmt(gen: IrGenerator) -> LowerStmtResult {
+fn lower_expr_stmt(gen: IrGenerator) -> (IrGenerator, HirStatement) {
     let expr_stmt = HirExprStmt {
         expr: invalid_hir_expr()
     };
     
-    LowerStmtResult { generator: gen, statement: HirStatement::ExprStmt(expr_stmt) }
+    (gen, HirStatement::ExprStmt(expr_stmt))
 }
 
 /// Lower a return statement
-fn lower_return_stmt(gen: IrGenerator, has_value: bool) -> LowerStmtResult {
+fn lower_return_stmt(gen: IrGenerator, has_value: bool) -> (IrGenerator, HirStatement) {
     let return_stmt = HirReturnStmt {
         value: invalid_hir_expr(),
         has_value: has_value
     };
     
-    LowerStmtResult { generator: gen, statement: HirStatement::Return(return_stmt) }
+    (gen, HirStatement::Return(return_stmt))
 }
 
 // ============================================================================

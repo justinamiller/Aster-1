@@ -1,0 +1,119 @@
+// Test file for IR generation
+//
+// Tests HIR (High-level IR) generation:
+// - Module lowering
+// - Function lowering
+// - Expression lowering (13 types)
+// - Statement lowering
+// - Local variable collection
+
+// Simple function
+fn simple_function() -> i32 {
+    42
+}
+
+// Function with parameters
+fn add(a: i32, b: i32) -> i32 {
+    a + b
+}
+
+// Function with local variables
+fn test_locals() {
+    let x = 10;
+    let y = 20;
+    let z = x + y;
+}
+
+// Function with if expression
+fn test_if(condition: bool) -> i32 {
+    if condition {
+        1
+    } else {
+        2
+    }
+}
+
+// Function with while loop
+fn test_while() {
+    let mut count = 0;
+    while count < 10 {
+        count = count + 1;
+    }
+}
+
+// Function with for loop
+fn test_for() {
+    for i in 0..10 {
+        let x = i * 2;
+    }
+}
+
+// Function with block
+fn test_block() -> i32 {
+    let result = {
+        let temp = 5;
+        temp * 2
+    };
+    result
+}
+
+// Struct definition
+struct Point {
+    x: i32,
+    y: i32
+}
+
+// Function with struct literal
+fn test_struct_lit() -> Point {
+    Point { x: 1, y: 2 }
+}
+
+// Function with field access
+fn test_field_access(p: Point) -> i32 {
+    p.x + p.y
+}
+
+// Function with array
+fn test_array() {
+    let arr = [1, 2, 3, 4, 5];
+    let first = arr[0];
+}
+
+// Function with match
+fn test_match(value: i32) -> String {
+    match value {
+        0 => "zero",
+        1 => "one",
+        _ => "other"
+    }
+}
+
+// Function with assignment
+fn test_assignment() {
+    let mut x = 5;
+    x = 10;
+    x = x + 1;
+}
+
+// Function calling other functions
+fn test_call() -> i32 {
+    let x = add(5, 3);
+    let y = add(x, 2);
+    y
+}
+
+fn main() {
+    let a = simple_function();
+    let b = add(10, 20);
+    test_locals();
+    let c = test_if(true);
+    test_while();
+    test_for();
+    let d = test_block();
+    let p = test_struct_lit();
+    let e = test_field_access(p);
+    test_array();
+    let f = test_match(5);
+    test_assignment();
+    let g = test_call();
+}
