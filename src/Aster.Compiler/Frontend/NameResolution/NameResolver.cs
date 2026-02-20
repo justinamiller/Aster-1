@@ -242,6 +242,11 @@ public sealed class NameResolver
         TraitDeclNode trait => ResolveTraitDecl(trait),
         ImplDeclNode impl => ResolveImplDecl(impl),
         ModuleDeclNode module => ResolveModuleDecl(module),
+        ForStmtNode forStmt => ResolveForStmt(forStmt),
+        BreakStmtNode br => new HirBreakStmt(br.Span),
+        ContinueStmtNode cont => new HirContinueStmt(cont.Span),
+        IndexExprNode idx => new HirIndexExpr(ResolveNode(idx.Object)!, ResolveNode(idx.Index)!, idx.Span),
+        MatchExprNode matchExpr => ResolveMatchExpr(matchExpr),
         UseDeclNode => null,
         _ => null,
     };
@@ -485,17 +490,116 @@ public sealed class NameResolver
         var methods = new List<HirFunctionDecl>();
         foreach (var m in impl.Methods)
         {
-            // Register the method in the current scope so it's accessible as TargetType::method
+            // Register qualified name so TypeName::method is accessible
             var qualifiedName = $"{targetTypeName}::{m.Name}";
-            if (!_currentScope.Define(new Symbol(qualifiedName, SymbolKind.Function, m.IsPublic)))
+            _currentScope.Define(new Symbol(qualifiedName, SymbolKind.Function, m.IsPublic));
+
+            // Open function scope
+            var prevScope = _currentScope;
+            _currentScope = _currentScope.CreateChild(ScopeKind.Function);
+
+            // Register generic type parameters
+            var hirGenericParams = new List<HirGenericParam>();
+            foreach (var gp in m.GenericParams)
             {
-                // Duplicate - warn but continue
+                _currentScope.Define(new Symbol(gp.Name, SymbolKind.Type));
+                hirGenericParams.Add(new HirGenericParam(gp.Name, gp.Bounds.Select(b => b.Name).ToList()));
             }
 
-            var hirFn = ResolveFunctionDecl(m);
-            methods.Add(hirFn);
+            // Register parameters; treat 'self' as a reference to the target type (Phase 3)
+            var hirParams = new List<HirParameter>();
+            foreach (var p in m.Parameters)
+            {
+                if (p.Name == "self")
+                {
+                    var selfSym = new Symbol("self", SymbolKind.Value);
+                    _currentScope.Define(selfSym);
+                    var selfTypeRef = new HirTypeRef(targetTypeName, _currentScope.Lookup(targetTypeName), new List<HirTypeRef>(), p.Span);
+                    hirParams.Add(new HirParameter(selfSym, selfTypeRef, p.IsMutable, p.Span));
+                }
+                else
+                {
+                    var paramSym = new Symbol(p.Name, SymbolKind.Parameter);
+                    _currentScope.Define(paramSym);
+                    var typeRef = p.TypeAnnotation != null ? ResolveTypeRef(p.TypeAnnotation) : null;
+                    hirParams.Add(new HirParameter(paramSym, typeRef, p.IsMutable, p.Span));
+                }
+            }
+
+            var returnType = m.ReturnType != null ? ResolveTypeRef(m.ReturnType) : null;
+            var body = ResolveBlock(m.Body);
+            _currentScope = prevScope;
+
+            var methodSym = _currentScope.Lookup(qualifiedName) ?? new Symbol(m.Name, SymbolKind.Function, m.IsPublic);
+            methods.Add(new HirFunctionDecl(methodSym, hirGenericParams, hirParams, body, returnType, m.IsAsync, m.Span));
         }
 
         return new HirImplDecl(targetTypeName, traitName, methods, impl.Span);
+    }
+
+    // ===== Phase 2 Closeout: for / match / break / continue / index =====
+
+    private HirForStmt ResolveForStmt(ForStmtNode forStmt)
+    {
+        var iterable = ResolveNode(forStmt.Iterable)!;
+
+        // Open a new scope for the loop variable
+        var prevScope = _currentScope;
+        _currentScope = _currentScope.CreateChild(ScopeKind.Block);
+
+        var varSymbol = new Symbol(forStmt.Variable, SymbolKind.Value);
+        _currentScope.Define(varSymbol);
+
+        var body = ResolveBlock(forStmt.Body);
+        _currentScope = prevScope;
+
+        return new HirForStmt(varSymbol, iterable, body, forStmt.Span);
+    }
+
+    private HirMatchExpr ResolveMatchExpr(MatchExprNode matchExpr)
+    {
+        var scrutinee = ResolveNode(matchExpr.Scrutinee)!;
+
+        var arms = matchExpr.Arms.Select(arm =>
+        {
+            // Open a scope for pattern-bound variables
+            var prevScope = _currentScope;
+            _currentScope = _currentScope.CreateChild(ScopeKind.Block);
+
+            var pattern = ResolvePattern(arm.Pattern);
+            var body = ResolveNode(arm.Body)!;
+
+            _currentScope = prevScope;
+            return new HirMatchArm(pattern, body, arm.Span);
+        }).ToList();
+
+        return new HirMatchExpr(scrutinee, arms, matchExpr.Span);
+    }
+
+    private HirPattern ResolvePattern(PatternNode pattern)
+    {
+        if (pattern.IsWildcard)
+            return new HirPattern(PatternKind.Wildcard, null, null, null, new List<HirPattern>(), pattern.Span);
+
+        if (pattern.Literal != null)
+            return new HirPattern(PatternKind.Literal, null, pattern.Literal.Value, null, new List<HirPattern>(), pattern.Span);
+
+        if (pattern.SubPatterns.Count > 0)
+        {
+            // Constructor pattern: e.g. Some(x), Ok(v)
+            var subPatterns = pattern.SubPatterns.Select(sp => ResolvePattern(sp)).ToList();
+            return new HirPattern(PatternKind.Constructor, null, null, pattern.Name, subPatterns, pattern.Span);
+        }
+
+        // Simple variable binding
+        if (!string.IsNullOrEmpty(pattern.Name))
+        {
+            var varSym = new Symbol(pattern.Name, SymbolKind.Value);
+            _currentScope.Define(varSym);
+            return new HirPattern(PatternKind.Variable, pattern.Name, null, null, new List<HirPattern>(), pattern.Span);
+        }
+
+        // Fallback: wildcard
+        return new HirPattern(PatternKind.Wildcard, null, null, null, new List<HirPattern>(), pattern.Span);
     }
 }

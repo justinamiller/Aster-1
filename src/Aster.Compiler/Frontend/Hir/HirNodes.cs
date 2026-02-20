@@ -290,3 +290,86 @@ public sealed class HirImplDecl : HirNode
     public HirImplDecl(string targetTypeName, string? traitName, IReadOnlyList<HirFunctionDecl> methods, Span span)
         : base(span) { TargetTypeName = targetTypeName; TraitName = traitName; Methods = methods; }
 }
+
+// ========== Phase 2 Closeout: for / match / break / continue / index ==========
+
+/// <summary>Kinds of patterns in match arms.</summary>
+public enum PatternKind
+{
+    Wildcard,    // _
+    Variable,    // x (binding)
+    Literal,     // 42, "hello", true
+    Constructor, // Some(x), Ok(v), EnumVariant(a,b)
+}
+
+/// <summary>for variable in iterable { body }</summary>
+public sealed class HirForStmt : HirNode
+{
+    public Symbol Variable { get; }
+    public HirNode Iterable { get; }
+    public HirBlock Body { get; }
+    public HirForStmt(Symbol variable, HirNode iterable, HirBlock body, Span span)
+        : base(span) { Variable = variable; Iterable = iterable; Body = body; }
+}
+
+/// <summary>break statement inside a loop.</summary>
+public sealed class HirBreakStmt : HirNode
+{
+    public HirBreakStmt(Span span) : base(span) { }
+}
+
+/// <summary>continue statement inside a loop.</summary>
+public sealed class HirContinueStmt : HirNode
+{
+    public HirContinueStmt(Span span) : base(span) { }
+}
+
+/// <summary>Index expression: target[index]</summary>
+public sealed class HirIndexExpr : HirNode
+{
+    public HirNode Target { get; }
+    public HirNode Index { get; }
+    public HirIndexExpr(HirNode target, HirNode index, Span span)
+        : base(span) { Target = target; Index = index; }
+}
+
+/// <summary>Represents a single pattern in a match arm.</summary>
+public sealed class HirPattern : HirNode
+{
+    /// <summary>Wildcard `_`, literal, variable binding, or constructor pattern.</summary>
+    public PatternKind Kind { get; }
+    /// <summary>Bound variable name (for variable/binding patterns).</summary>
+    public string? Name { get; }
+    /// <summary>Literal value (for literal patterns).</summary>
+    public object? LiteralValue { get; }
+    /// <summary>Constructor name (for enum/struct patterns).</summary>
+    public string? Constructor { get; }
+    /// <summary>Sub-patterns for constructor patterns.</summary>
+    public IReadOnlyList<HirPattern> SubPatterns { get; }
+
+    public HirPattern(PatternKind kind, string? name, object? literalValue, string? constructor,
+        IReadOnlyList<HirPattern> subPatterns, Span span)
+        : base(span)
+    {
+        Kind = kind; Name = name; LiteralValue = literalValue;
+        Constructor = constructor; SubPatterns = subPatterns;
+    }
+}
+
+/// <summary>A single arm in a match expression.</summary>
+public sealed class HirMatchArm : HirNode
+{
+    public HirPattern Pattern { get; }
+    public HirNode Body { get; }
+    public HirMatchArm(HirPattern pattern, HirNode body, Span span)
+        : base(span) { Pattern = pattern; Body = body; }
+}
+
+/// <summary>match scrutinee { arm1, arm2, ... }</summary>
+public sealed class HirMatchExpr : HirNode
+{
+    public HirNode Scrutinee { get; }
+    public IReadOnlyList<HirMatchArm> Arms { get; }
+    public HirMatchExpr(HirNode scrutinee, IReadOnlyList<HirMatchArm> arms, Span span)
+        : base(span) { Scrutinee = scrutinee; Arms = arms; }
+}

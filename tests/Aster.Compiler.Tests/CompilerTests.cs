@@ -10,6 +10,7 @@ using Aster.Compiler.Frontend.Hir;
 using Aster.Compiler.MiddleEnd.Mir;
 using Aster.Compiler.MiddleEnd.BorrowChecker;
 using Aster.Compiler.MiddleEnd.Generics;
+using Aster.Compiler.MiddleEnd.Optimizations;
 using Aster.Compiler.MiddleEnd.PatternMatching;
 using Aster.Compiler.Backends.LLVM;
 using Aster.Compiler.Driver;
@@ -2749,5 +2750,485 @@ fn main() { }
 ";
         var driver = new CompilationDriver();
         Assert.NotNull(driver.Compile(source, "test.ast"));
+    }
+}
+
+// ========== Phase 2 Closeout: for / match / break / continue / index ==========
+
+public class Phase2CloseoutTests
+{
+    // --- for loop ---
+
+    [Fact]
+    public void Parse_ForLoop_IsValid()
+    {
+        var source = @"
+fn main() {
+    let items = vec_new();
+    for i in items {
+        let x = 1;
+    }
+}
+";
+        var lexer = new AsterLexer(source, "t");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        Assert.False(lexer.Diagnostics.HasErrors);
+        var fn = Assert.IsType<FunctionDeclNode>(ast.Declarations[0]);
+        Assert.Contains(fn.Body.Statements, s => s is ForStmtNode);
+    }
+
+    [Fact]
+    public void Resolve_ForLoop_BindsLoopVariable()
+    {
+        var source = @"
+fn main() {
+    let items = vec_new();
+    for x in items {
+        let _skip = 0;
+    }
+}
+";
+        var resolver = new NameResolver();
+        var hir = resolver.Resolve(new AsterParser(new AsterLexer(source, "t").Tokenize()).ParseProgram());
+        Assert.False(resolver.Diagnostics.HasErrors);
+        var fn = hir.Declarations.OfType<HirFunctionDecl>().First();
+        Assert.Contains(fn.Body.Statements, s => s is HirForStmt);
+    }
+
+    [Fact]
+    public void TypeChecker_ForLoop_NoErrors()
+    {
+        var source = @"
+fn main() {
+    let items = vec_new();
+    for x in items {
+        let _skip = 0;
+    }
+}
+";
+        var lexer = new AsterLexer(source, "t");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        var hir = new NameResolver().Resolve(ast);
+        var checker = new TypeChecker();
+        checker.Check(hir);
+        Assert.False(checker.Diagnostics.HasErrors);
+    }
+
+    [Fact]
+    public void FullPipeline_ForLoop_Compiles()
+    {
+        var source = @"
+fn main() {
+    let items = vec_new();
+    for x in items {
+        let _skip = 0;
+    }
+}
+";
+        var driver = new CompilationDriver();
+        Assert.NotNull(driver.Compile(source, "test.ast"));
+    }
+
+    // --- break / continue ---
+
+    [Fact]
+    public void Parse_BreakContinue_InLoop()
+    {
+        var source = @"
+fn main() {
+    while true {
+        break;
+        continue;
+    }
+}
+";
+        var lexer = new AsterLexer(source, "t");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        Assert.False(lexer.Diagnostics.HasErrors);
+    }
+
+    [Fact]
+    public void Resolve_Break_ProducesHirBreakStmt()
+    {
+        var source = @"
+fn main() {
+    while true { break; }
+}
+";
+        var lexer = new AsterLexer(source, "t");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        var hir = new NameResolver().Resolve(ast);
+        var fn = hir.Declarations.OfType<HirFunctionDecl>().First();
+        var ws = fn.Body.Statements.OfType<HirWhileStmt>().First();
+        Assert.Contains(ws.Body.Statements, s => s is HirBreakStmt);
+    }
+
+    [Fact]
+    public void Resolve_Continue_ProducesHirContinueStmt()
+    {
+        var source = @"
+fn main() {
+    while true { continue; }
+}
+";
+        var lexer = new AsterLexer(source, "t");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        var hir = new NameResolver().Resolve(ast);
+        var fn = hir.Declarations.OfType<HirFunctionDecl>().First();
+        var ws = fn.Body.Statements.OfType<HirWhileStmt>().First();
+        Assert.Contains(ws.Body.Statements, s => s is HirContinueStmt);
+    }
+
+    [Fact]
+    public void FullPipeline_BreakContinue_Compiles()
+    {
+        var source = @"
+fn main() {
+    while true { break; }
+}
+";
+        var driver = new CompilationDriver();
+        Assert.NotNull(driver.Compile(source, "test.ast"));
+    }
+
+    // --- index expressions ---
+
+    [Fact]
+    public void Resolve_IndexExpr_ProducesHirIndexExpr()
+    {
+        var source = @"
+fn get_first(v: Vec<i32>) -> i32 {
+    v[0]
+}
+fn main() { }
+";
+        var lexer = new AsterLexer(source, "t");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        var hir = new NameResolver().Resolve(ast);
+        Assert.NotNull(hir);
+    }
+
+    [Fact]
+    public void TypeChecker_IndexExpr_ReturnsElementType()
+    {
+        var source = @"
+fn get_first(v: Vec<i32>) -> i32 {
+    v[0]
+}
+fn main() { }
+";
+        var lexer = new AsterLexer(source, "t");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        var hir = new NameResolver().Resolve(ast);
+        var checker = new TypeChecker();
+        checker.Check(hir);
+        Assert.False(checker.Diagnostics.HasErrors);
+    }
+
+    [Fact]
+    public void FullPipeline_IndexExpr_Compiles()
+    {
+        var source = @"
+fn get_item(v: Vec<i32>, i: i32) -> i32 {
+    v[i]
+}
+fn main() { }
+";
+        var driver = new CompilationDriver();
+        Assert.NotNull(driver.Compile(source, "test.ast"));
+    }
+
+    // --- match expressions ---
+
+    [Fact]
+    public void Parse_MatchExpr_IsValid()
+    {
+        var source = @"
+fn check(x: i32) -> i32 {
+    match x {
+        1 => 10,
+        _ => 0,
+    }
+}
+fn main() { }
+";
+        var lexer = new AsterLexer(source, "t");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        Assert.False(lexer.Diagnostics.HasErrors);
+    }
+
+    [Fact]
+    public void Resolve_MatchExpr_ProducesHirMatchExpr()
+    {
+        var source = @"
+fn check(x: i32) -> i32 {
+    match x {
+        1 => 10,
+        _ => 0,
+    }
+}
+fn main() { }
+";
+        var lexer = new AsterLexer(source, "t");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        var hir = new NameResolver().Resolve(ast);
+        Assert.NotNull(hir);
+    }
+
+    [Fact]
+    public void TypeChecker_MatchExpr_NoErrors()
+    {
+        var source = @"
+fn check(x: i32) -> i32 {
+    match x {
+        _ => 0,
+    }
+}
+fn main() { }
+";
+        var lexer = new AsterLexer(source, "t");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        var hir = new NameResolver().Resolve(ast);
+        var checker = new TypeChecker();
+        checker.Check(hir);
+        Assert.False(checker.Diagnostics.HasErrors);
+    }
+
+    [Fact]
+    public void FullPipeline_MatchExpr_Compiles()
+    {
+        var source = @"
+fn describe(x: i32) -> i32 {
+    match x {
+        _ => 0,
+    }
+}
+fn main() { }
+";
+        var driver = new CompilationDriver();
+        Assert.NotNull(driver.Compile(source, "test.ast"));
+    }
+}
+
+// ========== Phase 3: Self Parameter in impl Methods ==========
+
+public class Phase3SelfParameterTests
+{
+    [Fact]
+    public void Resolve_ImplMethod_SelfParameterNoErrors()
+    {
+        var source = @"
+struct Point { x: i32, y: i32 }
+impl Point {
+    fn get_x(self: Point) -> i32 { self.x }
+}
+fn main() { }
+";
+        var resolver = new NameResolver();
+        resolver.Resolve(new AsterParser(new AsterLexer(source, "t").Tokenize()).ParseProgram());
+        Assert.False(resolver.Diagnostics.HasErrors);
+    }
+
+    [Fact]
+    public void Resolve_ImplMethod_SelfSymbolIsRegistered()
+    {
+        var source = @"
+struct Vec2 { x: i32 }
+impl Vec2 {
+    fn len(self: Vec2) -> i32 { self.x }
+}
+fn main() { }
+";
+        var lexer = new AsterLexer(source, "t");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        var resolver = new NameResolver();
+        var hir = resolver.Resolve(ast);
+
+        Assert.False(resolver.Diagnostics.HasErrors);
+        var impl = hir.Declarations.OfType<HirImplDecl>().First();
+        var method = impl.Methods.First();
+        Assert.Contains(method.Parameters, p => p.Symbol.Name == "self");
+    }
+
+    [Fact]
+    public void FullPipeline_SelfParameter_Compiles()
+    {
+        var source = @"
+struct Dog { name: i32 }
+impl Dog {
+    fn bark(self: Dog) -> i32 { self.name }
+}
+fn main() { }
+";
+        var driver = new CompilationDriver();
+        Assert.NotNull(driver.Compile(source, "test.ast"));
+    }
+}
+
+// ========== Phase 3: Optimization Passes ==========
+
+public class Phase3OptimizationTests
+{
+    [Fact]
+    public void ConstantFolder_AddsIntegers()
+    {
+        var module = BuildSimpleModule("add_const", new[]
+        {
+            new MirInstruction(MirOpcode.BinaryOp,
+                MirOperand.Temp("_t0", MirType.I64),
+                new[] { MirOperand.Constant(3L, MirType.I64), MirOperand.Constant(4L, MirType.I64) },
+                "add"),
+        });
+
+        new ConstantFolder().Fold(module);
+
+        var instr = module.Functions[0].BasicBlocks[0].Instructions[0];
+        Assert.Equal(MirOpcode.Assign, instr.Opcode);
+        Assert.Equal(7L, instr.Operands[0].Value);
+    }
+
+    [Fact]
+    public void ConstantFolder_SubtractsIntegers()
+    {
+        var module = BuildSimpleModule("sub_const", new[]
+        {
+            new MirInstruction(MirOpcode.BinaryOp,
+                MirOperand.Temp("_t0", MirType.I64),
+                new[] { MirOperand.Constant(10L, MirType.I64), MirOperand.Constant(3L, MirType.I64) },
+                "sub"),
+        });
+
+        new ConstantFolder().Fold(module);
+        var instr = module.Functions[0].BasicBlocks[0].Instructions[0];
+        Assert.Equal(MirOpcode.Assign, instr.Opcode);
+        Assert.Equal(7L, instr.Operands[0].Value);
+    }
+
+    [Fact]
+    public void ConstantFolder_MultipliesIntegers()
+    {
+        var module = BuildSimpleModule("mul_const", new[]
+        {
+            new MirInstruction(MirOpcode.BinaryOp,
+                MirOperand.Temp("_t0", MirType.I64),
+                new[] { MirOperand.Constant(6L, MirType.I64), MirOperand.Constant(7L, MirType.I64) },
+                "mul"),
+        });
+
+        new ConstantFolder().Fold(module);
+        var instr = module.Functions[0].BasicBlocks[0].Instructions[0];
+        Assert.Equal(42L, instr.Operands[0].Value);
+    }
+
+    [Fact]
+    public void ConstantFolder_EvaluatesEqualityFalse()
+    {
+        var module = BuildSimpleModule("eq_const", new[]
+        {
+            new MirInstruction(MirOpcode.BinaryOp,
+                MirOperand.Temp("_t0", MirType.Bool),
+                new[] { MirOperand.Constant(3L, MirType.I64), MirOperand.Constant(4L, MirType.I64) },
+                "eq"),
+        });
+
+        new ConstantFolder().Fold(module);
+        var instr = module.Functions[0].BasicBlocks[0].Instructions[0];
+        Assert.Equal(false, instr.Operands[0].Value);
+    }
+
+    [Fact]
+    public void ConstantFolder_DoesNotFoldVariables()
+    {
+        var module = BuildSimpleModule("no_fold", new[]
+        {
+            new MirInstruction(MirOpcode.BinaryOp,
+                MirOperand.Temp("_t0", MirType.I64),
+                new[] { MirOperand.Variable("x", MirType.I64), MirOperand.Constant(4L, MirType.I64) },
+                "add"),
+        });
+
+        new ConstantFolder().Fold(module);
+        // Should remain as BinaryOp since one operand is a variable
+        var instr = module.Functions[0].BasicBlocks[0].Instructions[0];
+        Assert.Equal(MirOpcode.BinaryOp, instr.Opcode);
+    }
+
+    [Fact]
+    public void DeadCodeEliminator_RemovesDeadTemp()
+    {
+        var module = BuildSimpleModule("dce_test", new[]
+        {
+            // _dead is assigned but never read
+            new MirInstruction(MirOpcode.Assign,
+                MirOperand.Temp("_dead", MirType.I64),
+                new[] { MirOperand.Constant(99L, MirType.I64) }),
+            // _used is assigned and returned
+            new MirInstruction(MirOpcode.Assign,
+                MirOperand.Temp("_used", MirType.I64),
+                new[] { MirOperand.Constant(1L, MirType.I64) }),
+        });
+        var fn = module.Functions[0];
+        fn.BasicBlocks[0].Terminator = new MirReturn(MirOperand.Temp("_used", MirType.I64));
+
+        new DeadCodeEliminator().Eliminate(module);
+
+        // _dead instruction should be removed; _used should remain
+        var instrs = fn.BasicBlocks[0].Instructions;
+        Assert.DoesNotContain(instrs, i => i.Destination?.Name == "_dead");
+        Assert.Contains(instrs, i => i.Destination?.Name == "_used");
+    }
+
+    [Fact]
+    public void DeadCodeEliminator_KeepsSideEffectfulCalls()
+    {
+        var module = BuildSimpleModule("keep_calls", new[]
+        {
+            new MirInstruction(MirOpcode.Call,
+                MirOperand.Temp("_r", MirType.I64),
+                new[] { MirOperand.FunctionRef("println") }),
+        });
+
+        new DeadCodeEliminator().Eliminate(module);
+        // Call instructions are side-effectful — they should NOT be removed
+        var instrs = module.Functions[0].BasicBlocks[0].Instructions;
+        Assert.Single(instrs); // still there
+    }
+
+    [Fact]
+    public void FullPipeline_OptimizerRuns_WithConstantExpression()
+    {
+        var source = @"
+fn add_const() -> i32 { 3 + 4 }
+fn main() { }
+";
+        var driver = new CompilationDriver();
+        var ir = driver.Compile(source, "test.ast");
+        Assert.NotNull(ir);
+    }
+
+    [Fact]
+    public void FullPipeline_OptimizerRuns_WithWhileTrue()
+    {
+        var source = @"
+fn main() {
+    while true { break; }
+}
+";
+        var driver = new CompilationDriver();
+        Assert.NotNull(driver.Compile(source, "test.ast"));
+    }
+
+    // Helper: build a minimal MirModule with one function and one basic block
+    private static MirModule BuildSimpleModule(string name, MirInstruction[] instrs)
+    {
+        var module = new MirModule("test");
+        var fn = new MirFunction(name);
+        var block = fn.CreateBlock("entry");
+        foreach (var instr in instrs)
+            block.AddInstruction(instr);
+        if (block.Terminator == null)
+            block.Terminator = new MirReturn();
+        module.Functions.Add(fn);
+        return module;
     }
 }

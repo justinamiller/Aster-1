@@ -15,6 +15,8 @@ public sealed class MirLowering
     private int _tempCounter;
     private readonly Dictionary<string, MirOperand> _localVariables = new();
     private readonly Dictionary<string, MirType> _functionReturnTypes = new();
+    // Loop context stack for break/continue target resolution
+    private readonly Stack<(int BreakTarget, int ContinueTarget)> _loopStack = new();
     public DiagnosticBag Diagnostics { get; } = new();
 
     /// <summary>Lower an HIR program to MIR.</summary>
@@ -116,6 +118,15 @@ public sealed class MirLowering
                 break;
             case HirWhileStmt ws:
                 LowerWhile(ws);
+                break;
+            case HirForStmt forStmt:
+                LowerForStmt(forStmt);
+                break;
+            case HirBreakStmt:
+                LowerBreak();
+                break;
+            case HirContinueStmt:
+                LowerContinue();
                 break;
             default:
                 LowerExpr(node);
@@ -257,6 +268,12 @@ public sealed class MirLowering
                 var temp = NewTemp(fieldType);
                 Emit(new MirInstruction(MirOpcode.Load, temp, new[] { obj! }, ma.Member));
                 return temp;
+
+            case HirIndexExpr idx:
+                return LowerIndexExpr(idx);
+
+            case HirMatchExpr matchExpr:
+                return LowerMatchExpr(matchExpr);
 
             default:
                 return null;
@@ -473,5 +490,156 @@ public sealed class MirLowering
 
         // Default: return original operand
         return operand;
+    }
+
+    // ===== Phase 2 Closeout: for / match / break / continue / index =====
+
+    private void LowerForStmt(HirForStmt forStmt)
+    {
+        // Lower:  for x in iterable { body }
+        // Into:   _idx = 0; loop { if _idx >= len(iterable) break; x = get(iterable, _idx); body; _idx++; }
+
+        var iterable = LowerExpr(forStmt.Iterable) ?? MirOperand.Variable("_iterable", MirType.Ptr);
+
+        // Compute length once before loop
+        var lenTemp = NewTemp(MirType.I64);
+        Emit(new MirInstruction(MirOpcode.Call, lenTemp, new[] { MirOperand.FunctionRef("vec_len"), iterable }, "vec_len"));
+
+        // Counter variable
+        var idxName = $"_for_idx_{_tempCounter++}";
+        var idxVar = MirOperand.Variable(idxName, MirType.I64);
+        Emit(new MirInstruction(MirOpcode.Assign, idxVar, new[] { MirOperand.Constant(0L, MirType.I64) }));
+
+        // Blocks: cond → body → incr → exit
+        var condBlock = NewBlock();
+        var bodyBlock = NewBlock();
+        var incrBlock = NewBlock();
+        var exitBlock = NewBlock();
+
+        _currentBlock!.Terminator = new MirBranch(condBlock.Index);
+
+        // Condition block: if idx >= len → exit, else body
+        _currentBlock = condBlock;
+        var cond = NewTemp(MirType.Bool);
+        Emit(new MirInstruction(MirOpcode.BinaryOp, cond, new[] { idxVar, lenTemp }, "lt"));
+        _currentBlock.Terminator = new MirConditionalBranch(cond, bodyBlock.Index, exitBlock.Index);
+
+        // Push loop context for break/continue
+        _loopStack.Push((exitBlock.Index, incrBlock.Index));
+
+        // Body block: bind loop variable, lower body
+        _currentBlock = bodyBlock;
+        var elemTemp = NewTemp(MirType.Ptr);
+        Emit(new MirInstruction(MirOpcode.Call, elemTemp, new[] { MirOperand.FunctionRef("vec_get"), iterable, idxVar }, "vec_get"));
+        _localVariables[forStmt.Variable.Name] = elemTemp;
+
+        foreach (var stmt in forStmt.Body.Statements)
+            LowerNode(stmt);
+        if (forStmt.Body.TailExpression != null)
+            LowerExpr(forStmt.Body.TailExpression);
+
+        // Fall through to increment (unless already terminated by break)
+        if (_currentBlock.Terminator == null)
+            _currentBlock.Terminator = new MirBranch(incrBlock.Index);
+
+        // Increment block: idx++ → cond
+        _currentBlock = incrBlock;
+        var newIdx = NewTemp(MirType.I64);
+        Emit(new MirInstruction(MirOpcode.BinaryOp, newIdx, new[] { idxVar, MirOperand.Constant(1L, MirType.I64) }, "add"));
+        Emit(new MirInstruction(MirOpcode.Assign, idxVar, new[] { newIdx }));
+        _currentBlock.Terminator = new MirBranch(condBlock.Index);
+
+        _loopStack.Pop();
+        _currentBlock = exitBlock;
+    }
+
+    private void LowerBreak()
+    {
+        if (_loopStack.Count > 0)
+        {
+            var (breakTarget, _) = _loopStack.Peek();
+            _currentBlock!.Terminator = new MirBranch(breakTarget);
+            // Start a new dead block to absorb any subsequent instructions
+            _currentBlock = NewBlock();
+        }
+    }
+
+    private void LowerContinue()
+    {
+        if (_loopStack.Count > 0)
+        {
+            var (_, continueTarget) = _loopStack.Peek();
+            _currentBlock!.Terminator = new MirBranch(continueTarget);
+            _currentBlock = NewBlock();
+        }
+    }
+
+    private MirOperand LowerIndexExpr(HirIndexExpr idx)
+    {
+        var target = LowerExpr(idx.Target) ?? MirOperand.Variable("_target", MirType.Ptr);
+        var index = LowerExpr(idx.Index) ?? MirOperand.Constant(0L, MirType.I64);
+        var result = NewTemp(MirType.Ptr);
+        Emit(new MirInstruction(MirOpcode.Call, result, new[] { MirOperand.FunctionRef("vec_get"), target, index }, "vec_get"));
+        return result;
+    }
+
+    private MirOperand? LowerMatchExpr(HirMatchExpr matchExpr)
+    {
+        var scrutinee = LowerExpr(matchExpr.Scrutinee);
+        if (scrutinee == null || matchExpr.Arms.Count == 0) return null;
+
+        // Create exit block to collect results
+        var exitBlock = NewBlock();
+        var resultTemp = NewTemp(MirType.I64);
+
+        // Lower each arm as a conditional branch
+        for (int i = 0; i < matchExpr.Arms.Count; i++)
+        {
+            var arm = matchExpr.Arms[i];
+            var armBlock = NewBlock();
+            var nextBlock = i < matchExpr.Arms.Count - 1 ? NewBlock() : exitBlock;
+
+            // Generate condition for the pattern
+            var cond = LowerPatternCondition(scrutinee, arm.Pattern);
+            if (cond != null)
+                _currentBlock!.Terminator = new MirConditionalBranch(cond, armBlock.Index, nextBlock.Index);
+            else
+                _currentBlock!.Terminator = new MirBranch(armBlock.Index); // wildcard always matches
+
+            // Arm body
+            _currentBlock = armBlock;
+            var armValue = LowerExpr(arm.Body);
+            if (armValue != null)
+                Emit(new MirInstruction(MirOpcode.Assign, resultTemp, new[] { armValue }));
+            _currentBlock.Terminator = new MirBranch(exitBlock.Index);
+
+            _currentBlock = nextBlock;
+        }
+
+        _currentBlock = exitBlock;
+        return resultTemp;
+    }
+
+    private MirOperand? LowerPatternCondition(MirOperand scrutinee, HirPattern pattern)
+    {
+        return pattern.Kind switch
+        {
+            PatternKind.Wildcard or PatternKind.Variable => null, // always matches
+            PatternKind.Literal when pattern.LiteralValue != null =>
+                EmitEqCheck(scrutinee, MirOperand.Constant(pattern.LiteralValue, scrutinee.Type)),
+            _ => null,
+        };
+    }
+
+    private MirOperand EmitEqCheck(MirOperand left, MirOperand right)
+    {
+        var result = NewTemp(MirType.Bool);
+        Emit(new MirInstruction(MirOpcode.BinaryOp, result, new[] { left, right }, "eq"));
+        return result;
+    }
+
+    private MirBasicBlock NewBlock()
+    {
+        return _currentFunction!.CreateBlock($"bb{_currentFunction.BasicBlocks.Count}");
     }
 }

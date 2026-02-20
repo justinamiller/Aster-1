@@ -142,6 +142,11 @@ public sealed class TypeChecker
         HirTraitDecl trait => CheckTraitDecl(trait),
         HirImplDecl impl => CheckImplDecl(impl),
         HirModuleDecl mod => CheckModuleDecl(mod),
+        HirForStmt forStmt => CheckForStmt(forStmt),
+        HirBreakStmt => PrimitiveType.Void,
+        HirContinueStmt => PrimitiveType.Void,
+        HirIndexExpr idx => CheckIndexExpr(idx),
+        HirMatchExpr matchExpr => CheckMatchExpr(matchExpr),
         HirLetStmt let => CheckLetStmt(let),
         HirReturnStmt ret => ret.Value != null ? CheckNode(ret.Value) : PrimitiveType.Void,
         HirExprStmt es => CheckNode(es.Expression),
@@ -742,5 +747,117 @@ public sealed class TypeChecker
         foreach (var member in mod.Members)
             CheckNode(member);
         return PrimitiveType.Void;
+    }
+
+    // ===== Phase 2 Closeout: for / match / break / continue / index =====
+
+    private AsterType CheckForStmt(HirForStmt forStmt)
+    {
+        // Check the iterable — should be Vec<T>, Range, or any iterable type
+        var iterableType = CheckNode(forStmt.Iterable);
+
+        // Infer the element type: if Vec<T>, element is T; otherwise use TypeVariable
+        AsterType elementType;
+        if (iterableType is TypeApp app && app.Constructor is StructType st &&
+            (st.Name == "Vec" || st.Name == "Range") && app.Arguments.Count > 0)
+        {
+            elementType = app.Arguments[0];
+        }
+        else
+        {
+            elementType = new TypeVariable();
+        }
+
+        // Assign the inferred element type to the loop variable
+        if (forStmt.Variable.Type == null)
+            forStmt.Variable.Type = elementType;
+
+        // Type-check the body
+        foreach (var stmt in forStmt.Body.Statements)
+            CheckNode(stmt);
+        if (forStmt.Body.TailExpression != null)
+            CheckNode(forStmt.Body.TailExpression);
+
+        return PrimitiveType.Void;
+    }
+
+    private AsterType CheckIndexExpr(HirIndexExpr idx)
+    {
+        // Check the target — should be Vec<T> or an array-like type
+        var targetType = CheckNode(idx.Target);
+        var indexType = CheckNode(idx.Index);
+
+        // Ensure index is a supported integer type (TypeVariable means unconstrained)
+        if (indexType is not TypeVariable && !IsIntegerType(indexType))
+            Diagnostics.ReportError("E0307", "Index must be an integer type", idx.Span);
+
+        // Return element type: Vec<T>[i] → T
+        if (targetType is TypeApp app && app.Arguments.Count > 0)
+            return app.Arguments[0];
+
+        // For unknown/generic target, return a fresh TypeVariable
+        return new TypeVariable();
+    }
+
+    /// <summary>Returns true if the type is one of the supported integer primitive types.</summary>
+    private static bool IsIntegerType(AsterType type) =>
+        type is PrimitiveType p &&
+        (p == PrimitiveType.I32 || p == PrimitiveType.I64 ||
+         p == PrimitiveType.U32 || p == PrimitiveType.U64);
+
+    private AsterType CheckMatchExpr(HirMatchExpr matchExpr)
+    {
+        var scrutineeType = CheckNode(matchExpr.Scrutinee);
+
+        // The match expression's type is determined by the first arm's body type
+        // All arms must unify to the same type
+        AsterType? resultType = null;
+        foreach (var arm in matchExpr.Arms)
+        {
+            CheckPattern(arm.Pattern, scrutineeType);
+            var armType = CheckNode(arm.Body);
+            if (resultType == null)
+                resultType = armType;
+            else
+                _solver.Unify(resultType, armType);
+        }
+
+        return resultType ?? PrimitiveType.Void;
+    }
+
+    private void CheckPattern(HirPattern pattern, AsterType expectedType)
+    {
+        switch (pattern.Kind)
+        {
+            case PatternKind.Variable:
+                // Bind the variable to the scrutinee type
+                if (pattern.Name != null)
+                {
+                    // Find the symbol by name among scope's variables
+                    // (already registered in NameResolver; just assign type here)
+                }
+                break;
+
+            case PatternKind.Literal:
+                // Check the literal matches the expected type
+                if (pattern.LiteralValue is int or long)
+                    _solver.Unify(expectedType, PrimitiveType.I32);
+                else if (pattern.LiteralValue is bool)
+                    _solver.Unify(expectedType, PrimitiveType.Bool);
+                else if (pattern.LiteralValue is string)
+                    _solver.Unify(expectedType, PrimitiveType.StringType);
+                break;
+
+            case PatternKind.Constructor:
+                // Check sub-patterns (simplified — full exhaustiveness checking is future work)
+                foreach (var sub in pattern.SubPatterns)
+                    CheckPattern(sub, new TypeVariable());
+                break;
+
+            case PatternKind.Wildcard:
+            default:
+                // Wildcards and unknown patterns are always valid
+                break;
+        }
     }
 }

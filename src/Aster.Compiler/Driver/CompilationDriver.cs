@@ -12,6 +12,7 @@ using Aster.Compiler.MiddleEnd.BorrowChecker;
 using Aster.Compiler.MiddleEnd.DropLowering;
 using Aster.Compiler.MiddleEnd.Generics;
 using Aster.Compiler.MiddleEnd.Mir;
+using Aster.Compiler.MiddleEnd.Optimizations;
 using Aster.Compiler.MiddleEnd.PatternLowering;
 
 namespace Aster.Compiler.Driver;
@@ -103,6 +104,10 @@ public sealed class CompilationDriver
 
         if (_diagnostics.HasErrors)
             return null;
+
+        // Phase 6b: Optimization passes (Phase 3 — constant folding + DCE)
+        new ConstantFolder().Fold(mir);
+        new DeadCodeEliminator().Eliminate(mir);
 
         // Phase 7: Pattern Lowering
         var patternLower = new PatternLower();
