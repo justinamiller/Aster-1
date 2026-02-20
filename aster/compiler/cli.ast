@@ -1,6 +1,10 @@
 // Aster Compiler Command-Line Interface
 // Stage 1 Bootstrap CLI Implementation
 // Session 7: Integration & CLI
+// Session 9: Connected I/O and utilities stubs
+
+// Generic vector type (provided by runtime)
+struct Vec<T> {}
 
 // ============================================================================
 // CLI Configuration
@@ -169,16 +173,13 @@ fn compile_with_config(config: CliConfig) -> CliResult {
 // ============================================================================
 
 fn read_source_file(filename: String) -> String {
-    // TODO: Actual file reading
-    // This would use Core-0 I/O capabilities
-    // For now, return empty string
-    ""
+    // Connected to io.ast: read_file uses extern_read_file
+    read_file(filename)
 }
 
 fn write_output_file(filename: String, content: String) -> bool {
-    // TODO: Actual file writing
-    // This would use Core-0 I/O capabilities
-    true
+    // Connected to io.ast: write_file uses extern_write_file
+    write_file(filename, content)
 }
 
 // ============================================================================
@@ -206,8 +207,15 @@ fn print_message(msg: String) {
 }
 
 fn print_line(msg: String) {
-    // TODO: Actual console output
-    // This would use Core-0 I/O capabilities
+    // Connected to runtime: calls extern_print_line for console output
+    extern_print_line(msg)
+}
+
+// Stub for extern C print function - provided by runtime when linked
+// In LLVM IR output, this maps to puts() or equivalent
+fn extern_print_line(msg: String) {
+    // Runtime-provided: outputs msg + newline to stdout
+    // This will be replaced by actual implementation during linking
 }
 
 // ============================================================================
@@ -215,14 +223,22 @@ fn print_line(msg: String) {
 // ============================================================================
 
 fn int_to_string(n: i32) -> String {
-    // TODO: Actual integer to string conversion
-    // This is a placeholder
-    ""
+    // Integer to string conversion
+    // When compiled with utils.ast, int_to_string_impl() is available
+    // Standalone implementation using recursive digit extraction
+    if n == 0 { return "0"; }
+    if n < 0 { return "-" + int_to_string(-n); }
+    let digit = n % 10;
+    let rest = n / 10;
+    let d = if digit == 0 { "0" } else if digit == 1 { "1" } else if digit == 2 { "2" }
+        else if digit == 3 { "3" } else if digit == 4 { "4" } else if digit == 5 { "5" }
+        else if digit == 6 { "6" } else if digit == 7 { "7" } else if digit == 8 { "8" }
+        else { "9" };
+    if rest == 0 { d } else { int_to_string(rest) + d }
 }
 
 fn string_concat(a: String, b: String) -> String {
-    // TODO: Actual string concatenation
-    // Using + operator for now (if supported)
+    // String concatenation using + operator
     a + b
 }
 
@@ -230,23 +246,23 @@ fn string_concat(a: String, b: String) -> String {
 // Integration with Pipeline
 // ============================================================================
 
-// Import from pipeline.ast (conceptually)
-// fn compile_source(source: String, target: i32) -> CompileResult;
+// CompileResult and compile_source() are provided by pipeline.ast
+// (imported when compiled together with pipeline.ast)
+// These are declared here as stubs for standalone compilation reference only.
 
-// Placeholder for now
-struct CompileResult {
+struct CliCompileResult {
     success: bool,
     output_code: String,
     error_count: i32
 }
 
-fn compile_source(source: String, target: i32) -> CompileResult {
-    // TODO: Call actual pipeline.ast compile_source
-    // This is a stub
-    CompileResult {
-        success: false,
-        output_code: "",
-        error_count: 0
+fn cli_compile_source(source: String, target: i32) -> CliCompileResult {
+    // Delegates to pipeline.ast's compile_source
+    let result = compile_source(source, target);
+    CliCompileResult {
+        success: result.success,
+        output_code: result.output_code,
+        error_count: result.error_count
     }
 }
 
