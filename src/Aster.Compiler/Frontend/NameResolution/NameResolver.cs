@@ -25,17 +25,33 @@ public sealed class NameResolver
                 ("format", SymbolKind.Function),
             },
             ["std::alloc"] = new[] {
-                ("new_vec", SymbolKind.Function),
-                ("push", SymbolKind.Function),
-                ("len", SymbolKind.Function),
-                ("get", SymbolKind.Function),
+                ("vec_new", SymbolKind.Function),
+                ("vec_push", SymbolKind.Function),
+                ("vec_pop", SymbolKind.Function),
+                ("vec_len", SymbolKind.Function),
+                ("vec_get", SymbolKind.Function),
+                ("vec_is_empty", SymbolKind.Function),
                 ("new_string", SymbolKind.Function),
                 ("concat", SymbolKind.Function),
                 ("box_new", SymbolKind.Function),
             },
+            ["std::collections"] = new[] {
+                ("Vec", SymbolKind.Type),
+                ("HashMap", SymbolKind.Type),
+                ("hash_new", SymbolKind.Function),
+                ("hash_insert", SymbolKind.Function),
+                ("hash_get", SymbolKind.Function),
+                ("hash_contains", SymbolKind.Function),
+                ("hash_remove", SymbolKind.Function),
+                ("hash_len", SymbolKind.Function),
+            },
             ["std::core"] = new[] {
                 ("Option", SymbolKind.Type),
                 ("Result", SymbolKind.Type),
+                ("Some", SymbolKind.Function),
+                ("None", SymbolKind.Value),
+                ("Ok", SymbolKind.Function),
+                ("Err", SymbolKind.Function),
             },
             ["std::io"] = new[] {
                 ("stdin", SymbolKind.Function),
@@ -80,9 +96,23 @@ public sealed class NameResolver
         _currentScope.Define(new Symbol("i8", SymbolKind.Type));
         _currentScope.Define(new Symbol("i16", SymbolKind.Type));
 
+        // Register built-in generic collection types (Weeks 13-16)
+        _currentScope.Define(new Symbol("Vec", SymbolKind.Type));
+        _currentScope.Define(new Symbol("Option", SymbolKind.Type));
+        _currentScope.Define(new Symbol("Result", SymbolKind.Type));
+        _currentScope.Define(new Symbol("HashMap", SymbolKind.Type));
+
         // Register built-in functions
         _currentScope.Define(new Symbol("print", SymbolKind.Function));
         _currentScope.Define(new Symbol("println", SymbolKind.Function));
+
+        // Register all stdlib module exports as globals so they are accessible
+        // without an explicit `use` statement (single source of truth)
+        foreach (var exports in StdlibExports.Values)
+        {
+            foreach (var (name, kind) in exports)
+                _currentScope.Define(new Symbol(name, kind));
+        }
     }
 
     /// <summary>Resolve an AST program into HIR.</summary>
@@ -113,12 +143,24 @@ public sealed class NameResolver
                         Diagnostics.ReportError("E0200", $"Duplicate definition of '{fn.Name}'", fn.Span);
                     break;
                 case StructDeclNode s:
+                    // Allow user-defined structs to shadow built-in generic type constructors
+                    // (e.g. user code may define their own Vec<T> struct)
                     if (!_currentScope.Define(new Symbol(s.Name, SymbolKind.Type, s.IsPublic)))
-                        Diagnostics.ReportError("E0200", $"Duplicate definition of '{s.Name}'", s.Span);
+                    {
+                        if (BuiltinTypeNames.Contains(s.Name))
+                            _currentScope.DefineOrReplace(new Symbol(s.Name, SymbolKind.Type, s.IsPublic));
+                        else
+                            Diagnostics.ReportError("E0200", $"Duplicate definition of '{s.Name}'", s.Span);
+                    }
                     break;
                 case EnumDeclNode e:
                     if (!_currentScope.Define(new Symbol(e.Name, SymbolKind.Type, e.IsPublic)))
-                        Diagnostics.ReportError("E0200", $"Duplicate definition of '{e.Name}'", e.Span);
+                    {
+                        if (BuiltinTypeNames.Contains(e.Name))
+                            _currentScope.DefineOrReplace(new Symbol(e.Name, SymbolKind.Type, e.IsPublic));
+                        else
+                            Diagnostics.ReportError("E0200", $"Duplicate definition of '{e.Name}'", e.Span);
+                    }
                     break;
                 case TraitDeclNode t:
                     if (!_currentScope.Define(new Symbol(t.Name, SymbolKind.Trait, t.IsPublic)))
@@ -134,6 +176,10 @@ public sealed class NameResolver
             }
         }
     }
+
+    // Built-in type names that user code is allowed to redefine (e.g. struct Vec<T>)
+    private static readonly HashSet<string> BuiltinTypeNames =
+        new(StringComparer.Ordinal) { "Vec", "Option", "Result", "HashMap" };
 
     private void ResolveUseDeclaration(UseDeclNode use)
     {
@@ -193,6 +239,9 @@ public sealed class NameResolver
         AssignExprNode assign => new HirAssignExpr(ResolveNode(assign.Target)!, ResolveNode(assign.Value)!, assign.Span),
         MemberAccessExprNode ma => new HirMemberAccessExpr(ResolveNode(ma.Object)!, ma.Member, ma.Span),
         StructInitExprNode structInit => ResolveStructInit(structInit),
+        TraitDeclNode trait => ResolveTraitDecl(trait),
+        ImplDeclNode impl => ResolveImplDecl(impl),
+        ModuleDeclNode module => ResolveModuleDecl(module),
         UseDeclNode => null,
         _ => null,
     };
@@ -377,5 +426,76 @@ public sealed class NameResolver
         }
         var args = typeAnnotation.TypeArguments.Select(a => ResolveTypeRef(a)).ToList();
         return new HirTypeRef(typeAnnotation.Name, symbol, args, typeAnnotation.Span);
+    }
+
+    // ===== Weeks 17-19: Module declarations =====
+
+    private HirModuleDecl ResolveModuleDecl(ModuleDeclNode m)
+    {
+        var symbol = _currentScope.Lookup(m.Name) ?? new Symbol(m.Name, SymbolKind.Module);
+
+        // Push a new module scope so members can see each other
+        var prevScope = _currentScope;
+        _currentScope = _currentScope.CreateChild(ScopeKind.Module);
+
+        // Collect member declarations first (forward-declaration pass)
+        CollectDeclarations(m.Members);
+
+        // Resolve each member
+        var members = new List<HirNode>();
+        foreach (var member in m.Members)
+        {
+            var hir = ResolveNode(member);
+            if (hir != null) members.Add(hir);
+        }
+
+        _currentScope = prevScope;
+        return new HirModuleDecl(symbol, members, m.Span);
+    }
+
+    // ===== Week 20: Trait and impl declarations =====
+
+    private HirTraitDecl ResolveTraitDecl(TraitDeclNode t)
+    {
+        var symbol = _currentScope.Lookup(t.Name) ?? new Symbol(t.Name, SymbolKind.Trait, t.IsPublic);
+
+        var hirGenericParams = t.GenericParams
+            .Select(gp => new HirGenericParam(gp.Name, gp.Bounds.Select(b => b.Name).ToList()))
+            .ToList();
+
+        // Resolve method signatures (just names and param type names for now)
+        var methods = t.Methods.Select(m =>
+        {
+            var paramTypeNames = m.Parameters
+                .Select(p => p.TypeAnnotation?.Name ?? "unknown")
+                .ToList();
+            var returnTypeName = m.ReturnType?.Name;
+            return new HirTraitMethod(m.Name, paramTypeNames, returnTypeName, m.Span);
+        }).ToList();
+
+        return new HirTraitDecl(symbol, hirGenericParams, methods, t.Span);
+    }
+
+    private HirImplDecl ResolveImplDecl(ImplDeclNode impl)
+    {
+        var targetTypeName = impl.TargetType.Name;
+        var traitName = impl.TraitType?.Name;
+
+        // Resolve each method as a full function
+        var methods = new List<HirFunctionDecl>();
+        foreach (var m in impl.Methods)
+        {
+            // Register the method in the current scope so it's accessible as TargetType::method
+            var qualifiedName = $"{targetTypeName}::{m.Name}";
+            if (!_currentScope.Define(new Symbol(qualifiedName, SymbolKind.Function, m.IsPublic)))
+            {
+                // Duplicate - warn but continue
+            }
+
+            var hirFn = ResolveFunctionDecl(m);
+            methods.Add(hirFn);
+        }
+
+        return new HirImplDecl(targetTypeName, traitName, methods, impl.Span);
     }
 }

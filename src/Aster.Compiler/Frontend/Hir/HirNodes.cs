@@ -249,3 +249,44 @@ public sealed class HirFieldInit : HirNode
     public HirFieldInit(string fieldName, HirNode value, Span span)
         : base(span) { FieldName = fieldName; Value = value; }
 }
+
+/// <summary>HIR module declaration (Week 17-19).</summary>
+public sealed class HirModuleDecl : HirNode
+{
+    public Symbol Symbol { get; }
+    public IReadOnlyList<HirNode> Members { get; }
+    public HirModuleDecl(Symbol symbol, IReadOnlyList<HirNode> members, Span span)
+        : base(span) { Symbol = symbol; Members = members; }
+}
+
+/// <summary>HIR trait method signature.</summary>
+public sealed class HirTraitMethod : HirNode
+{
+    public string Name { get; }
+    public IReadOnlyList<string> ParamTypeNames { get; }
+    public string? ReturnTypeName { get; }
+    public HirTraitMethod(string name, IReadOnlyList<string> paramTypeNames, string? returnTypeName, Span span)
+        : base(span) { Name = name; ParamTypeNames = paramTypeNames; ReturnTypeName = returnTypeName; }
+}
+
+/// <summary>HIR trait declaration (Week 20).</summary>
+public sealed class HirTraitDecl : HirNode
+{
+    public Symbol Symbol { get; }
+    public IReadOnlyList<HirGenericParam> GenericParams { get; }
+    public IReadOnlyList<HirTraitMethod> Methods { get; }
+    public HirTraitDecl(Symbol symbol, IReadOnlyList<HirGenericParam> genericParams, IReadOnlyList<HirTraitMethod> methods, Span span)
+        : base(span) { Symbol = symbol; GenericParams = genericParams; Methods = methods; }
+}
+
+/// <summary>HIR impl block declaration (Week 20).</summary>
+public sealed class HirImplDecl : HirNode
+{
+    /// <summary>The type being implemented (e.g. "Point").</summary>
+    public string TargetTypeName { get; }
+    /// <summary>Trait being implemented, or null for inherent impls.</summary>
+    public string? TraitName { get; }
+    public IReadOnlyList<HirFunctionDecl> Methods { get; }
+    public HirImplDecl(string targetTypeName, string? traitName, IReadOnlyList<HirFunctionDecl> methods, Span span)
+        : base(span) { TargetTypeName = targetTypeName; TraitName = traitName; Methods = methods; }
+}

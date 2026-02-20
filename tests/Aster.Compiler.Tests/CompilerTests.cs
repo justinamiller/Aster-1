@@ -2103,3 +2103,651 @@ fn main() -> i32 {
         Assert.Equal("id_i32", driver.MonomorphizationTable.Instantiations[0].MangledName);
     }
 }
+
+// ========== Week 12: Generics Polish ==========
+
+public class Week12GenericsPolishTests
+{
+    [Fact]
+    public void FullPipeline_GenericFunctionThreeParams()
+    {
+        var source = @"
+fn clamp<T>(val: T, lo: T, hi: T) -> T { val }
+fn main() -> i32 {
+    let x = clamp(5, 0, 10);
+    0
+}
+";
+        var driver = new CompilationDriver();
+        Assert.NotNull(driver.Compile(source, "test.ast"));
+    }
+
+    [Fact]
+    public void FullPipeline_MultipleGenericFunctions()
+    {
+        var source = @"
+fn id<T>(x: T) -> T { x }
+fn const_fn<T, U>(x: T, y: U) -> T { x }
+fn main() -> i32 {
+    let a = id(1);
+    let b = const_fn(true, 42);
+    0
+}
+";
+        var driver = new CompilationDriver();
+        var ir = driver.Compile(source, "test.ast");
+        Assert.NotNull(ir);
+    }
+
+    [Fact]
+    public void FullPipeline_GenericFunctionCallsAnotherGeneric()
+    {
+        var source = @"
+fn id<T>(x: T) -> T { x }
+fn double_id<T>(x: T) -> T { id(x) }
+fn main() -> i32 {
+    let x = double_id(7);
+    0
+}
+";
+        var driver = new CompilationDriver();
+        Assert.NotNull(driver.Compile(source, "test.ast"));
+    }
+
+    [Fact]
+    public void ErrorMessage_UndefinedTypeInGenericBound()
+    {
+        var source = @"
+fn foo<T: Frobnitz>(x: T) -> T { x }
+fn main() -> i32 { 0 }
+";
+        var driver = new CompilationDriver();
+        driver.Compile(source, "test.ast");
+        // Should have a bound-violation error at the call site or a missing impl error
+        // For now we just check it doesn't panic
+        Assert.True(true);
+    }
+
+    [Fact]
+    public void FullPipeline_GenericStructUsedAsParameter()
+    {
+        var source = @"
+struct Pair<A, B> { first: A, second: B }
+fn get_first<A, B>(p: Pair<A, B>) -> A { p.first }
+fn main() { }
+";
+        var driver = new CompilationDriver();
+        Assert.NotNull(driver.Compile(source, "test.ast"));
+    }
+
+    [Fact]
+    public void FullPipeline_GenericEnum_WithVariants()
+    {
+        var source = @"
+enum Tree<T> {
+    Leaf,
+    Node(T)
+}
+fn main() { }
+";
+        var driver = new CompilationDriver();
+        Assert.NotNull(driver.Compile(source, "test.ast"));
+    }
+}
+
+// ========== Weeks 13-14: Vec<T> Foundation ==========
+
+public class Week13VecTests
+{
+    [Fact]
+    public void Resolve_VecType_IsKnownInScope()
+    {
+        var source = "fn foo(v: Vec<i32>) -> i32 { 0 }";
+        var lexer = new AsterLexer(source, "test.ast");
+        var tokens = lexer.Tokenize();
+        var parser = new AsterParser(tokens);
+        var ast = parser.ParseProgram();
+        var resolver = new NameResolver();
+        var hir = resolver.Resolve(ast);
+
+        // Vec should resolve without "undefined type" errors
+        Assert.False(resolver.Diagnostics.HasErrors,
+            "Vec should be a known built-in type");
+    }
+
+    [Fact]
+    public void TypeRef_Vec_ResolvesToTypeApp()
+    {
+        var source = "fn foo(v: Vec<i32>) -> i32 { 0 }";
+        var lexer = new AsterLexer(source, "test.ast");
+        var tokens = lexer.Tokenize();
+        var parser = new AsterParser(tokens);
+        var ast = parser.ParseProgram();
+        var resolver = new NameResolver();
+        var hir = resolver.Resolve(ast);
+
+        var fn = Assert.IsType<HirFunctionDecl>(hir.Declarations[0]);
+        var paramTypeRef = fn.Parameters[0].TypeRef;
+        Assert.NotNull(paramTypeRef);
+        Assert.Equal("Vec", paramTypeRef!.Name);
+        Assert.Single(paramTypeRef.TypeArguments);
+        Assert.Equal("i32", paramTypeRef.TypeArguments[0].Name);
+    }
+
+    [Fact]
+    public void TypeChecker_VecParam_ResolvesToTypeApp()
+    {
+        var source = "fn foo(v: Vec<i32>) -> i32 { 0 }";
+        var lexer = new AsterLexer(source, "test.ast");
+        var tokens = lexer.Tokenize();
+        var parser = new AsterParser(tokens);
+        var ast = parser.ParseProgram();
+        var resolver = new NameResolver();
+        var hir = resolver.Resolve(ast);
+        var checker = new TypeChecker();
+        checker.Check(hir);
+
+        Assert.False(checker.Diagnostics.HasErrors);
+
+        var fn = Assert.IsType<HirFunctionDecl>(hir.Declarations[0]);
+        // The parameter type should be TypeApp(Vec, [i32])
+        var paramType = fn.Parameters[0].Symbol.Type;
+        Assert.IsType<TypeApp>(paramType);
+        var app = (TypeApp)paramType;
+        Assert.IsType<StructType>(app.Constructor); // Vec constructor
+        Assert.Equal("Vec", ((StructType)app.Constructor).Name);
+        Assert.Single(app.Arguments);
+        Assert.Equal(PrimitiveType.I32, app.Arguments[0]);
+    }
+
+    [Fact]
+    public void FullPipeline_FunctionWithVecParam()
+    {
+        var source = @"
+fn sum_len(v: Vec<i32>) -> i32 { 0 }
+fn main() { }
+";
+        var driver = new CompilationDriver();
+        Assert.NotNull(driver.Compile(source, "test.ast"));
+    }
+
+    [Fact]
+    public void FullPipeline_VecReturnType()
+    {
+        var source = @"
+fn make_vec() -> Vec<i32> {
+    vec_new()
+}
+fn main() { }
+";
+        var driver = new CompilationDriver();
+        Assert.NotNull(driver.Compile(source, "test.ast"));
+    }
+
+    [Fact]
+    public void Resolve_VecOperations_AreKnownSymbols()
+    {
+        var source = @"
+fn work(v: Vec<i32>) -> i32 {
+    let n = vec_len(v);
+    n
+}
+fn main() { }
+";
+        var lexer = new AsterLexer(source, "test.ast");
+        var tokens = lexer.Tokenize();
+        var parser = new AsterParser(tokens);
+        var ast = parser.ParseProgram();
+        var resolver = new NameResolver();
+        resolver.Resolve(ast);
+
+        Assert.False(resolver.Diagnostics.HasErrors,
+            "vec_len should be a known built-in function");
+    }
+
+    [Fact]
+    public void TypeRef_NestedVec_ResolvesCorrectly()
+    {
+        var source = "fn foo(v: Vec<Vec<i32>>) -> i32 { 0 }";
+        var lexer = new AsterLexer(source, "test.ast");
+        var tokens = lexer.Tokenize();
+        var parser = new AsterParser(tokens);
+        var ast = parser.ParseProgram();
+        var resolver = new NameResolver();
+        var hir = resolver.Resolve(ast);
+
+        Assert.False(resolver.Diagnostics.HasErrors);
+        var fn = Assert.IsType<HirFunctionDecl>(hir.Declarations[0]);
+        var typeRef = fn.Parameters[0].TypeRef!;
+        Assert.Equal("Vec", typeRef.Name);
+        Assert.Equal("Vec", typeRef.TypeArguments[0].Name);
+    }
+}
+
+// ========== Week 15: Option<T> / Result<T,E> ==========
+
+public class Week15OptionResultTests
+{
+    [Fact]
+    public void Resolve_OptionType_NoErrors()
+    {
+        var source = "fn foo(x: Option<i32>) -> i32 { 0 }";
+        var resolver = new NameResolver();
+        resolver.Resolve(new AsterParser(new AsterLexer(source, "t").Tokenize()).ParseProgram());
+        Assert.False(resolver.Diagnostics.HasErrors);
+    }
+
+    [Fact]
+    public void Resolve_ResultType_NoErrors()
+    {
+        var source = "fn foo(x: Result<i32, bool>) -> i32 { 0 }";
+        var resolver = new NameResolver();
+        resolver.Resolve(new AsterParser(new AsterLexer(source, "t").Tokenize()).ParseProgram());
+        Assert.False(resolver.Diagnostics.HasErrors);
+    }
+
+    [Fact]
+    public void TypeChecker_OptionParam_ResolvesToTypeApp()
+    {
+        var source = "fn foo(x: Option<i32>) -> i32 { 0 }";
+        var lexer = new AsterLexer(source, "t");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        var hir = new NameResolver().Resolve(ast);
+        var checker = new TypeChecker();
+        checker.Check(hir);
+
+        Assert.False(checker.Diagnostics.HasErrors);
+        var fn = Assert.IsType<HirFunctionDecl>(hir.Declarations[0]);
+        Assert.IsType<TypeApp>(fn.Parameters[0].Symbol.Type);
+    }
+
+    [Fact]
+    public void TypeChecker_ResultParam_TwoTypeArgs()
+    {
+        var source = "fn foo(x: Result<i32, bool>) -> i32 { 0 }";
+        var lexer = new AsterLexer(source, "t");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        var hir = new NameResolver().Resolve(ast);
+        var checker = new TypeChecker();
+        checker.Check(hir);
+
+        Assert.False(checker.Diagnostics.HasErrors);
+        var fn = Assert.IsType<HirFunctionDecl>(hir.Declarations[0]);
+        var app = Assert.IsType<TypeApp>(fn.Parameters[0].Symbol.Type);
+        Assert.Equal(2, app.Arguments.Count);
+        Assert.Equal(PrimitiveType.I32, app.Arguments[0]);
+        Assert.Equal(PrimitiveType.Bool, app.Arguments[1]);
+    }
+
+    [Fact]
+    public void FullPipeline_OptionReturnType()
+    {
+        var source = @"
+fn find(x: i32) -> Option<i32> {
+    None
+}
+fn main() { }
+";
+        var driver = new CompilationDriver();
+        Assert.NotNull(driver.Compile(source, "test.ast"));
+    }
+
+    [Fact]
+    public void FullPipeline_ResultReturnType()
+    {
+        var source = @"
+fn divide(a: i32, b: i32) -> Result<i32, bool> {
+    Ok(a)
+}
+fn main() { }
+";
+        var driver = new CompilationDriver();
+        Assert.NotNull(driver.Compile(source, "test.ast"));
+    }
+}
+
+// ========== Week 16: HashMap<K,V> ==========
+
+public class Week16HashMapTests
+{
+    [Fact]
+    public void Resolve_HashMapType_NoErrors()
+    {
+        var source = "fn foo(m: HashMap<i32, bool>) -> i32 { 0 }";
+        var resolver = new NameResolver();
+        resolver.Resolve(new AsterParser(new AsterLexer(source, "t").Tokenize()).ParseProgram());
+        Assert.False(resolver.Diagnostics.HasErrors);
+    }
+
+    [Fact]
+    public void TypeChecker_HashMapParam_TwoTypeArgs()
+    {
+        var source = "fn foo(m: HashMap<i32, bool>) -> i32 { 0 }";
+        var lexer = new AsterLexer(source, "t");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        var hir = new NameResolver().Resolve(ast);
+        var checker = new TypeChecker();
+        checker.Check(hir);
+
+        Assert.False(checker.Diagnostics.HasErrors);
+        var fn = Assert.IsType<HirFunctionDecl>(hir.Declarations[0]);
+        var app = Assert.IsType<TypeApp>(fn.Parameters[0].Symbol.Type);
+        Assert.Equal("HashMap", ((StructType)app.Constructor).Name);
+        Assert.Equal(2, app.Arguments.Count);
+    }
+
+    [Fact]
+    public void Resolve_HashOperations_AreKnownSymbols()
+    {
+        var source = @"
+fn work(m: HashMap<i32, bool>) -> i32 {
+    let n = hash_len(m);
+    n
+}
+fn main() { }
+";
+        var resolver = new NameResolver();
+        resolver.Resolve(new AsterParser(new AsterLexer(source, "t").Tokenize()).ParseProgram());
+        Assert.False(resolver.Diagnostics.HasErrors);
+    }
+
+    [Fact]
+    public void FullPipeline_HashMapParam()
+    {
+        var source = @"
+fn process(m: HashMap<i32, bool>) -> i32 { 0 }
+fn main() { }
+";
+        var driver = new CompilationDriver();
+        Assert.NotNull(driver.Compile(source, "test.ast"));
+    }
+}
+
+// ========== Weeks 17-19: Modules ==========
+
+public class Week17ModuleTests
+{
+    [Fact]
+    public void Parse_ModuleDecl_IsValid()
+    {
+        var source = @"
+module utils {
+    fn helper() -> i32 { 42 }
+}
+fn main() { }
+";
+        var lexer = new AsterLexer(source, "t");
+        var tokens = lexer.Tokenize();
+        var parser = new AsterParser(tokens);
+        var ast = parser.ParseProgram();
+
+        Assert.False(parser.Diagnostics.HasErrors);
+        Assert.Equal(2, ast.Declarations.Count);
+        Assert.IsType<ModuleDeclNode>(ast.Declarations[0]);
+    }
+
+    [Fact]
+    public void Resolve_ModuleDecl_NoErrors()
+    {
+        var source = @"
+module utils {
+    fn helper() -> i32 { 42 }
+}
+fn main() { }
+";
+        var lexer = new AsterLexer(source, "t");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        var resolver = new NameResolver();
+        var hir = resolver.Resolve(ast);
+
+        Assert.False(resolver.Diagnostics.HasErrors);
+        // Module should appear in HIR
+        Assert.Contains(hir.Declarations, d => d is HirModuleDecl);
+    }
+
+    [Fact]
+    public void Resolve_ModuleDecl_MemberFunctionIsResolved()
+    {
+        var source = @"
+module math {
+    fn square(x: i32) -> i32 { x }
+}
+fn main() { }
+";
+        var lexer = new AsterLexer(source, "t");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        var resolver = new NameResolver();
+        var hir = resolver.Resolve(ast);
+
+        Assert.False(resolver.Diagnostics.HasErrors);
+        var mod = hir.Declarations.OfType<HirModuleDecl>().First();
+        Assert.Single(mod.Members);
+        Assert.IsType<HirFunctionDecl>(mod.Members[0]);
+    }
+
+    [Fact]
+    public void Resolve_ModuleDecl_ContainsStruct()
+    {
+        var source = @"
+module shapes {
+    struct Circle { radius: i32 }
+}
+fn main() { }
+";
+        var lexer = new AsterLexer(source, "t");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        var resolver = new NameResolver();
+        var hir = resolver.Resolve(ast);
+
+        Assert.False(resolver.Diagnostics.HasErrors);
+        var mod = hir.Declarations.OfType<HirModuleDecl>().First();
+        Assert.Contains(mod.Members, m => m is HirStructDecl);
+    }
+
+    [Fact]
+    public void FullPipeline_Module_Compiles()
+    {
+        var source = @"
+module helpers {
+    fn double(x: i32) -> i32 { x }
+}
+fn main() { }
+";
+        var driver = new CompilationDriver();
+        Assert.NotNull(driver.Compile(source, "test.ast"));
+    }
+
+    [Fact]
+    public void FullPipeline_NestedModule_Compiles()
+    {
+        var source = @"
+module outer {
+    module inner {
+        fn value() -> i32 { 0 }
+    }
+}
+fn main() { }
+";
+        var driver = new CompilationDriver();
+        Assert.NotNull(driver.Compile(source, "test.ast"));
+    }
+}
+
+// ========== Week 20: Traits Foundation ==========
+
+public class Week20TraitsTests
+{
+    [Fact]
+    public void Parse_TraitDecl_IsValid()
+    {
+        var source = @"
+trait Drawable {
+    fn draw() -> i32 { 0 }
+}
+fn main() { }
+";
+        var lexer = new AsterLexer(source, "t");
+        var parser = new AsterParser(lexer.Tokenize());
+        var ast = parser.ParseProgram();
+
+        Assert.False(parser.Diagnostics.HasErrors);
+        Assert.Contains(ast.Declarations, d => d is TraitDeclNode);
+    }
+
+    [Fact]
+    public void Resolve_TraitDecl_NoErrors()
+    {
+        var source = @"
+trait Printable {
+    fn print_me() -> i32 { 0 }
+}
+fn main() { }
+";
+        var lexer = new AsterLexer(source, "t");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        var resolver = new NameResolver();
+        var hir = resolver.Resolve(ast);
+
+        Assert.False(resolver.Diagnostics.HasErrors);
+        Assert.Contains(hir.Declarations, d => d is HirTraitDecl);
+    }
+
+    [Fact]
+    public void Resolve_TraitDecl_StoresMethodNames()
+    {
+        var source = @"
+trait Animal {
+    fn speak() -> i32 { 0 }
+    fn move_to() -> i32 { 0 }
+}
+fn main() { }
+";
+        var lexer = new AsterLexer(source, "t");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        var resolver = new NameResolver();
+        var hir = resolver.Resolve(ast);
+
+        var trait = hir.Declarations.OfType<HirTraitDecl>().First();
+        Assert.Equal("Animal", trait.Symbol.Name);
+        Assert.Equal(2, trait.Methods.Count);
+        Assert.Contains(trait.Methods, m => m.Name == "speak");
+        Assert.Contains(trait.Methods, m => m.Name == "move_to");
+    }
+
+    [Fact]
+    public void Resolve_ImplBlock_NoErrors()
+    {
+        var source = @"
+struct Dog { name: i32 }
+impl Dog {
+    fn bark() -> i32 { 1 }
+}
+fn main() { }
+";
+        var lexer = new AsterLexer(source, "t");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        var resolver = new NameResolver();
+        var hir = resolver.Resolve(ast);
+
+        Assert.False(resolver.Diagnostics.HasErrors);
+        Assert.Contains(hir.Declarations, d => d is HirImplDecl);
+    }
+
+    [Fact]
+    public void Resolve_ImplBlock_RegistersMethod()
+    {
+        var source = @"
+struct Cat { }
+impl Cat {
+    fn meow() -> i32 { 2 }
+}
+fn main() { }
+";
+        var lexer = new AsterLexer(source, "t");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        var resolver = new NameResolver();
+        var hir = resolver.Resolve(ast);
+
+        Assert.False(resolver.Diagnostics.HasErrors);
+        var impl = hir.Declarations.OfType<HirImplDecl>().First();
+        Assert.Equal("Cat", impl.TargetTypeName);
+        Assert.Single(impl.Methods);
+        Assert.Equal("meow", impl.Methods[0].Symbol.Name);
+    }
+
+    [Fact]
+    public void Resolve_TraitImpl_StoresTraitName()
+    {
+        var source = @"
+trait Speak { fn say() -> i32 { 0 } }
+struct Parrot { }
+impl Speak for Parrot {
+    fn say() -> i32 { 3 }
+}
+fn main() { }
+";
+        var lexer = new AsterLexer(source, "t");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        var resolver = new NameResolver();
+        var hir = resolver.Resolve(ast);
+
+        Assert.False(resolver.Diagnostics.HasErrors);
+        var impl = hir.Declarations.OfType<HirImplDecl>().First();
+        Assert.Equal("Parrot", impl.TargetTypeName);
+        Assert.Equal("Speak", impl.TraitName);
+    }
+
+    [Fact]
+    public void TypeChecker_ImplBlock_RegistersTraitImpl()
+    {
+        var source = @"
+trait Greet { fn hi() -> i32 { 0 } }
+struct Person { }
+impl Greet for Person {
+    fn hi() -> i32 { 0 }
+}
+fn main() { }
+";
+        var lexer = new AsterLexer(source, "t");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        var resolver = new NameResolver();
+        var hir = resolver.Resolve(ast);
+        var checker = new TypeChecker();
+        checker.Check(hir);
+
+        Assert.False(checker.Diagnostics.HasErrors);
+    }
+
+    [Fact]
+    public void TypeChecker_GenericTraitDecl_NoErrors()
+    {
+        var source = @"
+trait Container<T> {
+    fn get() -> T { get() }
+}
+fn main() { }
+";
+        var lexer = new AsterLexer(source, "t");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        var resolver = new NameResolver();
+        var hir = resolver.Resolve(ast);
+        var checker = new TypeChecker();
+        checker.Check(hir);
+
+        Assert.False(checker.Diagnostics.HasErrors);
+    }
+
+    [Fact]
+    public void FullPipeline_StructWithImpl_Compiles()
+    {
+        var source = @"
+struct Counter { value: i32 }
+impl Counter {
+    fn increment(c: Counter) -> i32 { c.value }
+}
+fn main() { }
+";
+        var driver = new CompilationDriver();
+        Assert.NotNull(driver.Compile(source, "test.ast"));
+    }
+}

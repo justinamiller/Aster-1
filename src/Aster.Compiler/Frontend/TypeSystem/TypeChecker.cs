@@ -18,11 +18,50 @@ public sealed class TypeChecker
     private readonly Dictionary<string, GenericParameter> _currentGenericParams = new();
     // Collects trait constraints emitted at call sites (e.g. T: Clone when calling clone<T: Clone>)
     private readonly List<TraitConstraint> _pendingTraitConstraints = new();
+    // Method tables registered from impl blocks: TargetType -> (methodName -> FunctionType)
+    private readonly Dictionary<string, Dictionary<string, FunctionType>> _implMethods = new();
     public DiagnosticBag Diagnostics { get; } = new();
+
+    // Built-in generic type constructors (Weeks 13-16)
+    private static readonly HashSet<string> BuiltinGenericTypes =
+        new(StringComparer.Ordinal) { "Vec", "Option", "Result", "HashMap" };
 
     public TypeChecker()
     {
         _traitSolver.RegisterBuiltins();
+        RegisterBuiltinImpls();
+    }
+
+    /// <summary>Register built-in trait impls for collection types and numeric traits.</summary>
+    private void RegisterBuiltinImpls()
+    {
+        // Display + Debug for all primitives
+        var displayableTypes = new AsterType[]
+        {
+            PrimitiveType.I32, PrimitiveType.I64, PrimitiveType.F32, PrimitiveType.F64,
+            PrimitiveType.Bool, PrimitiveType.StringType, PrimitiveType.Char,
+        };
+        foreach (var t in displayableTypes)
+        {
+            _traitSolver.RegisterImpl(new TraitImpl("Display", t));
+            _traitSolver.RegisterImpl(new TraitImpl("Debug", t));
+        }
+
+        // Ord for numeric types
+        var ordTypes = new AsterType[]
+        {
+            PrimitiveType.I8, PrimitiveType.I16, PrimitiveType.I32, PrimitiveType.I64,
+            PrimitiveType.U8, PrimitiveType.U16, PrimitiveType.U32, PrimitiveType.U64,
+            PrimitiveType.F32, PrimitiveType.F64, PrimitiveType.Char,
+        };
+        foreach (var t in ordTypes)
+        {
+            _traitSolver.RegisterImpl(new TraitImpl("Ord", t));
+            _traitSolver.RegisterImpl(new TraitImpl("PartialOrd", t));
+            _traitSolver.RegisterImpl(new TraitImpl("Eq", t));
+            _traitSolver.RegisterImpl(new TraitImpl("PartialEq", t));
+            _traitSolver.RegisterImpl(new TraitImpl("Hash", t));
+        }
     }
 
     /// <summary>Type-check an HIR program.</summary>
@@ -53,34 +92,45 @@ public sealed class TypeChecker
     {
         foreach (var decl in program.Declarations)
         {
-            if (decl is HirStructDecl structDecl)
-            {
-                // Register generic params temporarily for field resolution
-                var savedGp = PushGenericParams(structDecl.GenericParams);
+            CollectTypeDeclaration(decl);
+        }
+    }
 
-                var fields = new List<(string, AsterType)>();
-                foreach (var field in structDecl.Fields)
-                {
-                    fields.Add((field.Name, ResolveTypeRef(field.TypeRef)));
-                }
-                var structType = new StructType(structDecl.Symbol.Name, fields);
-                _structTypes[structDecl.Symbol.Name] = structType;
-                structDecl.Symbol.Type = structType;
+    private void CollectTypeDeclaration(HirNode decl)
+    {
+        if (decl is HirStructDecl structDecl)
+        {
+            // Register generic params temporarily for field resolution
+            var savedGp = PushGenericParams(structDecl.GenericParams);
 
-                PopGenericParams(savedGp);
-            }
-            else if (decl is HirEnumDecl enumDecl)
+            var fields = new List<(string, AsterType)>();
+            foreach (var field in structDecl.Fields)
             {
-                var variants = new List<(string, IReadOnlyList<AsterType>)>();
-                foreach (var v in enumDecl.Variants)
-                {
-                    var vFields = v.Fields.Select(f => ResolveTypeRef(f)).ToList();
-                    variants.Add((v.Name, vFields));
-                }
-                var enumType = new EnumType(enumDecl.Symbol.Name, variants);
-                _enumTypes[enumDecl.Symbol.Name] = enumType;
-                enumDecl.Symbol.Type = enumType;
+                fields.Add((field.Name, ResolveTypeRef(field.TypeRef)));
             }
+            var structType = new StructType(structDecl.Symbol.Name, fields);
+            _structTypes[structDecl.Symbol.Name] = structType;
+            structDecl.Symbol.Type = structType;
+
+            PopGenericParams(savedGp);
+        }
+        else if (decl is HirEnumDecl enumDecl)
+        {
+            var variants = new List<(string, IReadOnlyList<AsterType>)>();
+            foreach (var v in enumDecl.Variants)
+            {
+                var vFields = v.Fields.Select(f => ResolveTypeRef(f)).ToList();
+                variants.Add((v.Name, vFields));
+            }
+            var enumType = new EnumType(enumDecl.Symbol.Name, variants);
+            _enumTypes[enumDecl.Symbol.Name] = enumType;
+            enumDecl.Symbol.Type = enumType;
+        }
+        else if (decl is HirModuleDecl mod)
+        {
+            // Recurse into module members so nested types are registered
+            foreach (var member in mod.Members)
+                CollectTypeDeclaration(member);
         }
     }
 
@@ -89,6 +139,9 @@ public sealed class TypeChecker
         HirFunctionDecl fn => CheckFunctionDecl(fn),
         HirStructDecl s => CheckStructDecl(s),
         HirEnumDecl e => CheckEnumDecl(e),
+        HirTraitDecl trait => CheckTraitDecl(trait),
+        HirImplDecl impl => CheckImplDecl(impl),
+        HirModuleDecl mod => CheckModuleDecl(mod),
         HirLetStmt let => CheckLetStmt(let),
         HirReturnStmt ret => ret.Value != null ? CheckNode(ret.Value) : PrimitiveType.Void,
         HirExprStmt es => CheckNode(es.Expression),
@@ -620,6 +673,18 @@ public sealed class TypeChecker
         if (_currentGenericParams.TryGetValue(typeRef.Name, out var genericParam))
             return genericParam;
 
+        // Resolve built-in generic type constructors (Weeks 13-16):
+        // Vec<T>, Option<T>, Result<T,E>, HashMap<K,V>
+        if (BuiltinGenericTypes.Contains(typeRef.Name))
+        {
+            var typeArgs = typeRef.TypeArguments.Select(a => ResolveTypeRef(a)).ToList();
+            // Use a StructType as the constructor token for TypeApp (simple string key)
+            var ctor = new StructType(typeRef.Name, Array.Empty<(string, AsterType)>());
+            return typeArgs.Count > 0
+                ? new TypeApp(ctor, typeArgs)
+                : (AsterType)ctor;
+        }
+
         // Check user-defined types
         if (_structTypes.TryGetValue(typeRef.Name, out var structType))
             return structType;
@@ -629,5 +694,53 @@ public sealed class TypeChecker
 
         // Fall back to resolved symbol or type variable
         return typeRef.ResolvedSymbol?.Type ?? new TypeVariable();
+    }
+
+    // ===== Week 20: Trait and impl type checking =====
+
+    private AsterType CheckTraitDecl(HirTraitDecl trait)
+    {
+        var traitType = new TraitType(trait.Symbol.Name);
+        trait.Symbol.Type = traitType;
+        return PrimitiveType.Void;
+    }
+
+    private AsterType CheckImplDecl(HirImplDecl impl)
+    {
+        // Register each method in the impl's method table for member-access resolution
+        if (!_implMethods.TryGetValue(impl.TargetTypeName, out var table))
+        {
+            table = new Dictionary<string, FunctionType>(StringComparer.Ordinal);
+            _implMethods[impl.TargetTypeName] = table;
+        }
+
+        foreach (var fn in impl.Methods)
+        {
+            CheckFunctionDecl(fn);
+            if (fn.Symbol.Type is FunctionType ft)
+                table[fn.Symbol.Name] = ft;
+        }
+
+        // If this is a trait impl, register it in the trait solver
+        if (impl.TraitName != null)
+        {
+            // Resolve target type
+            AsterType targetType = _structTypes.TryGetValue(impl.TargetTypeName, out var st)
+                ? st
+                : (_enumTypes.TryGetValue(impl.TargetTypeName, out var et) ? et : new TypeVariable());
+            _traitSolver.RegisterImpl(new TraitImpl(impl.TraitName, targetType));
+        }
+
+        return PrimitiveType.Void;
+    }
+
+    // ===== Weeks 17-19: Module type checking =====
+
+    private AsterType CheckModuleDecl(HirModuleDecl mod)
+    {
+        // Type-check all module members
+        foreach (var member in mod.Members)
+            CheckNode(member);
+        return PrimitiveType.Void;
     }
 }

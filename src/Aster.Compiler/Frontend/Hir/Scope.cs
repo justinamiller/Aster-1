@@ -26,6 +26,15 @@ public sealed class Scope
         return _symbols.TryAdd(symbol.Name, symbol);
     }
 
+    /// <summary>
+    /// Define a symbol, overwriting any existing definition in this scope.
+    /// Used when user code intentionally re-defines a built-in name.
+    /// </summary>
+    public void DefineOrReplace(Symbol symbol)
+    {
+        _symbols[symbol.Name] = symbol;
+    }
+
     /// <summary>Look up a symbol in this scope and parent scopes.</summary>
     public Symbol? Lookup(string name)
     {
