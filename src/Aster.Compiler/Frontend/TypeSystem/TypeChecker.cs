@@ -16,6 +16,8 @@ public sealed class TypeChecker
     private readonly Dictionary<string, EnumType> _enumTypes = new();
     // Tracks the current function/struct's generic type parameters by name
     private readonly Dictionary<string, GenericParameter> _currentGenericParams = new();
+    // Collects trait constraints emitted at call sites (e.g. T: Clone when calling clone<T: Clone>)
+    private readonly List<TraitConstraint> _pendingTraitConstraints = new();
     public DiagnosticBag Diagnostics { get; } = new();
 
     public TypeChecker()
@@ -35,12 +37,11 @@ public sealed class TypeChecker
             CheckNode(decl);
         }
 
-        // Phase 2: Solve constraints
+        // Phase 2: Solve equality constraints
         _solver.Solve();
 
-        // Phase 3: Check trait constraints
-        var traitConstraints = new List<TraitConstraint>();
-        _traitSolver.CheckConstraints(traitConstraints, _solver);
+        // Phase 3: Check trait constraints (both from generic bounds and call sites)
+        _traitSolver.CheckConstraints(_pendingTraitConstraints, _solver);
 
         // Merge diagnostics
         Diagnostics.AddRange(_solver.Diagnostics);
@@ -55,9 +56,7 @@ public sealed class TypeChecker
             if (decl is HirStructDecl structDecl)
             {
                 // Register generic params temporarily for field resolution
-                var gpId = 0;
-                foreach (var gpName in structDecl.GenericParams)
-                    _currentGenericParams[gpName] = new GenericParameter(gpName, gpId++);
+                var savedGp = PushGenericParams(structDecl.GenericParams);
 
                 var fields = new List<(string, AsterType)>();
                 foreach (var field in structDecl.Fields)
@@ -68,7 +67,7 @@ public sealed class TypeChecker
                 _structTypes[structDecl.Symbol.Name] = structType;
                 structDecl.Symbol.Type = structType;
 
-                _currentGenericParams.Clear();
+                PopGenericParams(savedGp);
             }
             else if (decl is HirEnumDecl enumDecl)
             {
@@ -198,7 +197,7 @@ public sealed class TypeChecker
 
     private AsterType CheckFunctionDecl(HirFunctionDecl fn)
     {
-        // Build generic parameter map for this function
+        // Build generic parameter map for this function (with bounds)
         var savedGenericParams = PushGenericParams(fn.GenericParams);
 
         var paramTypes = new List<AsterType>();
@@ -211,6 +210,17 @@ public sealed class TypeChecker
 
         var returnType = fn.ReturnType != null ? ResolveTypeRef(fn.ReturnType) : PrimitiveType.Void;
         fn.Symbol.Type = new FunctionType(paramTypes, returnType);
+
+        // Register TypeScheme for generic functions so call sites get fresh type variables
+        // This enables proper return-type inference: identity(42) → i32, not GenericParameter(T)
+        if (fn.GenericParams.Count > 0)
+        {
+            var typeParams = _currentGenericParams.Values.ToList();
+            var bounds = typeParams
+                .SelectMany(gp => gp.Bounds.Select(b => new TraitBound(b.TraitName)))
+                .ToList();
+            _symbolSchemes[fn.Symbol.Id] = new TypeScheme(typeParams, bounds, fn.Symbol.Type);
+        }
 
         var bodyType = CheckBlock(fn.Body);
 
@@ -241,15 +251,18 @@ public sealed class TypeChecker
     }
 
     /// <summary>
-    /// Push generic type parameters into the current scope, returning the saved state
-    /// so it can be restored with <see cref="PopGenericParams"/>.
+    /// Push generic type parameters (with their trait bounds) into the current scope,
+    /// returning the saved state so it can be restored with <see cref="PopGenericParams"/>.
     /// </summary>
-    private Dictionary<string, GenericParameter> PushGenericParams(IReadOnlyList<string> paramNames)
+    private Dictionary<string, GenericParameter> PushGenericParams(IReadOnlyList<HirGenericParam> hirParams)
     {
         var saved = new Dictionary<string, GenericParameter>(_currentGenericParams);
         var gpId = 0;
-        foreach (var name in paramNames)
-            _currentGenericParams[name] = new GenericParameter(name, gpId++);
+        foreach (var hp in hirParams)
+        {
+            var bounds = hp.Bounds.Select(b => new TraitBound(b)).ToArray();
+            _currentGenericParams[hp.Name] = new GenericParameter(hp.Name, gpId++, bounds);
+        }
         return saved;
     }
 
@@ -356,10 +369,29 @@ public sealed class TypeChecker
                 Diagnostics.ReportError("E0302", $"Expected {fnType.ParameterTypes.Count} arguments but got {call.Arguments.Count}", call.Span);
             }
 
+            // Collect argument types and add equality constraints
+            var argTypes = new List<AsterType>(call.Arguments.Count);
             for (int i = 0; i < Math.Min(call.Arguments.Count, fnType.ParameterTypes.Count); i++)
             {
                 var argType = CheckNode(call.Arguments[i]);
+                argTypes.Add(argType);
                 _solver.AddConstraint(new EqualityConstraint(argType, fnType.ParameterTypes[i], call.Arguments[i].Span));
+            }
+
+            // Emit trait constraints for bounded generic parameters.
+            // CheckIdentifier may have instantiated a TypeScheme, replacing GenericParameters with
+            // fresh TypeVariables.  To recover the bounds, look up the original symbol type.
+            // The original symbol.Type is a FunctionType whose ParameterTypes are GenericParameters.
+            var originalParamTypes = GetOriginalParamTypes(call.Callee);
+            for (int i = 0; i < Math.Min(argTypes.Count, originalParamTypes.Count); i++)
+            {
+                if (originalParamTypes[i] is GenericParameter gp && gp.Bounds.Count > 0)
+                {
+                    foreach (var bound in gp.Bounds)
+                    {
+                        _pendingTraitConstraints.Add(new TraitConstraint(argTypes[i], bound, call.Arguments[i].Span));
+                    }
+                }
             }
 
             return fnType.ReturnType;
@@ -378,6 +410,21 @@ public sealed class TypeChecker
         }
 
         return returnType;
+    }
+
+    /// <summary>
+    /// Retrieve the original (pre-instantiation) parameter types of the callee's function type.
+    /// This is used for bound checking: TypeScheme instantiation replaces GenericParameters with
+    /// TypeVariables, losing bound information.  The original symbol.Type still has GenericParameters.
+    /// </summary>
+    private static IReadOnlyList<AsterType> GetOriginalParamTypes(HirNode callee)
+    {
+        if (callee is HirIdentifierExpr id &&
+            id.ResolvedSymbol?.Type is FunctionType originalFnType)
+        {
+            return originalFnType.ParameterTypes;
+        }
+        return Array.Empty<AsterType>();
     }
 
     private AsterType CheckIdentifier(HirIdentifierExpr id)

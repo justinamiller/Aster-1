@@ -10,6 +10,7 @@ using Aster.Compiler.Frontend.Parser;
 using Aster.Compiler.Frontend.TypeSystem;
 using Aster.Compiler.MiddleEnd.BorrowChecker;
 using Aster.Compiler.MiddleEnd.DropLowering;
+using Aster.Compiler.MiddleEnd.Generics;
 using Aster.Compiler.MiddleEnd.Mir;
 using Aster.Compiler.MiddleEnd.PatternLowering;
 
@@ -18,18 +19,25 @@ namespace Aster.Compiler.Driver;
 /// <summary>
 /// Compilation pipeline driver.
 /// Orchestrates the full compilation process:
-/// Lexer → Parser → AST → HIR → TypeCheck → Effects → BorrowCheck → MIR → LLVM → Binary
+/// Lexer → Parser → AST → HIR → TypeCheck → Monomorphize → Effects → BorrowCheck → MIR → LLVM → Binary
 /// </summary>
 public sealed class CompilationDriver
 {
     private readonly DiagnosticBag _diagnostics = new();
     private readonly bool _stage1Mode;
+    private MonomorphizationTable? _monoTable;
 
     /// <summary>All diagnostics from the compilation.</summary>
     public DiagnosticBag Diagnostics => _diagnostics;
 
     /// <summary>Whether Stage1 (Core-0) mode is enabled.</summary>
     public bool Stage1Mode => _stage1Mode;
+
+    /// <summary>
+    /// Monomorphization table populated after <see cref="Compile"/> or <see cref="Check"/> runs.
+    /// Contains all generic instantiations discovered during compilation.
+    /// </summary>
+    public MonomorphizationTable? MonomorphizationTable => _monoTable;
 
     /// <summary>
     /// Create a new compilation driver.
@@ -78,7 +86,12 @@ public sealed class CompilationDriver
         if (_diagnostics.HasErrors)
             return null;
 
-        // Phase 5: Effect Checking
+        // Phase 5: Monomorphization (Week 11)
+        // Collects all generic instantiations; the table is available for downstream phases.
+        var monomorphizer = new Monomorphizer();
+        _monoTable = monomorphizer.Run(hir);
+
+        // Phase 6: Effect Checking
         var effectChecker = new EffectChecker();
         effectChecker.Check(hir);
         _diagnostics.AddRange(effectChecker.Diagnostics);
@@ -137,6 +150,11 @@ public sealed class CompilationDriver
         var typeChecker = new TypeChecker();
         typeChecker.Check(hir);
         _diagnostics.AddRange(typeChecker.Diagnostics);
+
+        if (!_diagnostics.HasErrors)
+        {
+            _monoTable = new Monomorphizer().Run(hir);
+        }
 
         return !_diagnostics.HasErrors;
     }

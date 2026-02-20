@@ -9,6 +9,7 @@ using Aster.Compiler.Frontend.Ownership;
 using Aster.Compiler.Frontend.Hir;
 using Aster.Compiler.MiddleEnd.Mir;
 using Aster.Compiler.MiddleEnd.BorrowChecker;
+using Aster.Compiler.MiddleEnd.Generics;
 using Aster.Compiler.MiddleEnd.PatternMatching;
 using Aster.Compiler.Backends.LLVM;
 using Aster.Compiler.Driver;
@@ -1763,8 +1764,8 @@ async fn fetch_data() -> i32 {
 
         var fn = Assert.IsType<HirFunctionDecl>(hir.Declarations[0]);
         Assert.Equal(2, fn.GenericParams.Count);
-        Assert.Contains("A", fn.GenericParams);
-        Assert.Contains("B", fn.GenericParams);
+        Assert.Contains(fn.GenericParams, gp => gp.Name == "A");
+        Assert.Contains(fn.GenericParams, gp => gp.Name == "B");
     }
 
     [Fact]
@@ -1815,5 +1816,290 @@ fn main() { }
         var ir = driver.Compile(source, "test.ast");
 
         Assert.NotNull(ir);
+    }
+}
+
+// ========== Phase 2 Week 10: Type System for Generics ==========
+
+public class Week10TypeSystemTests
+{
+    [Fact]
+    public void Resolve_GenericParam_PreservesBounds()
+    {
+        var source = "fn clone<T: Clone>(x: T) -> T { x }";
+        var lexer = new AsterLexer(source, "test.ast");
+        var tokens = lexer.Tokenize();
+        var parser = new AsterParser(tokens);
+        var ast = parser.ParseProgram();
+        var resolver = new NameResolver();
+        var hir = resolver.Resolve(ast);
+
+        var fn = Assert.IsType<HirFunctionDecl>(hir.Declarations[0]);
+        Assert.Single(fn.GenericParams);
+        Assert.Equal("T", fn.GenericParams[0].Name);
+        Assert.Single(fn.GenericParams[0].Bounds);
+        Assert.Equal("Clone", fn.GenericParams[0].Bounds[0]);
+    }
+
+    [Fact]
+    public void Resolve_GenericParam_MultipleBounds()
+    {
+        var source = "fn show<T: Display + Debug>(x: T) -> i32 { 0 }";
+        var lexer = new AsterLexer(source, "test.ast");
+        var tokens = lexer.Tokenize();
+        var parser = new AsterParser(tokens);
+        var ast = parser.ParseProgram();
+        var resolver = new NameResolver();
+        var hir = resolver.Resolve(ast);
+
+        var fn = Assert.IsType<HirFunctionDecl>(hir.Declarations[0]);
+        Assert.Equal(2, fn.GenericParams[0].Bounds.Count);
+        Assert.Contains("Display", fn.GenericParams[0].Bounds);
+        Assert.Contains("Debug", fn.GenericParams[0].Bounds);
+    }
+
+    [Fact]
+    public void TypeScheme_RegisteredForGenericFunction()
+    {
+        // identity<T>(x: T) -> T should produce a TypeScheme with one type parameter
+        var param = new GenericParameter("T", 0);
+        var body = new FunctionType(new[] { (AsterType)param }, param);
+        var scheme = new TypeScheme(new[] { param }, Array.Empty<TraitBound>(), body);
+
+        Assert.Single(scheme.TypeParameters);
+        Assert.Equal("T", scheme.TypeParameters[0].Name);
+
+        // Instantiate — should replace T with a fresh TypeVariable
+        var substitution = new Dictionary<int, AsterType>();
+        var instantiated = scheme.Instantiate(substitution);
+
+        Assert.IsType<FunctionType>(instantiated);
+        var fnType = (FunctionType)instantiated;
+        Assert.IsType<TypeVariable>(fnType.ParameterTypes[0]);
+        // param and return type should be the same fresh variable
+        Assert.Same(fnType.ParameterTypes[0], fnType.ReturnType);
+    }
+
+    [Fact]
+    public void TypeScheme_TwoParams_InstantiatesIndependently()
+    {
+        // fn first<A, B>(a: A, b: B) -> A
+        var paramA = new GenericParameter("A", 0);
+        var paramB = new GenericParameter("B", 1);
+        var body = new FunctionType(new AsterType[] { paramA, paramB }, paramA);
+        var scheme = new TypeScheme(new[] { paramA, paramB }, Array.Empty<TraitBound>(), body);
+
+        var sub1 = new Dictionary<int, AsterType>();
+        var inst1 = (FunctionType)scheme.Instantiate(sub1);
+        var sub2 = new Dictionary<int, AsterType>();
+        var inst2 = (FunctionType)scheme.Instantiate(sub2);
+
+        // Two independent instantiations should give different TypeVariables
+        var tv1A = inst1.ParameterTypes[0];
+        var tv2A = inst2.ParameterTypes[0];
+        Assert.IsType<TypeVariable>(tv1A);
+        Assert.IsType<TypeVariable>(tv2A);
+        Assert.NotEqual(((TypeVariable)tv1A).Id, ((TypeVariable)tv2A).Id);
+
+        // Within each instantiation, return type should match first param type
+        Assert.Same(inst1.ParameterTypes[0], inst1.ReturnType);
+        Assert.Same(inst2.ParameterTypes[0], inst2.ReturnType);
+    }
+
+    [Fact]
+    public void BoundChecking_SatisfiedCloneBound_NoErrors()
+    {
+        // fn clone_val<T: Clone>(x: T) -> T { x }  called with i32 (which impls Clone)
+        var source = @"
+fn clone_val<T: Clone>(x: T) -> T { x }
+fn main() -> i32 {
+    let y = clone_val(5);
+    0
+}
+";
+        var lexer = new AsterLexer(source, "test.ast");
+        var tokens = lexer.Tokenize();
+        var parser = new AsterParser(tokens);
+        var ast = parser.ParseProgram();
+        var resolver = new NameResolver();
+        var hir = resolver.Resolve(ast);
+        var checker = new TypeChecker();
+        checker.Check(hir);
+
+        Assert.False(checker.Diagnostics.HasErrors,
+            "Expected no errors: i32 implements Clone");
+    }
+
+    [Fact]
+    public void BoundChecking_ViolatedBound_ReportsError()
+    {
+        // fn bounded<T: NonexistentTrait>(x: T) -> T { x }  called with i32
+        var source = @"
+fn bounded<T: NonexistentTrait>(x: T) -> T { x }
+fn main() -> i32 {
+    let y = bounded(5);
+    0
+}
+";
+        var lexer = new AsterLexer(source, "test.ast");
+        var tokens = lexer.Tokenize();
+        var parser = new AsterParser(tokens);
+        var ast = parser.ParseProgram();
+        var resolver = new NameResolver();
+        var hir = resolver.Resolve(ast);
+        var checker = new TypeChecker();
+        checker.Check(hir);
+
+        Assert.True(checker.Diagnostics.HasErrors,
+            "Expected error: i32 does not implement NonexistentTrait");
+    }
+
+    [Fact]
+    public void FullPipeline_GenericBoundedFunction_Clone()
+    {
+        var source = @"
+fn copy_val<T: Clone>(x: T) -> T { x }
+fn main() -> i32 {
+    let y = copy_val(42);
+    0
+}
+";
+        var driver = new CompilationDriver();
+        var ir = driver.Compile(source, "test.ast");
+
+        Assert.NotNull(ir);
+        Assert.Contains("@copy_val", ir);
+    }
+}
+
+// ========== Phase 2 Week 11: Monomorphization ==========
+
+public class Week11MonomorphizationTests
+{
+    [Fact]
+    public void Mangle_SingleTypeArg()
+    {
+        var result = MonomorphizationTable.Mangle("identity", new[] { PrimitiveType.I32 });
+        Assert.Equal("identity_i32", result);
+    }
+
+    [Fact]
+    public void Mangle_TwoTypeArgs()
+    {
+        var result = MonomorphizationTable.Mangle("first", new AsterType[] { PrimitiveType.I32, PrimitiveType.StringType });
+        Assert.Equal("first_i32_string", result);
+    }
+
+    [Fact]
+    public void Mangle_NoTypeArgs_ReturnsOriginalName()
+    {
+        var result = MonomorphizationTable.Mangle("plain", Array.Empty<AsterType>());
+        Assert.Equal("plain", result);
+    }
+
+    [Fact]
+    public void Mangle_FloatTypeArg()
+    {
+        var result = MonomorphizationTable.Mangle("max", new[] { PrimitiveType.F64 });
+        Assert.Equal("max_f64", result);
+    }
+
+    [Fact]
+    public void Table_RecordSameInstantiationTwice_ReturnsSameName()
+    {
+        var table = new MonomorphizationTable();
+        var name1 = table.Record("identity", new[] { PrimitiveType.I32 });
+        var name2 = table.Record("identity", new[] { PrimitiveType.I32 });
+
+        Assert.Equal(name1, name2);
+        Assert.Single(table.Instantiations);
+    }
+
+    [Fact]
+    public void Table_DifferentTypeArgs_ProduceDifferentNames()
+    {
+        var table = new MonomorphizationTable();
+        var nameI32 = table.Record("identity", new[] { PrimitiveType.I32 });
+        var nameF64 = table.Record("identity", new[] { PrimitiveType.F64 });
+
+        Assert.NotEqual(nameI32, nameF64);
+        Assert.Equal(2, table.Instantiations.Count);
+    }
+
+    [Fact]
+    public void Monomorphizer_CollectsInstantiations_FromGenericCall()
+    {
+        // identity<T>(x: T) -> T called with identity(42) should record identity_i32
+        var source = @"
+fn identity<T>(x: T) -> T { x }
+fn main() -> i32 {
+    let y = identity(42);
+    0
+}
+";
+        var lexer = new AsterLexer(source, "test.ast");
+        var tokens = lexer.Tokenize();
+        var parser = new AsterParser(tokens);
+        var ast = parser.ParseProgram();
+        var resolver = new NameResolver();
+        var hir = resolver.Resolve(ast);
+
+        var checker = new TypeChecker();
+        checker.Check(hir);
+        Assert.False(checker.Diagnostics.HasErrors);
+
+        var mono = new Monomorphizer();
+        var table = mono.Run(hir);
+
+        Assert.Single(table.Instantiations);
+        Assert.Equal("identity", table.Instantiations[0].OriginalName);
+        Assert.Equal("identity_i32", table.Instantiations[0].MangledName);
+    }
+
+    [Fact]
+    public void Monomorphizer_TwoCallSites_SameType_OneInstantiation()
+    {
+        var source = @"
+fn wrap<T>(x: T) -> T { x }
+fn main() -> i32 {
+    let a = wrap(1);
+    let b = wrap(2);
+    0
+}
+";
+        var lexer = new AsterLexer(source, "test.ast");
+        var tokens = lexer.Tokenize();
+        var parser = new AsterParser(tokens);
+        var ast = parser.ParseProgram();
+        var resolver = new NameResolver();
+        var hir = resolver.Resolve(ast);
+
+        var checker = new TypeChecker();
+        checker.Check(hir);
+
+        var table = new Monomorphizer().Run(hir);
+
+        // Both calls use T=i32, so only one specialisation is recorded
+        Assert.Single(table.Instantiations);
+        Assert.Equal("wrap_i32", table.Instantiations[0].MangledName);
+    }
+
+    [Fact]
+    public void FullPipeline_Compile_ExposesMonomorphizationTable()
+    {
+        var source = @"
+fn id<T>(x: T) -> T { x }
+fn main() -> i32 {
+    let y = id(99);
+    0
+}
+";
+        var driver = new CompilationDriver();
+        var ir = driver.Compile(source, "test.ast");
+
+        Assert.NotNull(ir);
+        Assert.NotNull(driver.MonomorphizationTable);
+        Assert.Single(driver.MonomorphizationTable!.Instantiations);
+        Assert.Equal("id_i32", driver.MonomorphizationTable.Instantiations[0].MangledName);
     }
 }

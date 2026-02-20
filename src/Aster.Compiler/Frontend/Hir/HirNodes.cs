@@ -27,17 +27,30 @@ public sealed class HirProgram : HirNode
     public HirProgram(IReadOnlyList<HirNode> declarations, Span span) : base(span) => Declarations = declarations;
 }
 
+/// <summary>
+/// A resolved generic type parameter in HIR (e.g. the T in fn foo&lt;T: Clone&gt;).
+/// Carries the parameter name and the names of any trait bounds.
+/// </summary>
+public sealed class HirGenericParam
+{
+    public string Name { get; }
+    /// <summary>Trait-bound names (e.g. ["Clone", "Debug"]).</summary>
+    public IReadOnlyList<string> Bounds { get; }
+    public HirGenericParam(string name, IReadOnlyList<string> bounds)
+    { Name = name; Bounds = bounds; }
+}
+
 /// <summary>HIR function declaration with resolved symbol.</summary>
 public sealed class HirFunctionDecl : HirNode
 {
     public Symbol Symbol { get; }
-    public IReadOnlyList<string> GenericParams { get; }
+    public IReadOnlyList<HirGenericParam> GenericParams { get; }
     public IReadOnlyList<HirParameter> Parameters { get; }
     public HirBlock Body { get; }
     public HirTypeRef? ReturnType { get; }
     public bool IsAsync { get; }
 
-    public HirFunctionDecl(Symbol symbol, IReadOnlyList<string> genericParams, IReadOnlyList<HirParameter> parameters, HirBlock body, HirTypeRef? returnType, bool isAsync, Span span)
+    public HirFunctionDecl(Symbol symbol, IReadOnlyList<HirGenericParam> genericParams, IReadOnlyList<HirParameter> parameters, HirBlock body, HirTypeRef? returnType, bool isAsync, Span span)
         : base(span) { Symbol = symbol; GenericParams = genericParams; Parameters = parameters; Body = body; ReturnType = returnType; IsAsync = isAsync; }
 }
 
@@ -171,9 +184,9 @@ public sealed class HirWhileStmt : HirNode
 public sealed class HirStructDecl : HirNode
 {
     public Symbol Symbol { get; }
-    public IReadOnlyList<string> GenericParams { get; }
+    public IReadOnlyList<HirGenericParam> GenericParams { get; }
     public IReadOnlyList<HirFieldDecl> Fields { get; }
-    public HirStructDecl(Symbol symbol, IReadOnlyList<string> genericParams, IReadOnlyList<HirFieldDecl> fields, Span span)
+    public HirStructDecl(Symbol symbol, IReadOnlyList<HirGenericParam> genericParams, IReadOnlyList<HirFieldDecl> fields, Span span)
         : base(span) { Symbol = symbol; GenericParams = genericParams; Fields = fields; }
 }
 
