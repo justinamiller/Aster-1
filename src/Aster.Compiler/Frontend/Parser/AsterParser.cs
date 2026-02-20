@@ -145,7 +145,7 @@ public sealed class AsterParser
                 Synchronize();
                 // Return dummy node to continue parsing
                 var emptyBody = new BlockExprNode(new List<AstNode>(), null, startSpan);
-                return new FunctionDeclNode("error", new List<ParameterNode>(), null, emptyBody, isPublic, false, startSpan);
+                return new FunctionDeclNode("error", Array.Empty<GenericParamNode>(), new List<ParameterNode>(), null, emptyBody, isPublic, false, startSpan);
             }
             isAsync = true;
             Advance();
@@ -153,6 +153,8 @@ public sealed class AsterParser
 
         Expect(TokenKind.Fn, "Expected 'fn'");
         var name = ExpectIdentifier("Expected function name");
+
+        var genericParams = ParseOptionalGenericParams();
 
         Expect(TokenKind.LeftParen, "Expected '(' after function name");
         var parameters = ParseParameterList();
@@ -167,7 +169,7 @@ public sealed class AsterParser
 
         var body = ParseBlock();
 
-        return new FunctionDeclNode(name, parameters, returnType, body, isPublic, isAsync,
+        return new FunctionDeclNode(name, genericParams, parameters, returnType, body, isPublic, isAsync,
             MakeSpan(startSpan));
     }
 

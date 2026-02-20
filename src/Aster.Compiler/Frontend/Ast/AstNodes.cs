@@ -44,17 +44,18 @@ public sealed class UseDeclNode : AstNode
     public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitUseDecl(this);
 }
 
-/// <summary>Function declaration: fn name(params) -> ReturnType { body }</summary>
+/// <summary>Function declaration: fn name<T>(params) -> ReturnType { body }</summary>
 public sealed class FunctionDeclNode : AstNode
 {
     public string Name { get; }
+    public IReadOnlyList<GenericParamNode> GenericParams { get; }
     public IReadOnlyList<ParameterNode> Parameters { get; }
     public TypeAnnotationNode? ReturnType { get; }
     public BlockExprNode Body { get; }
     public bool IsPublic { get; }
     public bool IsAsync { get; }
-    public FunctionDeclNode(string name, IReadOnlyList<ParameterNode> parameters, TypeAnnotationNode? returnType, BlockExprNode body, bool isPublic, bool isAsync, Span span)
-        : base(span) { Name = name; Parameters = parameters; ReturnType = returnType; Body = body; IsPublic = isPublic; IsAsync = isAsync; }
+    public FunctionDeclNode(string name, IReadOnlyList<GenericParamNode> genericParams, IReadOnlyList<ParameterNode> parameters, TypeAnnotationNode? returnType, BlockExprNode body, bool isPublic, bool isAsync, Span span)
+        : base(span) { Name = name; GenericParams = genericParams; Parameters = parameters; ReturnType = returnType; Body = body; IsPublic = isPublic; IsAsync = isAsync; }
     public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitFunctionDecl(this);
 }
 

@@ -1,0 +1,61 @@
+// Test file for generic function parsing
+// This file tests the parser's ability to handle generic functions
+// Focus on simple cases without tuples or advanced features
+
+// Simple generic function with one type parameter
+fn identity<T>(x: T) -> T {
+    x
+}
+
+// Generic function with two type parameters
+fn first<A, B>(a: A, b: B) -> A {
+    a
+}
+
+// Generic function with two type parameters returning second
+fn second<A, B>(a: A, b: B) -> B {
+    b
+}
+
+// Generic function with type parameter bounds
+fn clone<T: Clone>(x: T) -> T {
+    x
+}
+
+// Generic function with multiple bounds
+fn show<T: Display + Debug>(x: T) -> i32 {
+    0
+}
+
+// Generic function returning i32
+fn size_of<T>() -> i32 {
+    0
+}
+
+// Generic function with explicit return type
+fn default<T>() -> i32 {
+    0
+}
+
+// Generic function with conditional logic
+fn max<T: Ord>(a: T, b: T) -> T {
+    if a > b { a } else { b }
+}
+
+// Generic function with while loop
+fn count<T>(x: T, n: i32) -> i32 {
+    let mut i = 0;
+    while i < n {
+        i = i + 1;
+    }
+    i
+}
+
+// Main function to test compilation
+fn main() -> i32 {
+    let x = identity(42);
+    let y = first(1, 2);
+    let z = second(3, 4);
+    let result = count(5, 10);
+    0
+}
