@@ -373,3 +373,23 @@ public sealed class HirMatchExpr : HirNode
     public HirMatchExpr(HirNode scrutinee, IReadOnlyList<HirMatchArm> arms, Span span)
         : base(span) { Scrutinee = scrutinee; Arms = arms; }
 }
+
+/// <summary>Closure expression: |x, y| body. Captures are resolved at type-check time.</summary>
+public sealed class HirClosureExpr : HirNode
+{
+    public IReadOnlyList<HirParameter> Parameters { get; }
+    public HirNode Body { get; }
+    /// <summary>Unique mangled name for this closure (e.g. "__closure_0").</summary>
+    public string MangledName { get; }
+    public HirClosureExpr(IReadOnlyList<HirParameter> parameters, HirNode body, string mangledName, Span span)
+        : base(span) { Parameters = parameters; Body = body; MangledName = mangledName; }
+}
+
+/// <summary>Type alias declaration: type Name = SomeType;</summary>
+public sealed class HirTypeAliasDecl : HirNode
+{
+    public Symbol Symbol { get; }
+    public HirTypeRef Target { get; }
+    public HirTypeAliasDecl(Symbol symbol, HirTypeRef target, Span span)
+        : base(span) { Symbol = symbol; Target = target; }
+}

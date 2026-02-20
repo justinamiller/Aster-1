@@ -12,6 +12,7 @@ namespace Aster.Compiler.Frontend.NameResolution;
 public sealed class NameResolver
 {
     private Scope _currentScope;
+    private int _closureCounter;
     public DiagnosticBag Diagnostics { get; } = new();
 
     private static readonly Dictionary<string, (string Name, SymbolKind Kind)[]> StdlibExports =
@@ -173,6 +174,10 @@ public sealed class NameResolver
                 case UseDeclNode use:
                     ResolveUseDeclaration(use);
                     break;
+                case TypeAliasDeclNode alias:
+                    if (!_currentScope.Define(new Symbol(alias.Name, SymbolKind.Type, alias.IsPublic)))
+                        Diagnostics.ReportError("E0200", $"Duplicate definition of '{alias.Name}'", alias.Span);
+                    break;
             }
         }
     }
@@ -247,6 +252,8 @@ public sealed class NameResolver
         ContinueStmtNode cont => new HirContinueStmt(cont.Span),
         IndexExprNode idx => new HirIndexExpr(ResolveNode(idx.Object)!, ResolveNode(idx.Index)!, idx.Span),
         MatchExprNode matchExpr => ResolveMatchExpr(matchExpr),
+        ClosureExprNode closure => ResolveClosureExpr(closure),
+        TypeAliasDeclNode alias => ResolveTypeAliasDecl(alias),
         UseDeclNode => null,
         _ => null,
     };
@@ -601,5 +608,41 @@ public sealed class NameResolver
 
         // Fallback: wildcard
         return new HirPattern(PatternKind.Wildcard, null, null, null, new List<HirPattern>(), pattern.Span);
+    }
+
+    private HirClosureExpr ResolveClosureExpr(ClosureExprNode closure)
+    {
+        var mangledName = $"__closure_{_closureCounter++}";
+
+        var prevScope = _currentScope;
+        _currentScope = _currentScope.CreateChild(ScopeKind.Function);
+
+        var hirParams = new List<HirParameter>();
+        foreach (var (name, typeAnnot) in closure.Parameters)
+        {
+            var paramSym = new Symbol(name, SymbolKind.Parameter);
+            _currentScope.Define(paramSym);
+            var typeRef = typeAnnot != null ? ResolveTypeRef(typeAnnot) : null;
+            hirParams.Add(new HirParameter(paramSym, typeRef, false, closure.Span));
+        }
+
+        var body = ResolveNode(closure.Body) ?? new HirLiteralExpr(0L, LiteralKind.Integer, closure.Span);
+
+        _currentScope = prevScope;
+        return new HirClosureExpr(hirParams, body, mangledName, closure.Span);
+    }
+
+    private HirTypeAliasDecl ResolveTypeAliasDecl(TypeAliasDeclNode alias)
+    {
+        // Symbol was pre-registered in CollectDeclarations; look it up (should always succeed)
+        var symbol = _currentScope.Lookup(alias.Name);
+        if (symbol == null)
+        {
+            // Fallback: define it now if somehow missed in the collect pass
+            symbol = new Symbol(alias.Name, SymbolKind.Type, alias.IsPublic);
+            _currentScope.Define(symbol);
+        }
+        var target = ResolveTypeRef(alias.Target);
+        return new HirTypeAliasDecl(symbol, target, alias.Span);
     }
 }

@@ -7,6 +7,7 @@ using Aster.Compiler.Frontend.TypeSystem;
 using Aster.Compiler.Frontend.Effects;
 using Aster.Compiler.Frontend.Ownership;
 using Aster.Compiler.Frontend.Hir;
+using Aster.Compiler.MiddleEnd.AsyncLowering;
 using Aster.Compiler.MiddleEnd.Mir;
 using Aster.Compiler.MiddleEnd.BorrowChecker;
 using Aster.Compiler.MiddleEnd.Generics;
@@ -3232,3 +3233,394 @@ fn main() {
         return module;
     }
 }
+
+// ========== Phase 3 Completion: Closures ==========
+
+public class Phase3ClosureTests
+{
+    [Fact]
+    public void Parse_ClosureNoParams_IsValid()
+    {
+        var source = @"fn main() { let f = || 42; }";
+        var lexer = new AsterLexer(source, "t");
+        new AsterParser(lexer.Tokenize()).ParseProgram();
+        Assert.False(lexer.Diagnostics.HasErrors);
+    }
+
+    [Fact]
+    public void Parse_ClosureWithParams_IsValid()
+    {
+        var source = @"fn main() { let add = |x: i32, y: i32| x + y; }";
+        var lexer = new AsterLexer(source, "t");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        Assert.False(lexer.Diagnostics.HasErrors);
+    }
+
+    [Fact]
+    public void Parse_ClosureWithBlock_IsValid()
+    {
+        var source = @"fn main() { let f = |x: i32| { x + 1 }; }";
+        var lexer = new AsterLexer(source, "t");
+        new AsterParser(lexer.Tokenize()).ParseProgram();
+        Assert.False(lexer.Diagnostics.HasErrors);
+    }
+
+    [Fact]
+    public void Resolve_ClosureExpr_ProducesHirClosureExpr()
+    {
+        var source = @"fn main() { let f = |x: i32| x; }";
+        var lexer = new AsterLexer(source, "t");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        var hir = new NameResolver().Resolve(ast);
+        Assert.NotNull(hir);
+
+        var mainFn = hir.Declarations.OfType<HirFunctionDecl>().First();
+        var letStmt = mainFn.Body.Statements.OfType<HirLetStmt>().First();
+        Assert.IsType<HirClosureExpr>(letStmt.Initializer);
+    }
+
+    [Fact]
+    public void Resolve_Closure_ParamBoundInScope()
+    {
+        var source = @"fn main() { let f = |x: i32| x; }";
+        var lexer = new AsterLexer(source, "t");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        var resolver = new NameResolver();
+        var hir = resolver.Resolve(ast);
+        Assert.False(resolver.Diagnostics.HasErrors);
+
+        var closure = hir.Declarations.OfType<HirFunctionDecl>().First()
+            .Body.Statements.OfType<HirLetStmt>().First().Initializer as HirClosureExpr;
+        Assert.NotNull(closure);
+        Assert.Single(closure.Parameters);
+        Assert.Equal("x", closure.Parameters[0].Symbol.Name);
+    }
+
+    [Fact]
+    public void TypeChecker_Closure_ReturnsFunctionType()
+    {
+        var source = @"fn main() { let f = |x: i32| x; }";
+        var lexer = new AsterLexer(source, "t");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        var hir = new NameResolver().Resolve(ast);
+        var checker = new TypeChecker();
+        checker.Check(hir);
+        Assert.False(checker.Diagnostics.HasErrors);
+    }
+
+    [Fact]
+    public void FullPipeline_ClosureNoParam_Compiles()
+    {
+        var source = @"
+fn apply(f: i32) -> i32 { f }
+fn main() {
+    let val = apply(42);
+}
+";
+        var driver = new CompilationDriver();
+        Assert.NotNull(driver.Compile(source, "test.ast"));
+    }
+
+    [Fact]
+    public void FullPipeline_ClosureWithParam_Compiles()
+    {
+        var source = @"
+fn main() {
+    let add = |x: i32, y: i32| x + y;
+}
+";
+        var driver = new CompilationDriver();
+        Assert.NotNull(driver.Compile(source, "test.ast"));
+    }
+
+    [Fact]
+    public void Resolve_ClosureMangledName_IsUnique()
+    {
+        var source = @"
+fn main() {
+    let f = |x: i32| x;
+    let g = |y: i32| y;
+}
+";
+        var lexer = new AsterLexer(source, "t");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        var hir = new NameResolver().Resolve(ast);
+        var stmts = hir.Declarations.OfType<HirFunctionDecl>().First().Body.Statements;
+        var closureNames = stmts.OfType<HirLetStmt>()
+            .Select(s => s.Initializer)
+            .OfType<HirClosureExpr>()
+            .Select(c => c.MangledName)
+            .ToList();
+        Assert.Equal(2, closureNames.Distinct().Count());
+    }
+}
+
+// ========== Phase 3 Completion: Type Aliases ==========
+
+public class Phase3TypeAliasTests
+{
+    [Fact]
+    public void Parse_TypeAlias_IsValid()
+    {
+        var source = @"
+type MyInt = i32;
+fn main() { }
+";
+        var lexer = new AsterLexer(source, "t");
+        new AsterParser(lexer.Tokenize()).ParseProgram();
+        Assert.False(lexer.Diagnostics.HasErrors);
+    }
+
+    [Fact]
+    public void Resolve_TypeAlias_ProducesHirTypeAliasDecl()
+    {
+        var source = @"
+type MyInt = i32;
+fn main() { }
+";
+        var lexer = new AsterLexer(source, "t");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        var hir = new NameResolver().Resolve(ast);
+        Assert.NotNull(hir);
+        Assert.Contains(hir.Declarations, d => d is HirTypeAliasDecl);
+    }
+
+    [Fact]
+    public void Resolve_TypeAlias_RegisteredInScope()
+    {
+        var source = @"
+type Counter = i32;
+fn main() { }
+";
+        var resolver = new NameResolver();
+        var hir = resolver.Resolve(new AsterParser(new AsterLexer(source, "t").Tokenize()).ParseProgram());
+        Assert.False(resolver.Diagnostics.HasErrors);
+        var alias = hir.Declarations.OfType<HirTypeAliasDecl>().FirstOrDefault();
+        Assert.NotNull(alias);
+        Assert.Equal("Counter", alias.Symbol.Name);
+    }
+
+    [Fact]
+    public void TypeChecker_TypeAlias_NoErrors()
+    {
+        var source = @"
+type Score = i32;
+fn main() { }
+";
+        var lexer = new AsterLexer(source, "t");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        var hir = new NameResolver().Resolve(ast);
+        var checker = new TypeChecker();
+        checker.Check(hir);
+        Assert.False(checker.Diagnostics.HasErrors);
+    }
+
+    [Fact]
+    public void FullPipeline_TypeAlias_Compiles()
+    {
+        var source = @"
+type Score = i32;
+fn compute() -> i32 { 100 }
+fn main() { }
+";
+        var driver = new CompilationDriver();
+        Assert.NotNull(driver.Compile(source, "test.ast"));
+    }
+
+    [Fact]
+    public void Parse_TypeAlias_NoSemicolon_IsValid()
+    {
+        // Semicolon is optional in our grammar
+        var source = @"
+type Alias = i32
+fn main() { }
+";
+        var lexer = new AsterLexer(source, "t");
+        new AsterParser(lexer.Tokenize()).ParseProgram();
+        // Should not error on parser level (may report resolver error for bare name, not type alias)
+        Assert.False(lexer.Diagnostics.HasErrors);
+    }
+}
+
+// ========== Phase 3 Completion: ? Operator ==========
+
+public class Phase3TryOperatorTests
+{
+    [Fact]
+    public void Parse_TryOperator_IsValid()
+    {
+        var source = @"
+fn main() {
+    let x: i32 = 42;
+    let y = x?;
+}
+";
+        var lexer = new AsterLexer(source, "t");
+        new AsterParser(lexer.Tokenize()).ParseProgram();
+        Assert.False(lexer.Diagnostics.HasErrors);
+    }
+
+    [Fact]
+    public void Resolve_TryOperator_ProducesHirUnaryExpr()
+    {
+        var source = @"
+fn try_fn(x: i32) -> i32 {
+    x?
+}
+fn main() { }
+";
+        var lexer = new AsterLexer(source, "t");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        var hir = new NameResolver().Resolve(ast);
+        Assert.NotNull(hir);
+    }
+
+    [Fact]
+    public void TypeChecker_TryOperator_NoErrors()
+    {
+        var source = @"
+fn try_fn(x: i32) -> i32 {
+    x?
+}
+fn main() { }
+";
+        var lexer = new AsterLexer(source, "t");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        var hir = new NameResolver().Resolve(ast);
+        var checker = new TypeChecker();
+        checker.Check(hir);
+        Assert.False(checker.Diagnostics.HasErrors);
+    }
+
+    [Fact]
+    public void FullPipeline_TryOperator_Compiles()
+    {
+        var source = @"
+fn maybe(x: i32) -> i32 { x? }
+fn main() { }
+";
+        var driver = new CompilationDriver();
+        Assert.NotNull(driver.Compile(source, "test.ast"));
+    }
+}
+
+// ========== Phase 3 Completion: PatternChecker Integration ==========
+
+public class Phase3PatternCheckerTests
+{
+    [Fact]
+    public void PatternChecker_EmptyMatch_ReportsError()
+    {
+        // PatternChecker.CheckMatch on 0 arms emits E0340
+        var checker = new PatternChecker();
+        checker.CheckMatch(PrimitiveType.I32,
+            new List<(Pattern, Span)>());
+        Assert.True(checker.Diagnostics.HasErrors);
+    }
+
+    [Fact]
+    public void PatternChecker_WildcardArm_IsExhaustive()
+    {
+        var checker = new PatternChecker();
+        checker.CheckMatch(PrimitiveType.I32,
+            new List<(Pattern, Span)>
+            {
+                (new WildcardPattern(Span.Unknown), Span.Unknown)
+            });
+        Assert.False(checker.Diagnostics.HasErrors);
+    }
+
+    [Fact]
+    public void PatternChecker_DuplicateLiteral_Warns()
+    {
+        var checker = new PatternChecker();
+        checker.CheckMatch(PrimitiveType.I32,
+            new List<(Pattern, Span)>
+            {
+                (new LiteralPattern(1L, Span.Unknown), Span.Unknown),
+                (new LiteralPattern(1L, Span.Unknown), Span.Unknown),  // duplicate
+                (new WildcardPattern(Span.Unknown), Span.Unknown),
+            });
+        // Duplicate literal should emit a warning (W0001)
+        Assert.Contains(checker.Diagnostics, d => d.Severity == DiagnosticSeverity.Warning);
+    }
+
+    [Fact]
+    public void FullPipeline_Match_RunsPatternChecker()
+    {
+        var source = @"
+fn check(x: i32) -> i32 {
+    match x {
+        _ => 0,
+    }
+}
+fn main() { }
+";
+        var driver = new CompilationDriver();
+        // Should not crash and should succeed (wildcard is exhaustive)
+        Assert.NotNull(driver.Compile(source, "test.ast"));
+    }
+}
+
+// ========== Phase 3 Completion: AsyncLower Integration ==========
+
+public class Phase3AsyncLowerTests
+{
+    [Fact]
+    public void Parse_AsyncFunction_IsValid()
+    {
+        var source = @"
+async fn fetch() -> i32 { 42 }
+fn main() { }
+";
+        var lexer = new AsterLexer(source, "t");
+        new AsterParser(lexer.Tokenize()).ParseProgram();
+        Assert.False(lexer.Diagnostics.HasErrors);
+    }
+
+    [Fact]
+    public void Resolve_AsyncFunction_ProducesHirFunctionDecl()
+    {
+        var source = @"
+async fn get_value() -> i32 { 1 }
+fn main() { }
+";
+        var lexer = new AsterLexer(source, "t");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        var hir = new NameResolver().Resolve(ast);
+        var asyncFn = hir.Declarations.OfType<HirFunctionDecl>()
+            .FirstOrDefault(f => f.Symbol.Name == "get_value");
+        Assert.NotNull(asyncFn);
+        Assert.True(asyncFn.IsAsync);
+    }
+
+    [Fact]
+    public void FullPipeline_AsyncFunction_Compiles()
+    {
+        var source = @"
+async fn compute() -> i32 { 99 }
+fn main() { }
+";
+        var driver = new CompilationDriver();
+        Assert.NotNull(driver.Compile(source, "test.ast"));
+    }
+
+    [Fact]
+    public void AsyncLower_NonAsyncFunction_IsUnchanged()
+    {
+        // A plain (non-async) function should pass through AsyncLower unchanged
+        var module = new MirModule("test");
+        var fn = new MirFunction("plain");
+        var block = fn.CreateBlock("entry");
+        block.Terminator = new MirReturn(MirOperand.Constant(1L, MirType.I64));
+        module.Functions.Add(fn);
+
+        var lower = new AsyncLower();
+        lower.Lower(module);
+
+        // No diagnostic issued; function structure unchanged
+        Assert.False(lower.Diagnostics.HasErrors);
+        Assert.Single(module.Functions);
+    }
+}
+

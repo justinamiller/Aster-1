@@ -41,4 +41,6 @@ public interface IAstVisitor<T>
     T VisitBreakStmt(BreakStmtNode node);
     T VisitContinueStmt(ContinueStmtNode node);
     T VisitExpressionStmt(ExpressionStmtNode node);
+    T VisitClosureExpr(ClosureExprNode node);
+    T VisitTypeAliasDecl(TypeAliasDeclNode node);
 }

@@ -382,6 +382,27 @@ public sealed class ExpressionStmtNode : AstNode
     public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitExpressionStmt(this);
 }
 
+/// <summary>Closure expression: |x: T, y| body</summary>
+public sealed class ClosureExprNode : AstNode
+{
+    public IReadOnlyList<(string Name, TypeAnnotationNode? Type)> Parameters { get; }
+    public AstNode Body { get; }
+    public ClosureExprNode(IReadOnlyList<(string, TypeAnnotationNode?)> parameters, AstNode body, Span span)
+        : base(span) { Parameters = parameters; Body = body; }
+    public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitClosureExpr(this);
+}
+
+/// <summary>Type alias declaration: type Name = SomeType;</summary>
+public sealed class TypeAliasDeclNode : AstNode
+{
+    public string Name { get; }
+    public TypeAnnotationNode Target { get; }
+    public bool IsPublic { get; }
+    public TypeAliasDeclNode(string name, TypeAnnotationNode target, bool isPublic, Span span)
+        : base(span) { Name = name; Target = target; IsPublic = isPublic; }
+    public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitTypeAliasDecl(this);
+}
+
 // ========== Enums ==========
 
 public enum BinaryOperator

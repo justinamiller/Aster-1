@@ -17,6 +17,8 @@ public sealed class MirLowering
     private readonly Dictionary<string, MirType> _functionReturnTypes = new();
     // Loop context stack for break/continue target resolution
     private readonly Stack<(int BreakTarget, int ContinueTarget)> _loopStack = new();
+    // Closure functions collected during lowering (added to module at the end)
+    private readonly List<MirFunction> _closureFunctions = new();
     public DiagnosticBag Diagnostics { get; } = new();
 
     /// <summary>Lower an HIR program to MIR.</summary>
@@ -43,6 +45,10 @@ public sealed class MirLowering
                 module.Functions.Add(mirFn);
             }
         }
+
+        // Third pass: append any closure functions emitted during lowering
+        foreach (var closureFn in _closureFunctions)
+            module.Functions.Add(closureFn);
 
         return module;
     }
@@ -275,6 +281,9 @@ public sealed class MirLowering
             case HirMatchExpr matchExpr:
                 return LowerMatchExpr(matchExpr);
 
+            case HirClosureExpr closure:
+                return LowerClosure(closure);
+
             default:
                 return null;
         }
@@ -385,10 +394,81 @@ public sealed class MirLowering
     private MirOperand LowerUnary(HirUnaryExpr un)
     {
         var operand = LowerExpr(un.Operand)!;
+        // ? operator: early-return on Err (Result) or None (Option), unwrap the Ok/Some value
+        if (un.Operator == UnaryOperator.Try)
+        {
+            // Emit:  if operand.is_err { return operand }  else { operand.unwrap() }
+            var isErrTemp = NewTemp(MirType.Bool);
+            Emit(new MirInstruction(MirOpcode.Call, isErrTemp,
+                new[] { operand }, "__is_err_or_none"));
+
+            var errBlock = _currentFunction!.CreateBlock("try.err");
+            var okBlock = _currentFunction.CreateBlock("try.ok");
+            _currentBlock!.Terminator = new MirConditionalBranch(isErrTemp, errBlock.Index, okBlock.Index);
+
+            // Err path: return the error
+            _currentBlock = errBlock;
+            errBlock.Terminator = new MirReturn(operand);
+
+            // Ok path: unwrap and continue
+            _currentBlock = okBlock;
+            var unwrapped = NewTemp(operand.Type);
+            Emit(new MirInstruction(MirOpcode.Call, unwrapped,
+                new[] { operand }, "__unwrap_ok_or_some"));
+            return unwrapped;
+        }
+
         // Infer result type from operand
         var result = NewTemp(operand.Type);
         Emit(new MirInstruction(MirOpcode.UnaryOp, result, new[] { operand }, un.Operator));
         return result;
+    }
+
+    /// <summary>
+    /// Lower a closure expression: emit an anonymous MIR function and return a FunctionRef to it.
+    /// Captures are approximated — in bootstrap mode all free variables are passed as parameters.
+    /// </summary>
+    private MirOperand LowerClosure(HirClosureExpr closure)
+    {
+        // Save current function context
+        var savedFn = _currentFunction;
+        var savedBlock = _currentBlock;
+        var savedLocals = new Dictionary<string, MirOperand>(_localVariables);
+        var savedCounter = _tempCounter;
+
+        _currentFunction = new MirFunction(closure.MangledName);
+        _tempCounter = 0;
+        _localVariables.Clear();
+
+        // Register parameters
+        for (int i = 0; i < closure.Parameters.Count; i++)
+        {
+            var p = closure.Parameters[i];
+            var pt = ResolveType(p.TypeRef);
+            var mp = new MirParameter(p.Symbol.Name, pt, i);
+            _currentFunction.Parameters.Add(mp);
+            _localVariables[p.Symbol.Name] = MirOperand.Variable(p.Symbol.Name, pt);
+        }
+
+        var entryBlock = _currentFunction.CreateBlock("entry");
+        _currentBlock = entryBlock;
+
+        var bodyVal = LowerExpr(closure.Body);
+        if (_currentBlock.Terminator == null)
+            _currentBlock.Terminator = new MirReturn(bodyVal);
+
+        // Register the closure function in the current module-level scope
+        // (the module is built by the Lower() caller; we append to it via a side list)
+        _closureFunctions.Add(_currentFunction);
+
+        // Restore context
+        _currentFunction = savedFn;
+        _currentBlock = savedBlock;
+        _localVariables.Clear();
+        foreach (var kv in savedLocals) _localVariables[kv.Key] = kv.Value;
+        _tempCounter = savedCounter;
+
+        return MirOperand.FunctionRef(closure.MangledName);
     }
 
     private MirOperand? LowerIf(HirIfExpr ifExpr)

@@ -20,6 +20,8 @@ public sealed class TypeChecker
     private readonly List<TraitConstraint> _pendingTraitConstraints = new();
     // Method tables registered from impl blocks: TargetType -> (methodName -> FunctionType)
     private readonly Dictionary<string, Dictionary<string, FunctionType>> _implMethods = new();
+    // Type aliases: alias name -> underlying AsterType
+    private readonly Dictionary<string, AsterType> _typeAliases = new();
     public DiagnosticBag Diagnostics { get; } = new();
 
     // Built-in generic type constructors (Weeks 13-16)
@@ -132,6 +134,13 @@ public sealed class TypeChecker
             foreach (var member in mod.Members)
                 CollectTypeDeclaration(member);
         }
+        else if (decl is HirTypeAliasDecl aliasDecl)
+        {
+            // Register alias underlying type so it can be resolved later
+            var underlyingType = ResolveTypeRef(aliasDecl.Target);
+            _typeAliases[aliasDecl.Symbol.Name] = underlyingType;
+            aliasDecl.Symbol.Type = underlyingType;
+        }
     }
 
     private AsterType CheckNode(HirNode node) => node switch
@@ -147,6 +156,8 @@ public sealed class TypeChecker
         HirContinueStmt => PrimitiveType.Void,
         HirIndexExpr idx => CheckIndexExpr(idx),
         HirMatchExpr matchExpr => CheckMatchExpr(matchExpr),
+        HirClosureExpr closure => CheckClosureExpr(closure),
+        HirTypeAliasDecl alias => CheckTypeAliasDecl(alias),
         HirLetStmt let => CheckLetStmt(let),
         HirReturnStmt ret => ret.Value != null ? CheckNode(ret.Value) : PrimitiveType.Void,
         HirExprStmt es => CheckNode(es.Expression),
@@ -537,8 +548,29 @@ public sealed class TypeChecker
             Ast.UnaryOperator.BitNot => operandType,
             Ast.UnaryOperator.Ref => new ReferenceType(operandType, false),
             Ast.UnaryOperator.MutRef => new ReferenceType(operandType, true),
+            // ? operator: unwrap Result<T,E> -> T  or  Option<T> -> T
+            Ast.UnaryOperator.Try => UnwrapTryOperand(operandType),
             _ => operandType,
         };
+    }
+
+    /// <summary>
+    /// Unwrap the inner success type for the ? operator.
+    /// Result&lt;T, E&gt; => T;  Option&lt;T&gt; => T;  otherwise return the type unchanged.
+    /// </summary>
+    private static AsterType UnwrapTryOperand(AsterType operandType)
+    {
+        if (operandType is TypeApp ta)
+        {
+            // Result<T, E>  → T  (first argument)
+            if (ta.Constructor is StructType { Name: "Result" } && ta.Arguments.Count >= 1)
+                return ta.Arguments[0];
+            // Option<T>  → T
+            if (ta.Constructor is StructType { Name: "Option" } && ta.Arguments.Count >= 1)
+                return ta.Arguments[0];
+        }
+        // Unknown wrapping type: return type variable (will be inferred)
+        return new TypeVariable();
     }
 
     private AsterType CheckIfExpr(HirIfExpr ifExpr)
@@ -696,6 +728,10 @@ public sealed class TypeChecker
         
         if (_enumTypes.TryGetValue(typeRef.Name, out var enumType))
             return enumType;
+
+        // Check type aliases
+        if (_typeAliases.TryGetValue(typeRef.Name, out var aliasType))
+            return aliasType;
 
         // Fall back to resolved symbol or type variable
         return typeRef.ResolvedSymbol?.Type ?? new TypeVariable();
@@ -859,5 +895,26 @@ public sealed class TypeChecker
                 // Wildcards and unknown patterns are always valid
                 break;
         }
+    }
+
+    /// <summary>Type-check a closure expression. Returns FunctionType(paramTypes, bodyType).</summary>
+    private AsterType CheckClosureExpr(HirClosureExpr closure)
+    {
+        var paramTypes = new List<AsterType>();
+        foreach (var param in closure.Parameters)
+        {
+            var pType = param.TypeRef != null ? ResolveTypeRef(param.TypeRef) : new TypeVariable();
+            param.Symbol.Type = pType;
+            paramTypes.Add(pType);
+        }
+        var bodyType = CheckNode(closure.Body);
+        return new FunctionType(paramTypes, bodyType);
+    }
+
+    /// <summary>Type-check a type alias declaration. Returns Void (side-effect: register alias).</summary>
+    private AsterType CheckTypeAliasDecl(HirTypeAliasDecl alias)
+    {
+        // Already registered in CollectTypeDeclarations; nothing else to do here.
+        return PrimitiveType.Void;
     }
 }

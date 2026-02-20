@@ -90,6 +90,8 @@ public sealed class AsterParser
             return ParseModuleDecl(isPublic);
         if (Check(TokenKind.Use))
             return ParseUseDeclaration();
+        if (Check(TokenKind.Type))
+            return ParseTypeAliasDecl(isPublic);
         if (Check(TokenKind.Let))
             return ParseLetStmt();
 
@@ -355,6 +357,53 @@ public sealed class AsterParser
         return new ModuleDeclNode(name, members, MakeSpan(startSpan));
     }
 
+    private TypeAliasDeclNode ParseTypeAliasDecl(bool isPublic)
+    {
+        var startSpan = Current.Span;
+        Expect(TokenKind.Type, "Expected 'type'");
+        var name = ExpectIdentifier("Expected type alias name");
+        Expect(TokenKind.Equals, "Expected '='");
+        var target = ParseTypeAnnotation();
+        if (Check(TokenKind.Semicolon)) Advance();
+        return new TypeAliasDeclNode(name, target, isPublic, MakeSpan(startSpan));
+    }
+
+    private ClosureExprNode ParseClosureExpr(Span startSpan)
+    {
+        // || expr (no-param closure uses PipePipe token)
+        var parameters = new List<(string, TypeAnnotationNode?)>();
+        if (Check(TokenKind.PipePipe))
+        {
+            Advance();
+        }
+        else
+        {
+            Expect(TokenKind.Pipe, "Expected '|'");
+            while (!Check(TokenKind.Pipe) && !IsAtEnd)
+            {
+                var paramName = ExpectIdentifier("Expected closure parameter name");
+                TypeAnnotationNode? typeAnnot = null;
+                if (Check(TokenKind.Colon))
+                {
+                    Advance();
+                    typeAnnot = ParseTypeAnnotation();
+                }
+                parameters.Add((paramName, typeAnnot));
+                if (Check(TokenKind.Comma)) Advance();
+            }
+            Expect(TokenKind.Pipe, "Expected '|'");
+        }
+
+        // Body: block or single expression
+        AstNode body;
+        if (Check(TokenKind.LeftBrace))
+            body = ParseBlock();
+        else
+            body = ParseExpression();
+
+        return new ClosureExprNode(parameters, body, MakeSpan(startSpan));
+    }
+
     // ========== Statements ==========
 
     private LetStmtNode ParseLetStmt()
@@ -570,8 +619,8 @@ public sealed class AsterParser
     {
         var span = Current.Span;
 
-        // Check for closure syntax: |params| expr
-        if (Check(TokenKind.Pipe))
+        // Check for closure syntax: |params| expr  or  || expr
+        if (Check(TokenKind.Pipe) || Check(TokenKind.PipePipe))
         {
             if (_stage1Mode)
             {
@@ -579,13 +628,11 @@ public sealed class AsterParser
                 // Skip to avoid parse errors
                 Advance();
                 while (!IsAtEnd && !Check(TokenKind.Pipe))
-                {
                     Advance();
-                }
                 if (Check(TokenKind.Pipe)) Advance();
-                // Return error placeholder
                 return new LiteralExprNode(0L, LiteralKind.Integer, span);
             }
+            return ParseClosureExpr(span);
         }
 
         // Literals

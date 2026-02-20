@@ -141,6 +141,15 @@ public sealed class TypeApp : AsterType
     }
 }
 
+/// <summary>Type alias — a named alias for another type.</summary>
+public sealed class TypeAlias : AsterType
+{
+    public string Name { get; }
+    public AsterType Underlying { get; }
+    public override string DisplayName => Name;
+    public TypeAlias(string name, AsterType underlying) { Name = name; Underlying = underlying; }
+}
+
 /// <summary>Trait bound on a type parameter.</summary>
 public sealed class TraitBound
 {

@@ -8,12 +8,14 @@ using Aster.Compiler.Frontend.Lexer;
 using Aster.Compiler.Frontend.NameResolution;
 using Aster.Compiler.Frontend.Parser;
 using Aster.Compiler.Frontend.TypeSystem;
+using Aster.Compiler.MiddleEnd.AsyncLowering;
 using Aster.Compiler.MiddleEnd.BorrowChecker;
 using Aster.Compiler.MiddleEnd.DropLowering;
 using Aster.Compiler.MiddleEnd.Generics;
 using Aster.Compiler.MiddleEnd.Mir;
 using Aster.Compiler.MiddleEnd.Optimizations;
 using Aster.Compiler.MiddleEnd.PatternLowering;
+using Aster.Compiler.MiddleEnd.PatternMatching;
 
 namespace Aster.Compiler.Driver;
 
@@ -87,6 +89,9 @@ public sealed class CompilationDriver
         if (_diagnostics.HasErrors)
             return null;
 
+        // Phase 4b: Pattern exhaustiveness checking (Phase 3 completion)
+        RunPatternChecker(hir, typeChecker);
+
         // Phase 5: Monomorphization (Week 11)
         // Collects all generic instantiations; the table is available for downstream phases.
         var monomorphizer = new Monomorphizer();
@@ -116,6 +121,11 @@ public sealed class CompilationDriver
         // Phase 8: Drop Lowering
         var dropLower = new DropLower();
         dropLower.Lower(mir);
+
+        // Phase 8b: Async Lowering (Phase 3 completion — lowers async state machines)
+        var asyncLower = new AsyncLower();
+        asyncLower.Lower(mir);
+        _diagnostics.AddRange(asyncLower.Diagnostics);
 
         // Phase 9: Borrow Checking
         var borrowChecker = new BorrowCheck();
@@ -253,5 +263,71 @@ public sealed class CompilationDriver
             return null;
 
         return tokens;
+    }
+
+    /// <summary>
+    /// Walk the HIR and run exhaustiveness/reachability checking on every match expression.
+    /// Warnings are added to <see cref="Diagnostics"/>; errors are rare (only empty-match).
+    /// </summary>
+    private void RunPatternChecker(HirProgram hir, TypeChecker typeChecker)
+    {
+        var checker = new PatternChecker();
+        WalkForMatches(hir.Declarations, checker);
+        _diagnostics.AddRange(checker.Diagnostics);
+    }
+
+    private static void WalkForMatches(IEnumerable<HirNode> nodes, PatternChecker checker)
+    {
+        foreach (var node in nodes)
+        {
+            if (node is HirMatchExpr match)
+            {
+                // Build a list of (Pattern, Span) pairs for the checker
+                var arms = match.Arms.Select(a => (ToCheckerPattern(a.Pattern), a.Span)).ToList();
+                // Use a generic scrutinee type (we pass void as a placeholder; checker uses wildcards)
+                checker.CheckMatch(PrimitiveType.Void, arms);
+            }
+
+            // Recurse into child nodes
+            WalkNodeForMatches(node, checker);
+        }
+    }
+
+    private static void WalkNodeForMatches(HirNode node, PatternChecker checker)
+    {
+        switch (node)
+        {
+            case HirFunctionDecl fn: WalkForMatches(fn.Body.Statements, checker); break;
+            case HirBlock block: WalkForMatches(block.Statements, checker); break;
+            case HirLetStmt let when let.Initializer != null: WalkNodeForMatches(let.Initializer, checker); break;
+            case HirExprStmt es: WalkNodeForMatches(es.Expression, checker); break;
+            case HirReturnStmt ret when ret.Value != null: WalkNodeForMatches(ret.Value, checker); break;
+            case HirIfExpr ifExpr:
+                WalkNodeForMatches(ifExpr.Condition, checker);
+                WalkForMatches(ifExpr.ThenBranch.Statements, checker);
+                if (ifExpr.ElseBranch != null) WalkNodeForMatches(ifExpr.ElseBranch, checker);
+                break;
+            case HirMatchExpr matchExpr:
+                WalkNodeForMatches(matchExpr.Scrutinee, checker);
+                foreach (var arm in matchExpr.Arms) WalkNodeForMatches(arm.Body, checker);
+                break;
+            case HirModuleDecl mod: WalkForMatches(mod.Members, checker); break;
+            default: break;
+        }
+    }
+
+    private static Pattern ToCheckerPattern(HirPattern p)
+    {
+        return p.Kind switch
+        {
+            PatternKind.Wildcard => new WildcardPattern(p.Span),
+            PatternKind.Variable => new VariablePattern(p.Name ?? "_", false, p.Span),
+            PatternKind.Literal  => new LiteralPattern(p.LiteralValue ?? 0, p.Span),
+            PatternKind.Constructor => new ConstructorPattern(
+                p.Constructor ?? "_",
+                p.SubPatterns.Select(ToCheckerPattern).ToList(),
+                p.Span),
+            _ => new WildcardPattern(p.Span),
+        };
     }
 }
