@@ -221,6 +221,15 @@ public sealed class NameResolver
         var prevScope = _currentScope;
         _currentScope = _currentScope.CreateChild(ScopeKind.Function);
 
+        // Register generic type parameters so they can be resolved as types
+        var genericParamNames = new List<string>();
+        foreach (var gp in fn.GenericParams)
+        {
+            var gpSymbol = new Symbol(gp.Name, SymbolKind.Type);
+            _currentScope.Define(gpSymbol);
+            genericParamNames.Add(gp.Name);
+        }
+
         var hirParams = new List<HirParameter>();
         foreach (var param in fn.Parameters)
         {
@@ -234,30 +243,59 @@ public sealed class NameResolver
         var body = ResolveBlock(fn.Body);
 
         _currentScope = prevScope;
-        return new HirFunctionDecl(symbol, hirParams, body, returnType, fn.IsAsync, fn.Span);
+        return new HirFunctionDecl(symbol, genericParamNames, hirParams, body, returnType, fn.IsAsync, fn.Span);
     }
 
     private HirStructDecl ResolveStructDecl(StructDeclNode s)
     {
         var symbol = _currentScope.Lookup(s.Name) ?? new Symbol(s.Name, SymbolKind.Type, s.IsPublic);
+
+        // Register generic type parameters in a child scope for field type resolution
+        var prevScope = _currentScope;
+        var genericParamNames = new List<string>(s.GenericParams.Count);
+        if (s.GenericParams.Count > 0)
+        {
+            _currentScope = _currentScope.CreateChild(ScopeKind.Block);
+            foreach (var gp in s.GenericParams)
+            {
+                _currentScope.Define(new Symbol(gp.Name, SymbolKind.Type));
+                genericParamNames.Add(gp.Name);
+            }
+        }
         var fields = new List<HirFieldDecl>();
         foreach (var field in s.Fields)
         {
             var typeRef = ResolveTypeRef(field.TypeAnnotation);
             fields.Add(new HirFieldDecl(field.Name, typeRef, field.Span));
         }
-        return new HirStructDecl(symbol, fields, s.Span);
+
+        _currentScope = prevScope;
+        return new HirStructDecl(symbol, genericParamNames, fields, s.Span);
     }
 
     private HirEnumDecl ResolveEnumDecl(EnumDeclNode e)
     {
         var symbol = _currentScope.Lookup(e.Name) ?? new Symbol(e.Name, SymbolKind.Type, e.IsPublic);
+
+        // Register generic type parameters for variant type resolution
+        var prevScope = _currentScope;
+        if (e.GenericParams.Count > 0)
+        {
+            _currentScope = _currentScope.CreateChild(ScopeKind.Block);
+            foreach (var gp in e.GenericParams)
+            {
+                _currentScope.Define(new Symbol(gp.Name, SymbolKind.Type));
+            }
+        }
+
         var variants = new List<HirEnumVariant>();
         foreach (var variant in e.Variants)
         {
             var fields = variant.Fields.Select(f => ResolveTypeRef(f)).ToList();
             variants.Add(new HirEnumVariant(variant.Name, fields, variant.Span));
         }
+
+        _currentScope = prevScope;
         return new HirEnumDecl(symbol, variants, e.Span);
     }
 

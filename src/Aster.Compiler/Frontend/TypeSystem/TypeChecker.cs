@@ -14,6 +14,8 @@ public sealed class TypeChecker
     private readonly Dictionary<int, TypeScheme> _symbolSchemes = new();
     private readonly Dictionary<string, StructType> _structTypes = new();
     private readonly Dictionary<string, EnumType> _enumTypes = new();
+    // Tracks the current function/struct's generic type parameters by name
+    private readonly Dictionary<string, GenericParameter> _currentGenericParams = new();
     public DiagnosticBag Diagnostics { get; } = new();
 
     public TypeChecker()
@@ -52,6 +54,11 @@ public sealed class TypeChecker
         {
             if (decl is HirStructDecl structDecl)
             {
+                // Register generic params temporarily for field resolution
+                var gpId = 0;
+                foreach (var gpName in structDecl.GenericParams)
+                    _currentGenericParams[gpName] = new GenericParameter(gpName, gpId++);
+
                 var fields = new List<(string, AsterType)>();
                 foreach (var field in structDecl.Fields)
                 {
@@ -60,6 +67,8 @@ public sealed class TypeChecker
                 var structType = new StructType(structDecl.Symbol.Name, fields);
                 _structTypes[structDecl.Symbol.Name] = structType;
                 structDecl.Symbol.Type = structType;
+
+                _currentGenericParams.Clear();
             }
             else if (decl is HirEnumDecl enumDecl)
             {
@@ -189,6 +198,9 @@ public sealed class TypeChecker
 
     private AsterType CheckFunctionDecl(HirFunctionDecl fn)
     {
+        // Build generic parameter map for this function
+        var savedGenericParams = PushGenericParams(fn.GenericParams);
+
         var paramTypes = new List<AsterType>();
         foreach (var param in fn.Parameters)
         {
@@ -207,11 +219,15 @@ public sealed class TypeChecker
             Diagnostics.ReportError("E0300", $"Function '{fn.Symbol.Name}' expects return type '{returnType.DisplayName}' but body has type '{bodyType.DisplayName}'", fn.Span);
         }
 
+        PopGenericParams(savedGenericParams);
         return fn.Symbol.Type;
     }
 
     private AsterType CheckStructDecl(HirStructDecl s)
     {
+        // Register generic type parameters for field type resolution
+        var savedGenericParams = PushGenericParams(s.GenericParams);
+
         var fields = new List<(string, AsterType)>();
         foreach (var field in s.Fields)
         {
@@ -219,7 +235,30 @@ public sealed class TypeChecker
         }
         var structType = new StructType(s.Symbol.Name, fields);
         s.Symbol.Type = structType;
+
+        PopGenericParams(savedGenericParams);
         return structType;
+    }
+
+    /// <summary>
+    /// Push generic type parameters into the current scope, returning the saved state
+    /// so it can be restored with <see cref="PopGenericParams"/>.
+    /// </summary>
+    private Dictionary<string, GenericParameter> PushGenericParams(IReadOnlyList<string> paramNames)
+    {
+        var saved = new Dictionary<string, GenericParameter>(_currentGenericParams);
+        var gpId = 0;
+        foreach (var name in paramNames)
+            _currentGenericParams[name] = new GenericParameter(name, gpId++);
+        return saved;
+    }
+
+    /// <summary>Restore the generic param scope saved by <see cref="PushGenericParams"/>.</summary>
+    private void PopGenericParams(Dictionary<string, GenericParameter> saved)
+    {
+        _currentGenericParams.Clear();
+        foreach (var kv in saved)
+            _currentGenericParams[kv.Key] = kv.Value;
     }
 
     private AsterType CheckEnumDecl(HirEnumDecl e)
@@ -529,6 +568,10 @@ public sealed class TypeChecker
         
         if (primitiveType != null)
             return primitiveType;
+
+        // Check generic type parameters in current scope (e.g. T, A, B)
+        if (_currentGenericParams.TryGetValue(typeRef.Name, out var genericParam))
+            return genericParam;
 
         // Check user-defined types
         if (_structTypes.TryGetValue(typeRef.Name, out var structType))

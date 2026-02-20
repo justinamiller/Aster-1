@@ -31,13 +31,14 @@ public sealed class HirProgram : HirNode
 public sealed class HirFunctionDecl : HirNode
 {
     public Symbol Symbol { get; }
+    public IReadOnlyList<string> GenericParams { get; }
     public IReadOnlyList<HirParameter> Parameters { get; }
     public HirBlock Body { get; }
     public HirTypeRef? ReturnType { get; }
     public bool IsAsync { get; }
 
-    public HirFunctionDecl(Symbol symbol, IReadOnlyList<HirParameter> parameters, HirBlock body, HirTypeRef? returnType, bool isAsync, Span span)
-        : base(span) { Symbol = symbol; Parameters = parameters; Body = body; ReturnType = returnType; IsAsync = isAsync; }
+    public HirFunctionDecl(Symbol symbol, IReadOnlyList<string> genericParams, IReadOnlyList<HirParameter> parameters, HirBlock body, HirTypeRef? returnType, bool isAsync, Span span)
+        : base(span) { Symbol = symbol; GenericParams = genericParams; Parameters = parameters; Body = body; ReturnType = returnType; IsAsync = isAsync; }
 }
 
 /// <summary>HIR parameter.</summary>
@@ -170,9 +171,10 @@ public sealed class HirWhileStmt : HirNode
 public sealed class HirStructDecl : HirNode
 {
     public Symbol Symbol { get; }
+    public IReadOnlyList<string> GenericParams { get; }
     public IReadOnlyList<HirFieldDecl> Fields { get; }
-    public HirStructDecl(Symbol symbol, IReadOnlyList<HirFieldDecl> fields, Span span)
-        : base(span) { Symbol = symbol; Fields = fields; }
+    public HirStructDecl(Symbol symbol, IReadOnlyList<string> genericParams, IReadOnlyList<HirFieldDecl> fields, Span span)
+        : base(span) { Symbol = symbol; GenericParams = genericParams; Fields = fields; }
 }
 
 /// <summary>HIR field declaration.</summary>

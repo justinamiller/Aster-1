@@ -1639,4 +1639,181 @@ async fn fetch_data() -> i32 {
         // Should not have Stage1 errors (E90XX)
         Assert.DoesNotContain(driver.Diagnostics, d => d.Code.StartsWith("E90"));
     }
+
+    // ========== Phase 2 Week 9: Generic Function and Struct Tests ==========
+
+    [Fact]
+    public void Parse_GenericFunctionDecl_SingleParam()
+    {
+        var source = "fn identity<T>(x: T) -> T { x }";
+        var lexer = new AsterLexer(source, "test.ast");
+        var tokens = lexer.Tokenize();
+        var parser = new AsterParser(tokens);
+        var ast = parser.ParseProgram();
+
+        Assert.Single(ast.Declarations);
+        var fn = Assert.IsType<FunctionDeclNode>(ast.Declarations[0]);
+        Assert.Equal("identity", fn.Name);
+        Assert.Single(fn.GenericParams);
+        Assert.Equal("T", fn.GenericParams[0].Name);
+    }
+
+    [Fact]
+    public void Parse_GenericFunctionDecl_MultipleParams()
+    {
+        var source = "fn first<A, B>(a: A, b: B) -> A { a }";
+        var lexer = new AsterLexer(source, "test.ast");
+        var tokens = lexer.Tokenize();
+        var parser = new AsterParser(tokens);
+        var ast = parser.ParseProgram();
+
+        var fn = Assert.IsType<FunctionDeclNode>(ast.Declarations[0]);
+        Assert.Equal(2, fn.GenericParams.Count);
+        Assert.Equal("A", fn.GenericParams[0].Name);
+        Assert.Equal("B", fn.GenericParams[1].Name);
+    }
+
+    [Fact]
+    public void Parse_GenericFunctionDecl_WithBound()
+    {
+        var source = "fn max<T: Ord>(a: T, b: T) -> T { a }";
+        var lexer = new AsterLexer(source, "test.ast");
+        var tokens = lexer.Tokenize();
+        var parser = new AsterParser(tokens);
+        var ast = parser.ParseProgram();
+
+        var fn = Assert.IsType<FunctionDeclNode>(ast.Declarations[0]);
+        Assert.Single(fn.GenericParams);
+        Assert.Equal("T", fn.GenericParams[0].Name);
+        Assert.Single(fn.GenericParams[0].Bounds);
+        Assert.Equal("Ord", fn.GenericParams[0].Bounds[0].Name);
+    }
+
+    [Fact]
+    public void Parse_GenericStructDecl()
+    {
+        var source = "struct Box<T> { value: T }";
+        var lexer = new AsterLexer(source, "test.ast");
+        var tokens = lexer.Tokenize();
+        var parser = new AsterParser(tokens);
+        var ast = parser.ParseProgram();
+
+        Assert.Single(ast.Declarations);
+        var s = Assert.IsType<StructDeclNode>(ast.Declarations[0]);
+        Assert.Equal("Box", s.Name);
+        Assert.Single(s.GenericParams);
+        Assert.Equal("T", s.GenericParams[0].Name);
+    }
+
+    [Fact]
+    public void Resolve_GenericFunction_SingleParam_NoErrors()
+    {
+        var source = "fn identity<T>(x: T) -> T { x }";
+        var lexer = new AsterLexer(source, "test.ast");
+        var tokens = lexer.Tokenize();
+        var parser = new AsterParser(tokens);
+        var ast = parser.ParseProgram();
+        var resolver = new NameResolver();
+        resolver.Resolve(ast);
+
+        Assert.False(resolver.Diagnostics.HasErrors, 
+            "Expected no errors resolving generic function 'identity<T>'");
+    }
+
+    [Fact]
+    public void Resolve_GenericFunction_MultipleParams_NoErrors()
+    {
+        var source = "fn first<A, B>(a: A, b: B) -> A { a }";
+        var lexer = new AsterLexer(source, "test.ast");
+        var tokens = lexer.Tokenize();
+        var parser = new AsterParser(tokens);
+        var ast = parser.ParseProgram();
+        var resolver = new NameResolver();
+        resolver.Resolve(ast);
+
+        Assert.False(resolver.Diagnostics.HasErrors,
+            "Expected no errors resolving generic function 'first<A, B>'");
+    }
+
+    [Fact]
+    public void Resolve_GenericStruct_NoErrors()
+    {
+        var source = "struct Box<T> { value: T }";
+        var lexer = new AsterLexer(source, "test.ast");
+        var tokens = lexer.Tokenize();
+        var parser = new AsterParser(tokens);
+        var ast = parser.ParseProgram();
+        var resolver = new NameResolver();
+        resolver.Resolve(ast);
+
+        Assert.False(resolver.Diagnostics.HasErrors,
+            "Expected no errors resolving generic struct 'Box<T>'");
+    }
+
+    [Fact]
+    public void Resolve_GenericFunction_StoresGenericParamNames()
+    {
+        var source = "fn first<A, B>(a: A, b: B) -> A { a }";
+        var lexer = new AsterLexer(source, "test.ast");
+        var tokens = lexer.Tokenize();
+        var parser = new AsterParser(tokens);
+        var ast = parser.ParseProgram();
+        var resolver = new NameResolver();
+        var hir = resolver.Resolve(ast);
+
+        var fn = Assert.IsType<HirFunctionDecl>(hir.Declarations[0]);
+        Assert.Equal(2, fn.GenericParams.Count);
+        Assert.Contains("A", fn.GenericParams);
+        Assert.Contains("B", fn.GenericParams);
+    }
+
+    [Fact]
+    public void FullPipeline_GenericFunction_SimpleIdentity()
+    {
+        var source = @"
+fn identity<T>(x: T) -> T {
+    x
+}
+fn main() -> i32 {
+    let result = identity(42);
+    0
+}
+";
+        var driver = new CompilationDriver();
+        var ir = driver.Compile(source, "test.ast");
+
+        Assert.NotNull(ir);
+        Assert.Contains("@identity", ir);
+    }
+
+    [Fact]
+    public void FullPipeline_GenericStruct_WithTypeParam()
+    {
+        var source = @"
+struct Wrapper<T> {
+    value: T
+}
+fn main() { }
+";
+        var driver = new CompilationDriver();
+        var ir = driver.Compile(source, "test.ast");
+
+        Assert.NotNull(ir);
+    }
+
+    [Fact]
+    public void FullPipeline_GenericEnum_WithTypeParam()
+    {
+        var source = @"
+enum Maybe<T> {
+    Some(T),
+    None
+}
+fn main() { }
+";
+        var driver = new CompilationDriver();
+        var ir = driver.Compile(source, "test.ast");
+
+        Assert.NotNull(ir);
+    }
 }

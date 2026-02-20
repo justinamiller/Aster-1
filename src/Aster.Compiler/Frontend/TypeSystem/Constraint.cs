@@ -133,6 +133,12 @@ public sealed class ConstraintSolver
             return true;
         }
 
+        // Generic type parameters implement unconstrained polymorphism: they can unify
+        // with any concrete type. When constraint bounds are added in a future phase,
+        // this is where bound checking (e.g. T: Ord) would be enforced.
+        if (a is GenericParameter || b is GenericParameter)
+            return true;
+
         if (a is PrimitiveType pa && b is PrimitiveType pb)
         {
             // Exact match
