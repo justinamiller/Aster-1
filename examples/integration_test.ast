@@ -1,0 +1,91 @@
+// Integration Test for Aster Stage 1 Bootstrap Compiler
+// Tests the full compilation pipeline end-to-end
+// Session 9: Integration Testing
+
+// ============================================================================
+// Simple Test Program
+// ============================================================================
+
+fn test_simple_function() -> i32 {
+    let x: i32 = 42;
+    let y: i32 = 10;
+    let result: i32 = x + y;
+    result
+}
+
+fn test_if_expression() -> i32 {
+    let value: i32 = 5;
+    if value > 3 {
+        100
+    } else {
+        200
+    }
+}
+
+fn test_while_loop() -> i32 {
+    let sum: i32 = 0;
+    let i: i32 = 0;
+    while i < 10 {
+        sum = sum + i;
+        i = i + 1;
+    }
+    sum
+}
+
+fn test_literals() {
+    // Integer literals
+    let a: i32 = 42;
+    let b: i64 = 100i64;
+    let c: u32 = 255u32;
+    
+    // Float literals  
+    let f1: f32 = 3.14f32;
+    let f2: f64 = 2.718;
+    
+    // Boolean
+    let is_true: bool = true;
+    let is_false: bool = false;
+    
+    // String
+    let msg: String = "Hello, World!";
+    
+    // Character
+    let ch: char = 'A';
+}
+
+fn test_binary_operations() -> i32 {
+    let a: i32 = 10;
+    let b: i32 = 20;
+    
+    let sum: i32 = a + b;
+    let diff: i32 = a - b;
+    let prod: i32 = a * b;
+    let quot: i32 = b / a;
+    
+    let is_eq: bool = a == b;
+    let is_lt: bool = a < b;
+    
+    sum
+}
+
+struct Point {
+    x: i32,
+    y: i32
+}
+
+fn test_struct() -> i32 {
+    let p = Point { x: 10, y: 20 };
+    p.x + p.y
+}
+
+fn main() -> i32 {
+    let result1: i32 = test_simple_function();
+    let result2: i32 = test_if_expression();
+    let result3: i32 = test_while_loop();
+    let result4: i32 = test_binary_operations();
+    let result5: i32 = test_struct();
+    
+    test_literals();
+    
+    0 // Exit code success
+}

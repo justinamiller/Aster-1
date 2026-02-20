@@ -1,0 +1,229 @@
+// Large benchmark: Complex program with many functions and operations
+// Purpose: Stress test compilation performance
+// Expected: Longer compilation time (< 2s)
+
+// Mathematical functions
+fn abs(x: i32) -> i32 {
+    if x < 0 { return -x; } else { return x; }
+}
+
+fn min(a: i32, b: i32) -> i32 {
+    if a < b { return a; } else { return b; }
+}
+
+fn max(a: i32, b: i32) -> i32 {
+    if a > b { return a; } else { return b; }
+}
+
+fn clamp(x: i32, low: i32, high: i32) -> i32 {
+    return max(low, min(high, x));
+}
+
+// Array operations
+fn array_sum(arr: [i32; 20]) -> i32 {
+    let mut sum = 0;
+    let mut i = 0;
+    while i < 20 {
+        sum = sum + arr[i];
+        i = i + 1;
+    }
+    return sum;
+}
+
+fn array_product(arr: [i32; 20]) -> i32 {
+    let mut prod = 1;
+    let mut i = 0;
+    while i < 20 {
+        prod = prod * arr[i];
+        i = i + 1;
+    }
+    return prod;
+}
+
+fn array_min(arr: [i32; 20]) -> i32 {
+    let mut minimum = arr[0];
+    let mut i = 1;
+    while i < 20 {
+        if arr[i] < minimum {
+            minimum = arr[i];
+        }
+        i = i + 1;
+    }
+    return minimum;
+}
+
+fn array_max(arr: [i32; 20]) -> i32 {
+    let mut maximum = arr[0];
+    let mut i = 1;
+    while i < 20 {
+        if arr[i] > maximum {
+            maximum = arr[i];
+        }
+        i = i + 1;
+    }
+    return maximum;
+}
+
+// Sorting algorithms
+fn selection_sort(arr: [i32; 20]) -> [i32; 20] {
+    let mut result = arr;
+    let mut i = 0;
+    while i < 19 {
+        let mut min_idx = i;
+        let mut j = i + 1;
+        while j < 20 {
+            if result[j] < result[min_idx] {
+                min_idx = j;
+            }
+            j = j + 1;
+        }
+        let temp = result[i];
+        result[i] = result[min_idx];
+        result[min_idx] = temp;
+        i = i + 1;
+    }
+    return result;
+}
+
+fn insertion_sort(arr: [i32; 20]) -> [i32; 20] {
+    let mut result = arr;
+    let mut i = 1;
+    while i < 20 {
+        let key = result[i];
+        let mut j = i - 1;
+        while j >= 0 && result[j] > key {
+            result[j + 1] = result[j];
+            j = j - 1;
+        }
+        result[j + 1] = key;
+        i = i + 1;
+    }
+    return result;
+}
+
+// Number theory
+fn power(base: i32, exp: i32) -> i32 {
+    if exp == 0 {
+        return 1;
+    }
+    let half = power(base, exp / 2);
+    if exp % 2 == 0 {
+        return half * half;
+    } else {
+        return base * half * half;
+    }
+}
+
+fn fibonacci_iter(n: i32) -> i32 {
+    if n <= 1 {
+        return n;
+    }
+    let mut a = 0;
+    let mut b = 1;
+    let mut i = 2;
+    while i <= n {
+        let temp = a + b;
+        a = b;
+        b = temp;
+        i = i + 1;
+    }
+    return b;
+}
+
+fn factorial_iter(n: i32) -> i32 {
+    let mut result = 1;
+    let mut i = 2;
+    while i <= n {
+        result = result * i;
+        i = i + 1;
+    }
+    return result;
+}
+
+fn sum_of_divisors(n: i32) -> i32 {
+    let mut sum = 0;
+    let mut i = 1;
+    while i <= n / 2 {
+        if n % i == 0 {
+            sum = sum + i;
+        }
+        i = i + 1;
+    }
+    return sum + n;
+}
+
+fn count_digits(n: i32) -> i32 {
+    let mut count = 0;
+    let mut num = abs(n);
+    while num > 0 {
+        count = count + 1;
+        num = num / 10;
+    }
+    return if count == 0 { 1 } else { count };
+}
+
+fn reverse_number(n: i32) -> i32 {
+    let mut result = 0;
+    let mut num = abs(n);
+    while num > 0 {
+        result = result * 10 + num % 10;
+        num = num / 10;
+    }
+    return if n < 0 { -result } else { result };
+}
+
+fn is_palindrome(n: i32) -> bool {
+    return n == reverse_number(n);
+}
+
+fn sum_of_squares(n: i32) -> i32 {
+    let mut sum = 0;
+    let mut i = 1;
+    while i <= n {
+        sum = sum + i * i;
+        i = i + 1;
+    }
+    return sum;
+}
+
+fn sum_of_cubes(n: i32) -> i32 {
+    let mut sum = 0;
+    let mut i = 1;
+    while i <= n {
+        sum = sum + i * i * i;
+        i = i + 1;
+    }
+    return sum;
+}
+
+// Main function with comprehensive tests
+fn main() -> i32 {
+    // Test array
+    let test_array = [
+        15, 3, 9, 1, 12, 7, 19, 5, 14, 8,
+        2, 18, 11, 6, 20, 4, 13, 10, 17, 16
+    ];
+    
+    // Array operations
+    let sum = array_sum(test_array);
+    let minimum = array_min(test_array);
+    let maximum = array_max(test_array);
+    
+    // Sorting
+    let sorted = selection_sort(test_array);
+    
+    // Math operations
+    let fib_20 = fibonacci_iter(20);
+    let fact_10 = factorial_iter(10);
+    let pow_result = power(2, 10);
+    
+    // Number properties
+    let digit_count = count_digits(12345);
+    let reversed = reverse_number(12345);
+    let is_pal = is_palindrome(12321);
+    
+    // Aggregate results
+    let result = sum + minimum + maximum + fib_20 + pow_result;
+    
+    return result;
+}

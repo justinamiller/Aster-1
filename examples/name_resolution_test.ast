@@ -1,0 +1,68 @@
+// Test file for name resolution
+//
+// This tests the name resolver implementation:
+// - Function declarations
+// - Variable declarations
+// - Struct declarations
+// - Enum declarations
+// - Scoping
+
+// Global function
+fn global_function() {
+    let x = 42;
+}
+
+// Struct declaration
+struct Point {
+    x: i32,
+    y: i32
+}
+
+// Enum declaration
+enum Color {
+    Red,
+    Green,
+    Blue
+}
+
+// Function with parameters
+fn add(a: i32, b: i32) -> i32 {
+    a + b
+}
+
+// Function with local variables
+fn test_scoping() {
+    let x = 10;
+    let y = 20;
+    
+    // Inner scope
+    {
+        let x = 30;  // Shadows outer x
+        let z = 40;
+    }
+    
+    // x should refer to outer x here
+    let result = x + y;
+}
+
+// Function that uses structs
+fn use_struct() {
+    let p = Point { x: 1, y: 2 };
+    let q = Point { x: 3, y: 4 };
+}
+
+// Function that uses enums
+fn use_enum() {
+    let c1 = Color::Red;
+    let c2 = Color::Green;
+    let c3 = Color::Blue;
+}
+
+fn main() {
+    global_function();
+    test_scoping();
+    use_struct();
+    use_enum();
+    
+    let result = add(10, 20);
+}

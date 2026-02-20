@@ -1,0 +1,59 @@
+// Test file for generic function parsing
+// This file tests the parser's ability to handle generic functions
+
+// Simple generic function with one type parameter
+fn identity<T>(x: T) -> T {
+    x
+}
+
+// Generic function with two type parameters
+fn pair<A, B>(a: A, b: B) -> (A, B) {
+    (a, b)
+}
+
+// Generic function with multiple type parameters
+fn triple<A, B, C>(a: A, b: B, c: C) -> (A, B, C) {
+    (a, b, c)
+}
+
+// Generic function with type parameter bounds
+fn clone<T: Clone>(x: T) -> T {
+    x
+}
+
+// Generic function with multiple bounds
+fn show<T: Display + Debug>(x: T) {
+    print(x)
+}
+
+// Generic function returning generic type
+fn wrap<T>(value: T) -> Box<T> {
+    Box { value: value }
+}
+
+// Generic function with generic parameter types
+fn unwrap<T>(boxed: Box<T>) -> T {
+    boxed.value
+}
+
+// Generic function with multiple generic params and bounds
+fn compare<T: Ord>(a: T, b: T) -> bool {
+    a < b
+}
+
+// Generic function with explicit return type using generics
+fn first<T>(a: T, b: T) -> T {
+    a
+}
+
+// Generic function with conditional logic
+fn max<T: Ord>(a: T, b: T) -> T {
+    if a > b { a } else { b }
+}
+
+// Main function to test compilation
+fn main() -> i32 {
+    let x = identity(42);
+    let y = pair(1, 2);
+    0
+}

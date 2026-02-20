@@ -1,0 +1,82 @@
+// Test file for new lexer features
+//
+// This file tests the newly implemented lexer features:
+// 1. Octal literals
+// 2. Type suffixes
+// 3. Raw strings
+// 4. Unicode escapes
+// 5. Lifetimes
+
+fn test_octal_literals() {
+    // Octal number literals with 0o prefix
+    let octal1 = 0o52;    // 42 in decimal
+    let octal2 = 0o377;   // 255 in decimal
+    let octal3 = 0o77_77; // with underscores
+}
+
+fn test_type_suffixes() {
+    // Integer type suffixes
+    let i32_val = 42i32;
+    let i64_val = 100i64;
+    let u8_val = 255u8;
+    let u32_val = 1000u32;
+    let u64_val = 9999u64;
+    
+    // Float type suffixes
+    let f32_val = 1.0f32;
+    let f64_val = 3.14f64;
+    let exp_f32 = 1.5e10f32;
+}
+
+fn test_raw_strings() {
+    // Basic raw string - no escape processing
+    let raw1 = r"This is a raw string with \n and \t not escaped";
+    
+    // Raw string with single hash
+    let raw2 = r#"This can have "quotes" inside"#;
+    
+    // Raw string with multiple hashes
+    let raw3 = r##"Multiple ##hashes## work"##;
+    
+    // Multi-line raw string
+    let raw4 = r"
+        Multi-line
+        raw string
+        with \backslashes\
+    ";
+}
+
+fn test_unicode_escapes() {
+    // Unicode escapes in strings
+    let unicode_str = "Hello \u{1F600} World";
+    
+    // Unicode in char literals
+    let unicode_char = '\u{03B1}'; // Greek alpha
+    
+    // Standard escapes still work
+    let normal = "Line 1\nLine 2\tTabbed";
+}
+
+fn test_lifetimes<'a, 'b>(s: &'a str, t: &'b str) -> &'a str {
+    // Lifetime parameters in function signature
+    // 'a and 'b are lifetime annotations
+    
+    let local = 'x'; // This is still a char literal
+    
+    // Special lifetimes
+    // 'static lifetime would be used here
+    // '_ anonymous lifetime
+    
+    s
+}
+
+fn main() {
+    test_octal_literals();
+    test_type_suffixes();
+    test_raw_strings();
+    test_unicode_escapes();
+    
+    let s1 = "hello";
+    let s2 = "world";
+    test_lifetimes(s1, s2);
+}

@@ -1,0 +1,293 @@
+// Aster Compiler Command-Line Interface
+// Stage 1 Bootstrap CLI Implementation
+// Session 7: Integration & CLI
+
+// ============================================================================
+// CLI Configuration
+// ============================================================================
+
+struct CliConfig {
+    input_file: String,
+    output_file: String,
+    target: i32,  // 1=C, 2=LLVM, 3=Assembly
+    verbose: bool,
+    help: bool,
+    version: bool
+}
+
+struct CliResult {
+    exit_code: i32,
+    message: String
+}
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+let TARGET_C: i32 = 1;
+let TARGET_LLVM: i32 = 2;
+let TARGET_ASSEMBLY: i32 = 3;
+
+let EXIT_SUCCESS: i32 = 0;
+let EXIT_ERROR: i32 = 1;
+let EXIT_USAGE: i32 = 2;
+
+let VERSION: String = "Aster Stage 1 Bootstrap Compiler v0.1.0";
+let USAGE: String = "Usage: aster [options] <input-file>\n\
+Options:\n\
+  -o <file>        Output file\n\
+  -t <target>      Target (c, llvm, asm)\n\
+  -v, --verbose    Verbose output\n\
+  -h, --help       Show this help\n\
+  --version        Show version\n";
+
+// ============================================================================
+// Factory Functions
+// ============================================================================
+
+fn new_cli_config() -> CliConfig {
+    CliConfig {
+        input_file: "",
+        output_file: "output.c",
+        target: TARGET_C,
+        verbose: false,
+        help: false,
+        version: false
+    }
+}
+
+fn new_cli_result(code: i32, msg: String) -> CliResult {
+    CliResult {
+        exit_code: code,
+        message: msg
+    }
+}
+
+// ============================================================================
+// Main Entry Point
+// ============================================================================
+
+fn main(args: Vec<String>) -> i32 {
+    // Parse command-line arguments
+    let config = parse_args(args);
+    
+    // Handle special flags
+    if config.version {
+        print_version();
+        return EXIT_SUCCESS;
+    }
+    
+    if config.help || config.input_file == "" {
+        print_usage();
+        return if config.help { EXIT_SUCCESS } else { EXIT_USAGE };
+    }
+    
+    // Run compilation
+    let result = compile_with_config(config);
+    
+    // Print result
+    if result.message != "" {
+        print_message(result.message);
+    }
+    
+    result.exit_code
+}
+
+// ============================================================================
+// Argument Parsing
+// ============================================================================
+
+fn parse_args(args: Vec<String>) -> CliConfig {
+    let config = new_cli_config();
+    let i = 1; // Skip program name
+    
+    // TODO: Actual argument parsing loop
+    // This is a simplified version
+    
+    // For now, assume first arg is input file
+    if args.len() > 1 {
+        config.input_file = args[1];
+    }
+    
+    config
+}
+
+fn parse_target(target_str: String) -> i32 {
+    if target_str == "c" {
+        TARGET_C
+    } else if target_str == "llvm" {
+        TARGET_LLVM
+    } else if target_str == "asm" {
+        TARGET_ASSEMBLY
+    } else {
+        TARGET_C  // Default to C
+    }
+}
+
+// ============================================================================
+// Compilation
+// ============================================================================
+
+fn compile_with_config(config: CliConfig) -> CliResult {
+    // Print status if verbose
+    if config.verbose {
+        print_status("Compiling: " + config.input_file);
+    }
+    
+    // Read source file
+    let source = read_source_file(config.input_file);
+    if source == "" {
+        let msg = "Error: Could not read file: " + config.input_file;
+        return new_cli_result(EXIT_ERROR, msg);
+    }
+    
+    // Run compilation pipeline
+    let compile_result = compile_source(source, config.target);
+    
+    if !compile_result.success {
+        let msg = "Compilation failed with " + int_to_string(compile_result.error_count) + " errors";
+        return new_cli_result(EXIT_ERROR, msg);
+    }
+    
+    // Write output file
+    let write_ok = write_output_file(config.output_file, compile_result.output_code);
+    if !write_ok {
+        let msg = "Error: Could not write output file: " + config.output_file;
+        return new_cli_result(EXIT_ERROR, msg);
+    }
+    
+    // Success
+    if config.verbose {
+        print_status("Output written to: " + config.output_file);
+    }
+    
+    new_cli_result(EXIT_SUCCESS, "Compilation successful")
+}
+
+// ============================================================================
+// File I/O
+// ============================================================================
+
+fn read_source_file(filename: String) -> String {
+    // TODO: Actual file reading
+    // This would use Core-0 I/O capabilities
+    // For now, return empty string
+    ""
+}
+
+fn write_output_file(filename: String, content: String) -> bool {
+    // TODO: Actual file writing
+    // This would use Core-0 I/O capabilities
+    true
+}
+
+// ============================================================================
+// Output Functions
+// ============================================================================
+
+fn print_version() {
+    print_line(VERSION);
+}
+
+fn print_usage() {
+    print_line(USAGE);
+}
+
+fn print_status(msg: String) {
+    print_line("[STATUS] " + msg);
+}
+
+fn print_error(msg: String) {
+    print_line("[ERROR] " + msg);
+}
+
+fn print_message(msg: String) {
+    print_line(msg);
+}
+
+fn print_line(msg: String) {
+    // TODO: Actual console output
+    // This would use Core-0 I/O capabilities
+}
+
+// ============================================================================
+// Utility Functions
+// ============================================================================
+
+fn int_to_string(n: i32) -> String {
+    // TODO: Actual integer to string conversion
+    // This is a placeholder
+    ""
+}
+
+fn string_concat(a: String, b: String) -> String {
+    // TODO: Actual string concatenation
+    // Using + operator for now (if supported)
+    a + b
+}
+
+// ============================================================================
+// Integration with Pipeline
+// ============================================================================
+
+// Import from pipeline.ast (conceptually)
+// fn compile_source(source: String, target: i32) -> CompileResult;
+
+// Placeholder for now
+struct CompileResult {
+    success: bool,
+    output_code: String,
+    error_count: i32
+}
+
+fn compile_source(source: String, target: i32) -> CompileResult {
+    // TODO: Call actual pipeline.ast compile_source
+    // This is a stub
+    CompileResult {
+        success: false,
+        output_code: "",
+        error_count: 0
+    }
+}
+
+// ============================================================================
+// Error Handling
+// ============================================================================
+
+fn format_compile_errors(errors: Vec<String>) -> String {
+    // TODO: Format all errors nicely
+    "Compilation errors occurred"
+}
+
+fn report_error(phase: String, message: String) {
+    print_error(phase + ": " + message);
+}
+
+// ============================================================================
+// Configuration Helpers
+// ============================================================================
+
+fn get_default_output_file(input_file: String, target: i32) -> String {
+    // Change extension based on target
+    if target == TARGET_C {
+        input_file + ".c"
+    } else if target == TARGET_LLVM {
+        input_file + ".ll"
+    } else {
+        input_file + ".s"
+    }
+}
+
+fn validate_config(config: CliConfig) -> bool {
+    // Check if input file is specified
+    if config.input_file == "" {
+        return false;
+    }
+    
+    // Check if target is valid
+    if config.target < 1 || config.target > 3 {
+        return false;
+    }
+    
+    true
+}

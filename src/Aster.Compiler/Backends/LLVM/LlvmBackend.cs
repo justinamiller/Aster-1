@@ -226,7 +226,8 @@ public sealed class LlvmBackend : IBackend
                 var defaultValue = GetDefaultValue(retType);
                 if (retType == "ptr")
                 {
-                    _output.AppendLine($"  %{instr.Destination.Name} = bitcast ptr null to ptr");
+                    // Use inttoptr instead of bitcast for null pointer
+                    _output.AppendLine($"  %{instr.Destination.Name} = inttoptr i64 0 to ptr");
                 }
                 else
                 {
@@ -272,10 +273,20 @@ public sealed class LlvmBackend : IBackend
         
         _output.AppendLine($"  ; load field '{fieldName}' from object (simplified for Core-0)");
         
-        // For pointer-typed fields, just pass through the object pointer via bitcast
+        // For pointer-typed fields, just pass through the object pointer
         if (destType == "ptr")
         {
-            _output.AppendLine($"  %{dest} = bitcast {MapType(obj.Type)} {FormatOperand(obj)} to ptr");
+            var srcType = MapType(obj.Type);
+            // Only emit bitcast if types are actually different, otherwise just copy
+            if (srcType != "ptr")
+            {
+                _output.AppendLine($"  %{dest} = bitcast {srcType} {FormatOperand(obj)} to ptr");
+            }
+            else
+            {
+                // Same type, just assign directly
+                _output.AppendLine($"  %{dest} = bitcast ptr {FormatOperand(obj)} to ptr  ; direct ptr copy");
+            }
         }
         // For bool fields, return false (0) - using add as a simple constant materializer
         else if (destType == "i1")
@@ -304,36 +315,30 @@ public sealed class LlvmBackend : IBackend
         var right = FormatOperand(instr.Operands[1]);
         var dest = instr.Destination.Name;
         var op = instr.Extra as BinaryOperator?;
+        
+        var type = MapType(instr.Operands[0].Type);
+        bool isFloatingPoint = type == "float" || type == "double";
 
         var llvmOp = op switch
         {
-            BinaryOperator.Add => "add",
-            BinaryOperator.Sub => "sub",
-            BinaryOperator.Mul => "mul",
-            BinaryOperator.Div => "sdiv",
-            BinaryOperator.Mod => "srem",
-            BinaryOperator.Eq => "icmp eq",
-            BinaryOperator.Ne => "icmp ne",
-            BinaryOperator.Lt => "icmp slt",
-            BinaryOperator.Le => "icmp sle",
-            BinaryOperator.Gt => "icmp sgt",
-            BinaryOperator.Ge => "icmp sge",
+            BinaryOperator.Add => isFloatingPoint ? "fadd" : "add",
+            BinaryOperator.Sub => isFloatingPoint ? "fsub" : "sub",
+            BinaryOperator.Mul => isFloatingPoint ? "fmul" : "mul",
+            BinaryOperator.Div => isFloatingPoint ? "fdiv" : "sdiv",
+            BinaryOperator.Mod => isFloatingPoint ? "frem" : "srem",
+            BinaryOperator.Eq => isFloatingPoint ? "fcmp oeq" : "icmp eq",
+            BinaryOperator.Ne => isFloatingPoint ? "fcmp one" : "icmp ne",
+            BinaryOperator.Lt => isFloatingPoint ? "fcmp olt" : "icmp slt",
+            BinaryOperator.Le => isFloatingPoint ? "fcmp ole" : "icmp sle",
+            BinaryOperator.Gt => isFloatingPoint ? "fcmp ogt" : "icmp sgt",
+            BinaryOperator.Ge => isFloatingPoint ? "fcmp oge" : "icmp sge",
             BinaryOperator.BitAnd => "and",
             BinaryOperator.BitOr => "or",
             BinaryOperator.BitXor => "xor",
             _ => "add",
         };
 
-        var type = MapType(instr.Operands[0].Type);
-
-        if (llvmOp.StartsWith("icmp"))
-        {
-            _output.AppendLine($"  %{dest} = {llvmOp} {type} {left}, {right}");
-        }
-        else
-        {
-            _output.AppendLine($"  %{dest} = {llvmOp} {type} {left}, {right}");
-        }
+        _output.AppendLine($"  %{dest} = {llvmOp} {type} {left}, {right}");
     }
 
     private void EmitUnaryOp(MirInstruction instr)

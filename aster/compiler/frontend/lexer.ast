@@ -250,8 +250,15 @@ fn next_token(mut lexer: Lexer) -> LexerTokenResult {
     let start_column = lexer.column;
     let ch = current_char_from_lexer(lexer);
     
-    // Identifiers and keywords
+    // Identifiers and keywords (or raw strings starting with 'r')
     if is_ident_start(ch) {
+        // Check for raw string literals: r"..." or r#"..."#
+        if ch == 'r' && lexer.position + 1 < string_length(lexer.source) {
+            let next = char_at(lexer.source, lexer.position + 1);
+            if next == '"' || next == '#' {
+                return lex_raw_string(lexer);
+            }
+        }
         return lex_identifier_or_keyword(lexer);
     }
     
@@ -265,8 +272,32 @@ fn next_token(mut lexer: Lexer) -> LexerTokenResult {
         return lex_string(lexer);
     }
     
-    // Char literals
+    // Char literals or lifetimes
     if ch == '\'' {
+        // Check if this is a lifetime ('a, 'static, '_) or a char literal
+        // Lifetimes: ' followed by identifier or _
+        if lexer.position + 1 < string_length(lexer.source) {
+            let next = char_at(lexer.source, lexer.position + 1);
+            if is_ident_start(next) || next == '_' {
+                // Check if there's a second ' which would make it a char
+                let mut is_lifetime = true;
+                let mut pos = lexer.position + 2;
+                while pos < string_length(lexer.source) {
+                    let c = char_at(lexer.source, pos);
+                    if c == '\'' {
+                        is_lifetime = false;
+                        break;
+                    }
+                    if !is_ident_continue(c) {
+                        break;
+                    }
+                    pos = pos + 1;
+                }
+                if is_lifetime {
+                    return lex_lifetime(lexer);
+                }
+            }
+        }
         return lex_char(lexer);
     }
     
@@ -348,6 +379,23 @@ fn lex_number(mut lexer: Lexer) -> LexerTokenResult {
             let token = new_token(TokenKind::IntegerLiteral, span, text);
             return LexerTokenResult { lexer: lexer, token: token };
         }
+        
+        // Octal: 0o...
+        if next == 'o' || next == 'O' {
+            lexer = advance(lexer); // skip '0'
+            lexer = advance(lexer); // skip 'o'
+            while lexer.position < string_length(lexer.source) {
+                let ch = char_at(lexer.source, lexer.position);
+                if !is_octal_digit(ch) {
+                    break;
+                }
+                lexer = advance(lexer);
+            }
+            let text = string_substring(lexer.source, start, lexer.position);
+            let span = new_span(lexer.file_name, start_line, start_col, start, lexer.position - start);
+            let token = new_token(TokenKind::IntegerLiteral, span, text);
+            return LexerTokenResult { lexer: lexer, token: token };
+        }
     }
     
     // Decimal digits
@@ -400,6 +448,23 @@ fn lex_number(mut lexer: Lexer) -> LexerTokenResult {
         }
     }
     
+    // Check for type suffix (i32, i64, u32, u64, f32, f64, etc.)
+    // Type suffixes are valid identifiers, so we check if we have one
+    if lexer.position < string_length(lexer.source) {
+        let ch = char_at(lexer.source, lexer.position);
+        if is_ident_start(ch) {
+            // This might be a type suffix like i32, i64, u32, u64, f32, f64
+            // For now, we include it in the literal value
+            while lexer.position < string_length(lexer.source) {
+                let ch = char_at(lexer.source, lexer.position);
+                if !is_ident_continue(ch) {
+                    break;
+                }
+                lexer = advance(lexer);
+            }
+        }
+    }
+    
     let text = string_substring(lexer.source, start, lexer.position);
     let kind = if is_float { TokenKind::FloatLiteral } else { TokenKind::IntegerLiteral };
     let span = new_span(lexer.file_name, start_line, start_col, start, lexer.position - start);
@@ -429,17 +494,45 @@ fn lex_string(mut lexer: Lexer) -> LexerTokenResult {
             lexer = advance(lexer);
             if lexer.position < string_length(lexer.source) {
                 let esc = char_at(lexer.source, lexer.position);
-                let escaped_char = match esc {
-                    'n' => '\n',
-                    'r' => '\r',
-                    't' => '\t',
-                    '\\' => '\\',
-                    '"' => '"',
-                    '0' => '\0',
-                    _ => esc
-                };
-                result.push(escaped_char);
-                lexer = advance(lexer);
+                
+                // Unicode escape: \u{XXXX}
+                if esc == 'u' {
+                    lexer = advance(lexer);
+                    if lexer.position < string_length(lexer.source) && char_at(lexer.source, lexer.position) == '{' {
+                        lexer = advance(lexer); // skip '{'
+                        
+                        // For Core-0 simplification, we just consume the hex digits and closing brace
+                        // In a real implementation, we'd parse the hex value and convert to char
+                        while lexer.position < string_length(lexer.source) {
+                            let c = char_at(lexer.source, lexer.position);
+                            if c == '}' {
+                                lexer = advance(lexer);
+                                // For now, just add a placeholder (in real impl, convert hex to char)
+                                result.push('?');
+                                break;
+                            }
+                            if !is_hex_digit(c) && c != '_' {
+                                break;
+                            }
+                            lexer = advance(lexer);
+                        }
+                    } else {
+                        result.push('u');
+                    }
+                } else {
+                    // Standard escapes
+                    let escaped_char = match esc {
+                        'n' => '\n',
+                        'r' => '\r',
+                        't' => '\t',
+                        '\\' => '\\',
+                        '"' => '"',
+                        '0' => '\0',
+                        _ => esc
+                    };
+                    result.push(escaped_char);
+                    lexer = advance(lexer);
+                }
             }
         } else {
             result.push(ch);
@@ -480,17 +573,44 @@ fn lex_char(mut lexer: Lexer) -> LexerTokenResult {
             lexer = advance(lexer);
             if lexer.position < string_length(lexer.source) {
                 let esc = char_at(lexer.source, lexer.position);
-                let escaped_char = match esc {
-                    'n' => '\n',
-                    'r' => '\r',
-                    't' => '\t',
-                    '\\' => '\\',
-                    '\'' => '\'',
-                    '0' => '\0',
-                    _ => esc
-                };
-                value.push(escaped_char);
-                lexer = advance(lexer);
+                
+                // Unicode escape: \u{XXXX}
+                if esc == 'u' {
+                    lexer = advance(lexer);
+                    if lexer.position < string_length(lexer.source) && char_at(lexer.source, lexer.position) == '{' {
+                        lexer = advance(lexer); // skip '{'
+                        
+                        // For Core-0 simplification, we just consume the hex digits and closing brace
+                        while lexer.position < string_length(lexer.source) {
+                            let c = char_at(lexer.source, lexer.position);
+                            if c == '}' {
+                                lexer = advance(lexer);
+                                // For now, just add a placeholder
+                                value.push('?');
+                                break;
+                            }
+                            if !is_hex_digit(c) && c != '_' {
+                                break;
+                            }
+                            lexer = advance(lexer);
+                        }
+                    } else {
+                        value.push('u');
+                    }
+                } else {
+                    // Standard escapes
+                    let escaped_char = match esc {
+                        'n' => '\n',
+                        'r' => '\r',
+                        't' => '\t',
+                        '\\' => '\\',
+                        '\'' => '\'',
+                        '0' => '\0',
+                        _ => esc
+                    };
+                    value.push(escaped_char);
+                    lexer = advance(lexer);
+                }
             }
         } else {
             value.push(ch);
@@ -508,6 +628,111 @@ fn lex_char(mut lexer: Lexer) -> LexerTokenResult {
     lexer = advance(lexer); // skip closing '\''
     let span = new_span(lexer.file_name, start_line, start_col, start, lexer.position - start);
     let token = new_token(TokenKind::CharLiteral, span, value);
+    LexerTokenResult { lexer: lexer, token: token }
+}
+
+/// Lex a raw string literal (r"..." or r#"..."#).
+/// Raw strings don't process escape sequences.
+/// Returns LexerTokenResult with updated lexer and token
+fn lex_raw_string(mut lexer: Lexer) -> LexerTokenResult {
+    let start = lexer.position;
+    let start_line = lexer.line;
+    let start_col = lexer.column;
+    
+    lexer = advance(lexer); // skip 'r'
+    
+    // Count opening hashes
+    let mut hash_count = 0;
+    while lexer.position < string_length(lexer.source) {
+        let ch = char_at(lexer.source, lexer.position);
+        if ch == '#' {
+            hash_count = hash_count + 1;
+            lexer = advance(lexer);
+        } else {
+            break;
+        }
+    }
+    
+    // Expect opening quote
+    if lexer.position >= string_length(lexer.source) || char_at(lexer.source, lexer.position) != '"' {
+        let span = new_span(lexer.file_name, start_line, start_col, start, lexer.position - start);
+        let token = make_error_token(span, String::from("Expected '\"' after raw string prefix"));
+        return LexerTokenResult { lexer: lexer, token: token };
+    }
+    
+    lexer = advance(lexer); // skip opening '"'
+    
+    let mut result = String::new();
+    
+    // Consume until we find closing "### (with matching hash count)
+    while lexer.position < string_length(lexer.source) {
+        let ch = char_at(lexer.source, lexer.position);
+        
+        if ch == '"' {
+            // Check if this is followed by the right number of hashes
+            let mut closing_hashes = 0;
+            let mut temp_pos = lexer.position + 1;
+            while temp_pos < string_length(lexer.source) && closing_hashes < hash_count {
+                let h = char_at(lexer.source, temp_pos);
+                if h == '#' {
+                    closing_hashes = closing_hashes + 1;
+                    temp_pos = temp_pos + 1;
+                } else {
+                    break;
+                }
+            }
+            
+            if closing_hashes == hash_count {
+                // Found the end!
+                lexer = advance(lexer); // skip closing '"'
+                // Skip the hashes
+                let mut i = 0;
+                while i < hash_count {
+                    lexer = advance(lexer);
+                    i = i + 1;
+                }
+                let span = new_span(lexer.file_name, start_line, start_col, start, lexer.position - start);
+                let token = new_token(TokenKind::StringLiteral, span, result);
+                return LexerTokenResult { lexer: lexer, token: token };
+            }
+        }
+        
+        // Not the end, add character to result (no escape processing!)
+        result.push(ch);
+        lexer = advance(lexer);
+    }
+    
+    // Unterminated raw string
+    let span = new_span(lexer.file_name, start_line, start_col, start, lexer.position - start);
+    let token = make_error_token(span, String::from("Unterminated raw string literal"));
+    LexerTokenResult { lexer: lexer, token: token }
+}
+
+/// Lex a lifetime token ('a, 'static, '_).
+/// Returns LexerTokenResult with updated lexer and token
+fn lex_lifetime(mut lexer: Lexer) -> LexerTokenResult {
+    let start = lexer.position;
+    let start_line = lexer.line;
+    let start_col = lexer.column;
+    
+    lexer = advance(lexer); // skip '\''
+    
+    // Collect identifier or underscore
+    let mut name = String::from("'");
+    
+    while lexer.position < string_length(lexer.source) {
+        let ch = char_at(lexer.source, lexer.position);
+        if is_ident_continue(ch) || ch == '_' {
+            name.push(ch);
+            lexer = advance(lexer);
+        } else {
+            break;
+        }
+    }
+    
+    let span = new_span(lexer.file_name, start_line, start_col, start, lexer.position - start);
+    // Use Identifier kind for lifetimes (could add a Lifetime token kind later)
+    let token = new_token(TokenKind::Identifier, span, name);
     LexerTokenResult { lexer: lexer, token: token }
 }
 
@@ -804,6 +1029,10 @@ fn is_hex_digit(ch: char) -> bool {
     (ch >= 'a' && ch <= 'f') || 
     (ch >= 'A' && ch <= 'F') ||
     ch == '_'
+}
+
+fn is_octal_digit(ch: char) -> bool {
+    (ch >= '0' && ch <= '7') || ch == '_'
 }
 
 fn is_ident_start(ch: char) -> bool {
