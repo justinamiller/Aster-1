@@ -61,14 +61,23 @@ public sealed class LoopUnrollPass
                     // Collect body blocks (inclusive of header through back-edge block)
                     var bodyBlocks = workBlocks.Skip(headerIdx).Take(i - headerIdx + 1).ToList();
 
-                    // Build unrolled replacement
+                    // Build unrolled replacement: tripCount copies of the body, each with a unique
+                    // iteration suffix.  Indices here are provisional; ReindexBlocks() corrects them
+                    // after the function is fully assembled.
                     var unrolled = new List<MirBasicBlock>();
                     for (int iter = 0; iter < tripCount; iter++)
                     {
                         foreach (var bb in bodyBlocks)
                         {
-                            var newBb = new MirBasicBlock($"{bb.Label}_ur{iter}", unrolled.Count + headerIdx);
+                            // Provisional index: headerIdx + position in unrolled list.
+                            // ReindexBlocks() will canonicalise all indices afterwards.
+                            int provisionalIdx = headerIdx + unrolled.Count;
+                            var newBb = new MirBasicBlock($"{bb.Label}_ur{iter}", provisionalIdx);
                             foreach (var instr in bb.Instructions)
+                                // Note: back-edge label strings in instruction Extra are metadata
+                                // only (control flow is carried by Terminators, not Extra).
+                                // They are intentionally left unrenamed — downstream passes do not
+                                // use them for control-flow resolution.
                                 newBb.Instructions.Add(CloneInstruction(instr, $"_ur{iter}"));
                             unrolled.Add(newBb);
                         }
