@@ -43,4 +43,10 @@ public interface IAstVisitor<T>
     T VisitExpressionStmt(ExpressionStmtNode node);
     T VisitClosureExpr(ClosureExprNode node);
     T VisitTypeAliasDecl(TypeAliasDeclNode node);
+    // ========== Phase 4 ==========
+    T VisitMethodCallExpr(MethodCallExprNode node);
+    T VisitAssociatedTypeDecl(AssociatedTypeDeclNode node);
+    T VisitMacroRule(MacroRuleNode node);
+    T VisitMacroDecl(MacroDeclNode node);
+    T VisitMacroInvocationExpr(MacroInvocationExprNode node);
 }

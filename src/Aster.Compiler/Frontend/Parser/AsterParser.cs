@@ -92,6 +92,9 @@ public sealed class AsterParser
             return ParseUseDeclaration();
         if (Check(TokenKind.Type))
             return ParseTypeAliasDecl(isPublic);
+        // Phase 4: macro_rules! name { ... } declaration
+        if (Check(TokenKind.Identifier) && Current.Value == "macro_rules" && Peek(1).Kind == TokenKind.Bang)
+            return ParseMacroRulesDecl(isPublic);
         if (Check(TokenKind.Let))
             return ParseLetStmt();
 
@@ -183,6 +186,67 @@ public sealed class AsterParser
         {
             var paramSpan = Current.Span;
             var isMut = false;
+
+            // Handle &self, &mut self, self (receiver parameters)
+            if (Check(TokenKind.Ampersand))
+            {
+                Advance(); // consume '&'
+                // Optional lifetime: &'a self
+                if (Check(TokenKind.Lifetime)) Advance();
+                if (Check(TokenKind.Mut))
+                {
+                    isMut = true;
+                    Advance();
+                }
+                // Expect 'self' identifier
+                if (Check(TokenKind.Identifier) && Current.Value == "self")
+                {
+                    var selfName = Current.Value;
+                    Advance();
+                    TypeAnnotationNode? selfRefType = null;
+                    if (Check(TokenKind.Colon))
+                    {
+                        Advance();
+                        selfRefType = ParseTypeAnnotation();
+                    }
+                    parameters.Add(new ParameterNode(selfName, selfRefType, isMut, MakeSpan(paramSpan)));
+                    if (!Check(TokenKind.RightParen))
+                        Expect(TokenKind.Comma, "Expected ',' between parameters");
+                    continue;
+                }
+                // Not 'self' after '&' — treat as reference type parameter (fall through)
+                // We need to restore context: parse a name then a reference type
+                // For now, create a synthetic name
+                var paramName2 = ExpectIdentifier("Expected parameter name after '&'");
+                TypeAnnotationNode? refType = null;
+                if (Check(TokenKind.Colon))
+                {
+                    Advance();
+                    refType = ParseTypeAnnotation();
+                }
+                parameters.Add(new ParameterNode(paramName2, refType, isMut, MakeSpan(paramSpan)));
+                if (!Check(TokenKind.RightParen))
+                    Expect(TokenKind.Comma, "Expected ',' between parameters");
+                continue;
+            }
+
+            // Bare 'self' (move self) or 'self: Type'
+            if (Check(TokenKind.Identifier) && Current.Value == "self")
+            {
+                var selfName = Current.Value;
+                Advance();
+                TypeAnnotationNode? selfTypeAnnot = null;
+                if (Check(TokenKind.Colon))
+                {
+                    Advance();
+                    selfTypeAnnot = ParseTypeAnnotation();
+                }
+                parameters.Add(new ParameterNode(selfName, selfTypeAnnot, false, MakeSpan(paramSpan)));
+                if (!Check(TokenKind.RightParen))
+                    Expect(TokenKind.Comma, "Expected ',' between parameters");
+                continue;
+            }
+
             if (Check(TokenKind.Mut))
             {
                 isMut = true;
@@ -323,6 +387,7 @@ public sealed class AsterParser
         Expect(TokenKind.LeftBrace, "Expected '{'");
 
         var methods = new List<FunctionDeclNode>();
+        var associatedTypes = new List<AssociatedTypeDeclNode>();
         while (!Check(TokenKind.RightBrace) && !IsAtEnd)
         {
             var methodPublic = false;
@@ -331,11 +396,34 @@ public sealed class AsterParser
                 methodPublic = true;
                 Advance();
             }
-            methods.Add(ParseFunctionDecl(methodPublic));
+            // Phase 4: associated type declaration inside impl block: type Item = T;
+            if (Check(TokenKind.Type))
+            {
+                associatedTypes.Add(ParseAssociatedTypeDecl(methodPublic));
+            }
+            else
+            {
+                methods.Add(ParseFunctionDecl(methodPublic));
+            }
         }
 
         Expect(TokenKind.RightBrace, "Expected '}'");
-        return new ImplDeclNode(targetType, traitType, methods, MakeSpan(startSpan));
+        return new ImplDeclNode(targetType, traitType, methods, associatedTypes, MakeSpan(startSpan));
+    }
+
+    private AssociatedTypeDeclNode ParseAssociatedTypeDecl(bool isPublic)
+    {
+        var startSpan = Current.Span;
+        Expect(TokenKind.Type, "Expected 'type'");
+        var name = ExpectIdentifier("Expected associated type name");
+        TypeAnnotationNode? target = null;
+        if (Check(TokenKind.Equals))
+        {
+            Advance();
+            target = ParseTypeAnnotation();
+        }
+        if (Check(TokenKind.Semicolon)) Advance();
+        return new AssociatedTypeDeclNode(name, target, isPublic, MakeSpan(startSpan));
     }
 
     private ModuleDeclNode ParseModuleDecl(bool isPublic)
@@ -366,6 +454,65 @@ public sealed class AsterParser
         var target = ParseTypeAnnotation();
         if (Check(TokenKind.Semicolon)) Advance();
         return new TypeAliasDeclNode(name, target, isPublic, MakeSpan(startSpan));
+    }
+
+    /// <summary>Phase 4: Parse a macro_rules! declaration.</summary>
+    private MacroDeclNode ParseMacroRulesDecl(bool isPublic)
+    {
+        var startSpan = Current.Span;
+        Advance(); // skip 'macro_rules' identifier
+        Advance(); // skip '!'
+        var name = ExpectIdentifier("Expected macro name after macro_rules!");
+        Expect(TokenKind.LeftBrace, "Expected '{'");
+
+        var rules = new List<MacroRuleNode>();
+        while (!Check(TokenKind.RightBrace) && !IsAtEnd)
+        {
+            var ruleSpan = Current.Span;
+            // Pattern: (...)
+            if (Check(TokenKind.LeftParen))
+            {
+                // Skip the pattern section — consume tokens until the matching ')'
+                // We don't yet parse $x:expr patterns; just skip them
+                var patternParams = new List<string>();
+                int depth = 0;
+                while (!IsAtEnd)
+                {
+                    if (Check(TokenKind.LeftParen)) depth++;
+                    else if (Check(TokenKind.RightParen)) { depth--; if (depth == 0) { Advance(); break; } }
+                    // Capture $ident pattern params
+                    if (Check(TokenKind.Dollar))
+                    {
+                        Advance(); // skip '$'
+                        if (Check(TokenKind.Identifier))
+                        {
+                            patternParams.Add(Current.Value);
+                            Advance();
+                            // skip :expr, :ident, etc.
+                            if (Check(TokenKind.Colon)) { Advance(); if (Check(TokenKind.Identifier)) Advance(); }
+                        }
+                        continue;
+                    }
+                    Advance();
+                }
+                Expect(TokenKind.FatArrow, "Expected '=>' after macro pattern");
+                // Body is a block
+                if (Check(TokenKind.LeftBrace))
+                {
+                    var body = ParseBlock();
+                    rules.Add(new MacroRuleNode(patternParams, body, MakeSpan(ruleSpan)));
+                }
+                if (Check(TokenKind.Semicolon)) Advance();
+            }
+            else
+            {
+                // Malformed macro rule; skip to next
+                Advance();
+            }
+        }
+
+        Expect(TokenKind.RightBrace, "Expected '}'");
+        return new MacroDeclNode(name, rules, isPublic, MakeSpan(startSpan));
     }
 
     private ClosureExprNode ParseClosureExpr(Span startSpan)
@@ -584,7 +731,24 @@ public sealed class AsterParser
             {
                 Advance();
                 var member = ExpectIdentifier("Expected member name");
-                expr = new MemberAccessExprNode(expr, member, MakeSpan(expr.Span));
+                // Phase 4: detect method call: obj.method(args) → MethodCallExprNode
+                if (Check(TokenKind.LeftParen))
+                {
+                    Advance();
+                    var methodArgs = new List<AstNode>();
+                    while (!Check(TokenKind.RightParen) && !IsAtEnd)
+                    {
+                        methodArgs.Add(ParseExpression());
+                        if (!Check(TokenKind.RightParen))
+                            Expect(TokenKind.Comma, "Expected ','");
+                    }
+                    Expect(TokenKind.RightParen, "Expected ')'");
+                    expr = new MethodCallExprNode(expr, member, methodArgs, MakeSpan(expr.Span));
+                }
+                else
+                {
+                    expr = new MemberAccessExprNode(expr, member, MakeSpan(expr.Span));
+                }
             }
             else if (Check(TokenKind.LeftBracket))
             {
@@ -597,6 +761,27 @@ public sealed class AsterParser
             {
                 Advance();
                 expr = new UnaryExprNode(UnaryOperator.Try, expr, MakeSpan(expr.Span));
+            }
+            // Phase 4: macro invocation: name!(args) or name![args]
+            else if (Check(TokenKind.Bang) && (Peek(1).Kind == TokenKind.LeftParen || Peek(1).Kind == TokenKind.LeftBracket))
+            {
+                if (expr is IdentifierExprNode identExpr)
+                {
+                    Advance(); // consume '!'
+                    var macroArgs = ParseMacroInvocationArgs();
+                    expr = new MacroInvocationExprNode(identExpr.Name, macroArgs, MakeSpan(expr.Span));
+                }
+                else if (expr is PathExprNode pathExpr)
+                {
+                    Advance(); // consume '!'
+                    var macroArgs = ParseMacroInvocationArgs();
+                    var macroName = string.Join("::", pathExpr.Segments);
+                    expr = new MacroInvocationExprNode(macroName, macroArgs, MakeSpan(expr.Span));
+                }
+                else
+                {
+                    break;
+                }
             }
             else
             {
@@ -613,6 +798,22 @@ public sealed class AsterParser
         }
 
         return expr;
+    }
+
+    /// <summary>Parse macro invocation arguments inside !(args) or ![args].</summary>
+    private IReadOnlyList<AstNode> ParseMacroInvocationArgs()
+    {
+        var args = new List<AstNode>();
+        bool useBracket = Check(TokenKind.LeftBracket);
+        var closeKind = useBracket ? TokenKind.RightBracket : TokenKind.RightParen;
+        Advance(); // consume '(' or '['
+        while (!Check(closeKind) && !IsAtEnd)
+        {
+            args.Add(ParseExpression());
+            if (Check(TokenKind.Comma)) Advance();
+        }
+        Expect(closeKind, useBracket ? "Expected ']'" : "Expected ')'");
+        return args;
     }
 
     private AstNode ParsePrimaryExpression()
@@ -993,6 +1194,10 @@ public sealed class AsterParser
             }
             Advance();
             
+            // Phase 4: Skip optional lifetime annotation: &'a T, &'static T
+            if (Check(TokenKind.Lifetime))
+                Advance();
+
             // Skip 'mut' if present
             if (Check(TokenKind.Mut))
             {

@@ -22,6 +22,8 @@ public sealed class TypeChecker
     private readonly Dictionary<string, Dictionary<string, FunctionType>> _implMethods = new();
     // Type aliases: alias name -> underlying AsterType
     private readonly Dictionary<string, AsterType> _typeAliases = new();
+    // Phase 4: associated types: "TypeName::AssocName" -> AsterType
+    private readonly Dictionary<string, AsterType> _associatedTypes = new();
     public DiagnosticBag Diagnostics { get; } = new();
 
     // Built-in generic type constructors (Weeks 13-16)
@@ -158,6 +160,11 @@ public sealed class TypeChecker
         HirMatchExpr matchExpr => CheckMatchExpr(matchExpr),
         HirClosureExpr closure => CheckClosureExpr(closure),
         HirTypeAliasDecl alias => CheckTypeAliasDecl(alias),
+        // Phase 4
+        HirMethodCallExpr mc => CheckMethodCallExpr(mc),
+        HirAssociatedTypeDecl assoc => CheckAssociatedTypeDecl(assoc),
+        HirMacroDecl => PrimitiveType.Void,
+        HirMacroInvocationExpr macroInv => CheckMacroInvocation(macroInv),
         HirLetStmt let => CheckLetStmt(let),
         HirReturnStmt ret => ret.Value != null ? CheckNode(ret.Value) : PrimitiveType.Void,
         HirExprStmt es => CheckNode(es.Expression),
@@ -232,6 +239,11 @@ public sealed class TypeChecker
             var typeName = path.Segments[0];
             var variantName = path.Segments[1];
 
+            // Phase 4: check associated type projections first (e.g. Point::Item, Iterator::Item)
+            var assocKey = $"{typeName}::{variantName}";
+            if (_associatedTypes.TryGetValue(assocKey, out var assocType))
+                return assocType;
+
             if (_enumTypes.TryGetValue(typeName, out var enumType))
             {
                 // Check if variant exists
@@ -261,6 +273,61 @@ public sealed class TypeChecker
         
         // For single-segment paths or unresolved multi-segment paths
         // Return a type variable for now (will be resolved later if possible)
+        return new TypeVariable();
+    }
+
+    // ========== Phase 4: Method Calls, Associated Types, Macros ==========
+
+    /// <summary>
+    /// Type-check a method call expression: receiver.method(args).
+    /// Looks up the method in the impl table for the receiver's type.
+    /// Falls back to a TypeVariable return type when the method is not (yet) registered.
+    /// </summary>
+    private AsterType CheckMethodCallExpr(HirMethodCallExpr mc)
+    {
+        var receiverType = CheckNode(mc.Receiver);
+
+        // Determine the name of the receiver's type for method lookup
+        string? typeName = receiverType switch
+        {
+            StructType st => st.Name,
+            EnumType et => et.Name,
+            PrimitiveType pt => pt.Kind.ToString().ToLowerInvariant(),
+            _ => null,
+        };
+
+        if (typeName != null && _implMethods.TryGetValue(typeName, out var methodTable)
+            && methodTable.TryGetValue(mc.MethodName, out var methodType))
+        {
+            // Skip the self parameter when checking arguments
+            var paramTypes = methodType.ParameterTypes.ToList();
+            int firstNonSelfParam = paramTypes.Count > 0 ? 1 : 0; // skip self
+            int argOffset = 0;
+            for (int i = firstNonSelfParam; i < paramTypes.Count && argOffset < mc.Arguments.Count; i++, argOffset++)
+            {
+                var argType = CheckNode(mc.Arguments[argOffset]);
+                _solver.AddConstraint(new EqualityConstraint(argType, paramTypes[i], mc.Arguments[argOffset].Span));
+            }
+            return methodType.ReturnType;
+        }
+
+        // Method not found in impl table — check arguments anyway and return TypeVariable
+        foreach (var arg in mc.Arguments) CheckNode(arg);
+        return new TypeVariable();
+    }
+
+    /// <summary>Type-check an associated type declaration (side-effect: registered in CheckImplDecl).</summary>
+    private AsterType CheckAssociatedTypeDecl(HirAssociatedTypeDecl assoc)
+    {
+        // The associated type is already registered in CheckImplDecl; nothing else to do here.
+        return PrimitiveType.Void;
+    }
+
+    /// <summary>Type-check a macro invocation — delegates to the expanded form if available.</summary>
+    private AsterType CheckMacroInvocation(HirMacroInvocationExpr macroInv)
+    {
+        if (macroInv.Expanded != null)
+            return CheckNode(macroInv.Expanded);
         return new TypeVariable();
     }
 
@@ -760,6 +827,13 @@ public sealed class TypeChecker
             CheckFunctionDecl(fn);
             if (fn.Symbol.Type is FunctionType ft)
                 table[fn.Symbol.Name] = ft;
+        }
+
+        // Phase 4: register associated types — "TargetType::Item" → resolved type
+        foreach (var assoc in impl.AssociatedTypes)
+        {
+            var resolvedType = assoc.TypeRef != null ? ResolveTypeRef(assoc.TypeRef) : new TypeVariable();
+            _associatedTypes[$"{impl.TargetTypeName}::{assoc.Name}"] = resolvedType;
         }
 
         // If this is a trait impl, register it in the trait solver

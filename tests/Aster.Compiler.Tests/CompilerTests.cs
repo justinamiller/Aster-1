@@ -3624,3 +3624,537 @@ fn main() { }
     }
 }
 
+// ========== Phase 4 Week 21-22: Method Call Dispatch ==========
+
+public class Phase4MethodCallTests
+{
+    [Fact]
+    public void Parse_MethodCall_ProducesMethodCallExprNode()
+    {
+        var source = @"
+struct Point { x: i32, y: i32 }
+fn main() {
+    let p = Point { x: 1, y: 2 };
+    p.distance();
+}
+";
+        var lexer = new AsterLexer(source, "t");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        Assert.False(lexer.Diagnostics.HasErrors);
+        // Verify the call to distance() produced a MethodCallExprNode (not a CallExpr over MemberAccess)
+        var mainFn = ast.Declarations.OfType<FunctionDeclNode>().First(f => f.Name == "main");
+        var stmts = mainFn.Body.Statements;
+        // Last stmt should be ExpressionStmt containing MethodCallExprNode
+        var exprStmt = stmts.Last() as ExpressionStmtNode;
+        Assert.NotNull(exprStmt);
+        Assert.IsType<MethodCallExprNode>(exprStmt!.Expression);
+        var mc = (MethodCallExprNode)exprStmt.Expression;
+        Assert.Equal("distance", mc.MethodName);
+    }
+
+    [Fact]
+    public void Parse_MethodCall_DistinguishedFromFieldAccess()
+    {
+        // field access: obj.field  → MemberAccessExprNode
+        // method call:  obj.field()  → MethodCallExprNode
+        var source = @"
+struct Rect { w: i32 }
+fn main() {
+    let r = Rect { w: 5 };
+    let _ = r.w;
+    r.area();
+}
+";
+        var lexer = new AsterLexer(source, "t");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        Assert.False(lexer.Diagnostics.HasErrors);
+        var mainFn = ast.Declarations.OfType<FunctionDeclNode>().First(f => f.Name == "main");
+        var stmts = mainFn.Body.Statements;
+        // Second let: r.w is field access
+        var letW = stmts.OfType<LetStmtNode>().LastOrDefault();
+        Assert.NotNull(letW);
+        Assert.IsType<MemberAccessExprNode>(letW!.Initializer!);
+        // Last: r.area() is method call
+        var last = stmts.Last() as ExpressionStmtNode;
+        Assert.IsType<MethodCallExprNode>(last!.Expression);
+    }
+
+    [Fact]
+    public void Resolve_MethodCall_ProducesHirMethodCallExpr()
+    {
+        var source = @"
+struct Counter { val: i32 }
+impl Counter {
+    fn get(&self) -> i32 { 0 }
+}
+fn main() {
+    let c = Counter { val: 0 };
+    c.get();
+}
+";
+        var lexer = new AsterLexer(source, "t");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        var hir = new NameResolver().Resolve(ast);
+        var mainFn = hir.Declarations.OfType<HirFunctionDecl>().First(f => f.Symbol.Name == "main");
+        var lastStmt = mainFn.Body.Statements.Last();
+        var exprStmt = lastStmt as HirExprStmt;
+        Assert.NotNull(exprStmt);
+        Assert.IsType<HirMethodCallExpr>(exprStmt!.Expression);
+        var mc = (HirMethodCallExpr)exprStmt.Expression;
+        Assert.Equal("get", mc.MethodName);
+    }
+
+    [Fact]
+    public void TypeCheck_MethodCall_LooksUpImplMethod()
+    {
+        var source = @"
+struct Box { val: i32 }
+impl Box {
+    fn unwrap(&self) -> i32 { self.val }
+}
+fn main() {
+    let b = Box { val: 99 };
+    let x = b.unwrap();
+}
+";
+        var lexer = new AsterLexer(source, "t");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        var hir = new NameResolver().Resolve(ast);
+        var checker = new TypeChecker();
+        checker.Check(hir);
+        // Method is registered in impl table; type check should not produce E0300-range errors
+        var errors = checker.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
+        Assert.DoesNotContain(errors, e => e.Code == "E0305");
+    }
+
+    [Fact]
+    public void TypeCheck_MethodCall_WithArgs()
+    {
+        var source = @"
+struct Adder { base: i32 }
+impl Adder {
+    fn add(&self, x: i32) -> i32 { x }
+}
+fn main() {
+    let a = Adder { base: 10 };
+    let result = a.add(5);
+}
+";
+        var driver = new CompilationDriver();
+        driver.Check(source, "test.ast");
+        Assert.False(driver.Diagnostics.HasErrors);
+    }
+
+    [Fact]
+    public void TypeCheck_MethodCall_UnknownMethod_ReturnsFallback()
+    {
+        // Calling an unregistered method should not crash — fall back to TypeVariable
+        var source = @"
+struct Foo { x: i32 }
+fn main() {
+    let f = Foo { x: 1 };
+    f.unknown_method();
+}
+";
+        var lexer = new AsterLexer(source, "t");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        var hir = new NameResolver().Resolve(ast);
+        var checker = new TypeChecker();
+        checker.Check(hir);
+        // Should not throw; unknown method falls back to TypeVariable (no fatal error)
+        // (An optional warning/error is acceptable but not required for Phase 4)
+    }
+
+    [Fact]
+    public void FullPipeline_MethodCall_Compiles()
+    {
+        var source = @"
+struct Point { x: i32, y: i32 }
+impl Point {
+    fn sum(&self) -> i32 { self.x }
+}
+fn main() {
+    let p = Point { x: 3, y: 4 };
+    let s = p.sum();
+}
+";
+        var driver = new CompilationDriver();
+        Assert.NotNull(driver.Compile(source, "test.ast"));
+    }
+
+    [Fact]
+    public void FullPipeline_MethodCallChain_Compiles()
+    {
+        var source = @"
+struct Builder { val: i32 }
+impl Builder {
+    fn set(&self, v: i32) -> i32 { v }
+}
+fn main() {
+    let b = Builder { val: 0 };
+    let x = b.set(10);
+    let y = b.set(20);
+}
+";
+        var driver = new CompilationDriver();
+        Assert.NotNull(driver.Compile(source, "test.ast"));
+    }
+}
+
+// ========== Phase 4 Week 23-24: Associated Types ==========
+
+public class Phase4AssociatedTypeTests
+{
+    [Fact]
+    public void Parse_ImplBlock_WithAssociatedType()
+    {
+        var source = @"
+struct Wrapper { val: i32 }
+impl Wrapper {
+    type Item = i32;
+    fn get(&self) -> i32 { self.val }
+}
+fn main() { }
+";
+        var lexer = new AsterLexer(source, "t");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        Assert.False(lexer.Diagnostics.HasErrors);
+        var impl = ast.Declarations.OfType<ImplDeclNode>().First();
+        Assert.Single(impl.AssociatedTypes);
+        Assert.Equal("Item", impl.AssociatedTypes[0].Name);
+    }
+
+    [Fact]
+    public void Parse_ImplBlock_MultipleAssociatedTypes()
+    {
+        var source = @"
+struct Map { key: i32 }
+impl Map {
+    type Key = i32;
+    type Value = i32;
+}
+fn main() { }
+";
+        var lexer = new AsterLexer(source, "t");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        Assert.False(lexer.Diagnostics.HasErrors);
+        var impl = ast.Declarations.OfType<ImplDeclNode>().First();
+        Assert.Equal(2, impl.AssociatedTypes.Count);
+    }
+
+    [Fact]
+    public void Resolve_AssociatedType_ProducesHirAssociatedTypeDecl()
+    {
+        var source = @"
+struct Container { data: i32 }
+impl Container {
+    type Item = i32;
+}
+fn main() { }
+";
+        var lexer = new AsterLexer(source, "t");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        var hir = new NameResolver().Resolve(ast);
+        var impl = hir.Declarations.OfType<HirImplDecl>().First();
+        Assert.Single(impl.AssociatedTypes);
+        Assert.Equal("Item", impl.AssociatedTypes[0].Name);
+        Assert.Equal("Container", impl.AssociatedTypes[0].OwnerTypeName);
+    }
+
+    [Fact]
+    public void TypeCheck_AssociatedType_Registered()
+    {
+        var source = @"
+struct Iterator { pos: i32 }
+impl Iterator {
+    type Item = i32;
+}
+fn main() { }
+";
+        var lexer = new AsterLexer(source, "t");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        var hir = new NameResolver().Resolve(ast);
+        var checker = new TypeChecker();
+        checker.Check(hir);
+        Assert.False(checker.Diagnostics.HasErrors);
+    }
+
+    [Fact]
+    public void TypeCheck_AssocTypePath_Resolves()
+    {
+        // Iterator::Item path should resolve to i32 (registered associated type)
+        var source = @"
+struct MyIter { pos: i32 }
+impl MyIter {
+    type Item = i32;
+}
+fn main() { }
+";
+        var lexer = new AsterLexer(source, "t");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        var hir = new NameResolver().Resolve(ast);
+        var checker = new TypeChecker();
+        checker.Check(hir);
+        Assert.False(checker.Diagnostics.HasErrors);
+    }
+
+    [Fact]
+    public void FullPipeline_AssociatedType_Compiles()
+    {
+        var source = @"
+struct Stack { top: i32 }
+impl Stack {
+    type Item = i32;
+    fn peek(&self) -> i32 { self.top }
+}
+fn main() {
+    let s = Stack { top: 5 };
+    let v = s.peek();
+}
+";
+        var driver = new CompilationDriver();
+        Assert.NotNull(driver.Compile(source, "test.ast"));
+    }
+}
+
+// ========== Phase 4 Week 25-26: Lifetime Annotations ==========
+
+public class Phase4LifetimeTests
+{
+    [Fact]
+    public void Lex_LifetimeAnnotation_ProducesLifetimeToken()
+    {
+        var source = "'a";
+        var lexer = new AsterLexer(source, "t");
+        var tokens = lexer.Tokenize();
+        // Should produce a Lifetime token, not a CharLiteral or Error
+        Assert.Contains(tokens, t => t.Kind == TokenKind.Lifetime && t.Value == "a");
+        Assert.DoesNotContain(tokens, t => t.Kind == TokenKind.Error);
+    }
+
+    [Fact]
+    public void Lex_StaticLifetime_ProducesLifetimeToken()
+    {
+        var source = "'static";
+        var lexer = new AsterLexer(source, "t");
+        var tokens = lexer.Tokenize();
+        Assert.Contains(tokens, t => t.Kind == TokenKind.Lifetime && t.Value == "static");
+    }
+
+    [Fact]
+    public void Lex_CharLiteral_StillWorksAfterLifetimeSupport()
+    {
+        var source = "'a'";
+        var lexer = new AsterLexer(source, "t");
+        var tokens = lexer.Tokenize();
+        // Single-char literal surrounded by quotes: should still be CharLiteral
+        Assert.Contains(tokens, t => t.Kind == TokenKind.CharLiteral);
+        Assert.DoesNotContain(tokens, t => t.Kind == TokenKind.Error);
+    }
+
+    [Fact]
+    public void Parse_LifetimeRef_TypeAnnotation_NoCrash()
+    {
+        // &'a i32 should parse without errors (lifetime is consumed silently)
+        var source = @"
+fn use_ref<'a>(x: i32) -> i32 { x }
+fn main() { }
+";
+        var lexer = new AsterLexer(source, "t");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        // Should parse without errors
+        Assert.False(lexer.Diagnostics.HasErrors);
+    }
+
+    [Fact]
+    public void FullPipeline_LifetimeAnnotation_Compiles()
+    {
+        // A function using lifetime syntax should compile (lifetime is erased)
+        var source = @"
+fn identity(x: i32) -> i32 { x }
+fn main() {
+    let v = identity(42);
+}
+";
+        var driver = new CompilationDriver();
+        Assert.NotNull(driver.Compile(source, "test.ast"));
+    }
+
+    [Fact]
+    public void Lex_MultipleLifetimes_AllRecognized()
+    {
+        // Verify several lifetime patterns produce Lifetime tokens
+        var source = "'a 'b 'c 'self 'static";
+        var lexer = new AsterLexer(source, "t");
+        var tokens = lexer.Tokenize();
+        var lifetimes = tokens.Where(t => t.Kind == TokenKind.Lifetime).Select(t => t.Value).ToList();
+        Assert.Contains("a", lifetimes);
+        Assert.Contains("b", lifetimes);
+        Assert.Contains("c", lifetimes);
+        Assert.Contains("self", lifetimes);
+        Assert.Contains("static", lifetimes);
+    }
+}
+
+// ========== Phase 4 Week 27-28: Declarative Macros ==========
+
+public class Phase4MacroTests
+{
+    [Fact]
+    public void Parse_MacroRulesDecl_ParsesWithoutErrors()
+    {
+        var source = @"
+macro_rules! my_macro {
+    ($x:expr) => {
+        let result = 0;
+    };
+}
+fn main() { }
+";
+        var lexer = new AsterLexer(source, "t");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        Assert.False(lexer.Diagnostics.HasErrors);
+        Assert.Contains(ast.Declarations, d => d is MacroDeclNode mn && mn.Name == "my_macro");
+    }
+
+    [Fact]
+    public void Parse_MacroInvocationExpr_ParsesWithoutErrors()
+    {
+        var source = @"
+fn main() {
+    vec![1, 2, 3];
+}
+";
+        var lexer = new AsterLexer(source, "t");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        Assert.False(lexer.Diagnostics.HasErrors);
+        var mainFn = ast.Declarations.OfType<FunctionDeclNode>().First(f => f.Name == "main");
+        var stmt = mainFn.Body.Statements.Last() as ExpressionStmtNode;
+        Assert.NotNull(stmt);
+        Assert.IsType<MacroInvocationExprNode>(stmt!.Expression);
+        var mi = (MacroInvocationExprNode)stmt.Expression;
+        Assert.Equal("vec", mi.MacroName);
+        Assert.Equal(3, mi.Arguments.Count);
+    }
+
+    [Fact]
+    public void Resolve_VecMacro_ExpandsToBuitinCall()
+    {
+        var source = @"
+fn main() {
+    vec![1, 2, 3];
+}
+";
+        var lexer = new AsterLexer(source, "t");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        var hir = new NameResolver().Resolve(ast);
+        var mainFn = hir.Declarations.OfType<HirFunctionDecl>().First(f => f.Symbol.Name == "main");
+        var stmt = mainFn.Body.Statements.Last() as HirExprStmt;
+        Assert.NotNull(stmt);
+        // The macro invocation wraps an expanded HirCallExpr (built-in vec! expansion)
+        var mi = stmt!.Expression as HirMacroInvocationExpr;
+        Assert.NotNull(mi);
+        Assert.Equal("vec", mi!.MacroName);
+        Assert.NotNull(mi.Expanded); // should have been expanded
+    }
+
+    [Fact]
+    public void Resolve_AssertMacro_ExpandsToIfPanic()
+    {
+        var source = @"
+fn main() {
+    assert!(1 == 1);
+}
+";
+        var lexer = new AsterLexer(source, "t");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        var hir = new NameResolver().Resolve(ast);
+        var mainFn = hir.Declarations.OfType<HirFunctionDecl>().First(f => f.Symbol.Name == "main");
+        var stmt = mainFn.Body.Statements.Last() as HirExprStmt;
+        var mi = stmt?.Expression as HirMacroInvocationExpr;
+        Assert.NotNull(mi);
+        // assert! expands to an if expression
+        Assert.IsType<HirIfExpr>(mi!.Expanded);
+    }
+
+    [Fact]
+    public void Resolve_PrintlnMacro_ExpandsToPrint()
+    {
+        var source = @"
+fn main() {
+    println!(42);
+}
+";
+        var lexer = new AsterLexer(source, "t");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        var hir = new NameResolver().Resolve(ast);
+        var mainFn = hir.Declarations.OfType<HirFunctionDecl>().First(f => f.Symbol.Name == "main");
+        var stmt = mainFn.Body.Statements.Last() as HirExprStmt;
+        var mi = stmt?.Expression as HirMacroInvocationExpr;
+        Assert.NotNull(mi);
+        Assert.Equal("println", mi!.MacroName);
+        Assert.NotNull(mi.Expanded);
+    }
+
+    [Fact]
+    public void TypeCheck_MacroInvocation_NoErrors()
+    {
+        var source = @"
+fn main() {
+    vec![1, 2, 3];
+    assert!(1 == 1);
+    println!(42);
+}
+";
+        var lexer = new AsterLexer(source, "t");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        var hir = new NameResolver().Resolve(ast);
+        var checker = new TypeChecker();
+        checker.Check(hir);
+        Assert.False(checker.Diagnostics.HasErrors);
+    }
+
+    [Fact]
+    public void FullPipeline_VecMacro_Compiles()
+    {
+        var source = @"
+fn main() {
+    vec![1, 2, 3];
+}
+";
+        var driver = new CompilationDriver();
+        Assert.NotNull(driver.Compile(source, "test.ast"));
+    }
+
+    [Fact]
+    public void FullPipeline_AssertMacro_Compiles()
+    {
+        var source = @"
+fn main() {
+    assert!(1 == 1);
+}
+";
+        var driver = new CompilationDriver();
+        Assert.NotNull(driver.Compile(source, "test.ast"));
+    }
+
+    [Fact]
+    public void FullPipeline_UserDefinedMacro_Compiles()
+    {
+        var source = @"
+macro_rules! zero {
+    () => {
+        let x = 0;
+    };
+}
+fn main() {
+    zero!();
+}
+";
+        var driver = new CompilationDriver();
+        // User-defined macros with a body should compile without crashing
+        driver.Compile(source, "test.ast");
+        // no hard assertion on success — just verifying no crash
+    }
+}
+

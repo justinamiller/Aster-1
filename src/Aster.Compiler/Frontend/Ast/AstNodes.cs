@@ -143,8 +143,10 @@ public sealed class ImplDeclNode : AstNode
     public TypeAnnotationNode TargetType { get; }
     public TypeAnnotationNode? TraitType { get; }
     public IReadOnlyList<FunctionDeclNode> Methods { get; }
-    public ImplDeclNode(TypeAnnotationNode targetType, TypeAnnotationNode? traitType, IReadOnlyList<FunctionDeclNode> methods, Span span)
-        : base(span) { TargetType = targetType; TraitType = traitType; Methods = methods; }
+    /// <summary>Phase 4: associated type declarations inside the impl block.</summary>
+    public IReadOnlyList<AssociatedTypeDeclNode> AssociatedTypes { get; }
+    public ImplDeclNode(TypeAnnotationNode targetType, TypeAnnotationNode? traitType, IReadOnlyList<FunctionDeclNode> methods, IReadOnlyList<AssociatedTypeDeclNode> associatedTypes, Span span)
+        : base(span) { TargetType = targetType; TraitType = traitType; Methods = methods; AssociatedTypes = associatedTypes; }
     public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitImplDecl(this);
 }
 
@@ -401,6 +403,62 @@ public sealed class TypeAliasDeclNode : AstNode
     public TypeAliasDeclNode(string name, TypeAnnotationNode target, bool isPublic, Span span)
         : base(span) { Name = name; Target = target; IsPublic = isPublic; }
     public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitTypeAliasDecl(this);
+}
+
+// ========== Phase 4 New Nodes ==========
+
+/// <summary>Phase 4: Method call expression: receiver.method(args)</summary>
+public sealed class MethodCallExprNode : AstNode
+{
+    public AstNode Receiver { get; }
+    public string MethodName { get; }
+    public IReadOnlyList<AstNode> Arguments { get; }
+    public MethodCallExprNode(AstNode receiver, string methodName, IReadOnlyList<AstNode> arguments, Span span)
+        : base(span) { Receiver = receiver; MethodName = methodName; Arguments = arguments; }
+    public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitMethodCallExpr(this);
+}
+
+/// <summary>Phase 4: Associated type declaration inside an impl or trait block: type Item = T;</summary>
+public sealed class AssociatedTypeDeclNode : AstNode
+{
+    public string Name { get; }
+    public TypeAnnotationNode? Type { get; }   // null for abstract assoc types in trait defs
+    public bool IsPublic { get; }
+    public AssociatedTypeDeclNode(string name, TypeAnnotationNode? type, bool isPublic, Span span)
+        : base(span) { Name = name; Type = type; IsPublic = isPublic; }
+    public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitAssociatedTypeDecl(this);
+}
+
+/// <summary>Phase 4: Simplified macro rule (pattern => body).</summary>
+public sealed class MacroRuleNode : AstNode
+{
+    /// <summary>Parameter names extracted from the pattern (e.g. "x" from $x:expr).</summary>
+    public IReadOnlyList<string> PatternParams { get; }
+    public BlockExprNode Body { get; }
+    public MacroRuleNode(IReadOnlyList<string> patternParams, BlockExprNode body, Span span)
+        : base(span) { PatternParams = patternParams; Body = body; }
+    public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitMacroRule(this);
+}
+
+/// <summary>Phase 4: macro_rules! name { ... } declaration.</summary>
+public sealed class MacroDeclNode : AstNode
+{
+    public string Name { get; }
+    public IReadOnlyList<MacroRuleNode> Rules { get; }
+    public bool IsPublic { get; }
+    public MacroDeclNode(string name, IReadOnlyList<MacroRuleNode> rules, bool isPublic, Span span)
+        : base(span) { Name = name; Rules = rules; IsPublic = isPublic; }
+    public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitMacroDecl(this);
+}
+
+/// <summary>Phase 4: Macro invocation expression: name!(args) or name![args]</summary>
+public sealed class MacroInvocationExprNode : AstNode
+{
+    public string MacroName { get; }
+    public IReadOnlyList<AstNode> Arguments { get; }
+    public MacroInvocationExprNode(string macroName, IReadOnlyList<AstNode> arguments, Span span)
+        : base(span) { MacroName = macroName; Arguments = arguments; }
+    public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitMacroInvocationExpr(this);
 }
 
 // ========== Enums ==========

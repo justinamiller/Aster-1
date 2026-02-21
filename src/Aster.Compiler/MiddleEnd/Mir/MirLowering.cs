@@ -284,6 +284,13 @@ public sealed class MirLowering
             case HirClosureExpr closure:
                 return LowerClosure(closure);
 
+            // Phase 4
+            case HirMethodCallExpr mc:
+                return LowerMethodCall(mc);
+
+            case HirMacroInvocationExpr macroInv:
+                return LowerMacroInvocation(macroInv);
+
             default:
                 return null;
         }
@@ -721,5 +728,45 @@ public sealed class MirLowering
     private MirBasicBlock NewBlock()
     {
         return _currentFunction!.CreateBlock($"bb{_currentFunction.BasicBlocks.Count}");
+    }
+
+    // ========== Phase 4: Method Calls and Macros ==========
+
+    /// <summary>
+    /// Lower a method call: receiver.method(args) →
+    /// mangled name call: __TypeName_method(receiver, args...).
+    /// The mangling is intentionally simple: two underscores + TypeName + underscore + method.
+    /// </summary>
+    private MirOperand? LowerMethodCall(HirMethodCallExpr mc)
+    {
+        var receiver = LowerExpr(mc.Receiver);
+        var args = mc.Arguments.Select(a => LowerExpr(a)).Where(a => a != null).Cast<MirOperand>().ToList();
+
+        // Build mangled name.  If we know the receiver type from _localVariables / function params, use it;
+        // otherwise fall back to "__method_name" (type-erased path).
+        var mangledName = $"__{mc.MethodName}";
+        if (receiver != null)
+        {
+            // Extract type hint from the operand if available
+            var typeName = receiver.Type.Name ?? "obj";
+            mangledName = $"__{typeName}_{mc.MethodName}";
+        }
+
+        var allArgs = new List<MirOperand>();
+        if (receiver != null) allArgs.Add(receiver);
+        allArgs.AddRange(args);
+
+        var result = NewTemp(MirType.I64);
+        Emit(new MirInstruction(MirOpcode.Call, result, allArgs, mangledName));
+        return result;
+    }
+
+    /// <summary>Lower a macro invocation by delegating to its expanded HIR form.</summary>
+    private MirOperand? LowerMacroInvocation(HirMacroInvocationExpr macroInv)
+    {
+        if (macroInv.Expanded != null)
+            return LowerExpr(macroInv.Expanded);
+        // Unknown macro with no expansion: no-op
+        return null;
     }
 }

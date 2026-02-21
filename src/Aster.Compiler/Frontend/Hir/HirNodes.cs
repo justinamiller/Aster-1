@@ -287,8 +287,10 @@ public sealed class HirImplDecl : HirNode
     /// <summary>Trait being implemented, or null for inherent impls.</summary>
     public string? TraitName { get; }
     public IReadOnlyList<HirFunctionDecl> Methods { get; }
-    public HirImplDecl(string targetTypeName, string? traitName, IReadOnlyList<HirFunctionDecl> methods, Span span)
-        : base(span) { TargetTypeName = targetTypeName; TraitName = traitName; Methods = methods; }
+    /// <summary>Phase 4: associated type declarations in this impl block.</summary>
+    public IReadOnlyList<HirAssociatedTypeDecl> AssociatedTypes { get; }
+    public HirImplDecl(string targetTypeName, string? traitName, IReadOnlyList<HirFunctionDecl> methods, IReadOnlyList<HirAssociatedTypeDecl> associatedTypes, Span span)
+        : base(span) { TargetTypeName = targetTypeName; TraitName = traitName; Methods = methods; AssociatedTypes = associatedTypes; }
 }
 
 // ========== Phase 2 Closeout: for / match / break / continue / index ==========
@@ -392,4 +394,48 @@ public sealed class HirTypeAliasDecl : HirNode
     public HirTypeRef Target { get; }
     public HirTypeAliasDecl(Symbol symbol, HirTypeRef target, Span span)
         : base(span) { Symbol = symbol; Target = target; }
+}
+
+// ========== Phase 4: Method Calls, Associated Types, Macros ==========
+
+/// <summary>Phase 4: Method call — receiver.method(args).</summary>
+public sealed class HirMethodCallExpr : HirNode
+{
+    public HirNode Receiver { get; }
+    public string MethodName { get; }
+    public IReadOnlyList<HirNode> Arguments { get; }
+    public HirMethodCallExpr(HirNode receiver, string methodName, IReadOnlyList<HirNode> arguments, Span span)
+        : base(span) { Receiver = receiver; MethodName = methodName; Arguments = arguments; }
+}
+
+/// <summary>Phase 4: Associated type declaration inside an impl block (type Item = i32;).</summary>
+public sealed class HirAssociatedTypeDecl : HirNode
+{
+    public string Name { get; }
+    /// <summary>The owning impl's target type name (e.g. "Point").</summary>
+    public string OwnerTypeName { get; }
+    /// <summary>Resolved type ref, or null for abstract associated types in traits.</summary>
+    public HirTypeRef? TypeRef { get; }
+    public HirAssociatedTypeDecl(string name, string ownerTypeName, HirTypeRef? typeRef, Span span)
+        : base(span) { Name = name; OwnerTypeName = ownerTypeName; TypeRef = typeRef; }
+}
+
+/// <summary>Phase 4: macro_rules! declaration (resolved name only; body stored for expansion).</summary>
+public sealed class HirMacroDecl : HirNode
+{
+    public Symbol Symbol { get; }
+    /// <summary>Number of rules in this macro.</summary>
+    public int RuleCount { get; }
+    public HirMacroDecl(Symbol symbol, int ruleCount, Span span)
+        : base(span) { Symbol = symbol; RuleCount = ruleCount; }
+}
+
+/// <summary>Phase 4: Macro invocation — already expanded to an HIR node.</summary>
+public sealed class HirMacroInvocationExpr : HirNode
+{
+    public string MacroName { get; }
+    /// <summary>The HIR node this invocation expanded into, or null if the macro is unknown/empty.</summary>
+    public HirNode? Expanded { get; }
+    public HirMacroInvocationExpr(string macroName, HirNode? expanded, Span span)
+        : base(span) { MacroName = macroName; Expanded = expanded; }
 }

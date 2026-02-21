@@ -13,6 +13,8 @@ public sealed class NameResolver
 {
     private Scope _currentScope;
     private int _closureCounter;
+    /// <summary>Phase 4: registered user-defined macros (macro_rules!).</summary>
+    private readonly Dictionary<string, MacroDeclNode> _macroTable = new(StringComparer.Ordinal);
     public DiagnosticBag Diagnostics { get; } = new();
 
     private static readonly Dictionary<string, (string Name, SymbolKind Kind)[]> StdlibExports =
@@ -178,6 +180,11 @@ public sealed class NameResolver
                     if (!_currentScope.Define(new Symbol(alias.Name, SymbolKind.Type, alias.IsPublic)))
                         Diagnostics.ReportError("E0200", $"Duplicate definition of '{alias.Name}'", alias.Span);
                     break;
+                case MacroDeclNode macro:
+                    // Register macro name as a special symbol (kind Function is used as placeholder)
+                    _currentScope.Define(new Symbol(macro.Name, SymbolKind.Function, macro.IsPublic));
+                    _macroTable[macro.Name] = macro;
+                    break;
             }
         }
     }
@@ -233,6 +240,7 @@ public sealed class NameResolver
         ReturnStmtNode ret => new HirReturnStmt(ret.Value != null ? ResolveNode(ret.Value) : null, ret.Span),
         ExpressionStmtNode es => new HirExprStmt(ResolveNode(es.Expression)!, es.Span),
         CallExprNode call => ResolveCallExpr(call),
+        MethodCallExprNode mc => ResolveMethodCallExpr(mc),
         IdentifierExprNode id => ResolveIdentifier(id),
         PathExprNode path => ResolvePath(path),
         LiteralExprNode lit => new HirLiteralExpr(lit.Value, lit.LiteralKind, lit.Span),
@@ -254,6 +262,8 @@ public sealed class NameResolver
         MatchExprNode matchExpr => ResolveMatchExpr(matchExpr),
         ClosureExprNode closure => ResolveClosureExpr(closure),
         TypeAliasDeclNode alias => ResolveTypeAliasDecl(alias),
+        MacroDeclNode macro => ResolveMacroDecl(macro),
+        MacroInvocationExprNode macroInv => ResolveMacroInvocation(macroInv),
         UseDeclNode => null,
         _ => null,
     };
@@ -541,7 +551,101 @@ public sealed class NameResolver
             methods.Add(new HirFunctionDecl(methodSym, hirGenericParams, hirParams, body, returnType, m.IsAsync, m.Span));
         }
 
-        return new HirImplDecl(targetTypeName, traitName, methods, impl.Span);
+        // Phase 4: resolve associated type declarations
+        var hirAssocTypes = new List<HirAssociatedTypeDecl>();
+        foreach (var assoc in impl.AssociatedTypes)
+        {
+            var typeRef = assoc.Type != null ? ResolveTypeRef(assoc.Type) : null;
+            hirAssocTypes.Add(new HirAssociatedTypeDecl(assoc.Name, targetTypeName, typeRef, assoc.Span));
+        }
+
+        return new HirImplDecl(targetTypeName, traitName, methods, hirAssocTypes, impl.Span);
+    }
+
+    // ===== Phase 4: Method Calls and Macros =====
+
+    private HirMethodCallExpr ResolveMethodCallExpr(MethodCallExprNode mc)
+    {
+        var receiver = ResolveNode(mc.Receiver)!;
+        var args = mc.Arguments.Select(a => ResolveNode(a)!).ToList();
+        return new HirMethodCallExpr(receiver, mc.MethodName, args, mc.Span);
+    }
+
+    private HirMacroDecl ResolveMacroDecl(MacroDeclNode macro)
+    {
+        var symbol = _currentScope.Lookup(macro.Name) ?? new Symbol(macro.Name, SymbolKind.Function, macro.IsPublic);
+        return new HirMacroDecl(symbol, macro.Rules.Count, macro.Span);
+    }
+
+    /// <summary>
+    /// Expand a macro invocation.  Built-in macros (vec!, assert!, println!, panic!) are
+    /// expanded to equivalent HIR constructs.  User-defined macros registered in
+    /// <see cref="_macroTable"/> use the first rule's body verbatim (simplified).
+    /// Unknown macros are left as pass-through <see cref="HirMacroInvocationExpr"/> nodes.
+    /// </summary>
+    private HirMacroInvocationExpr ResolveMacroInvocation(MacroInvocationExprNode inv)
+    {
+        HirNode? expanded = null;
+
+        switch (inv.MacroName)
+        {
+            case "vec":
+                // vec![a, b, c] expands to a call to the __vec_literal builtin with the args
+                // We represent this as HirCallExpr(__vec_literal, [a, b, c])
+                var vecSym = _currentScope.Lookup("vec_new") ?? new Symbol("vec_new", SymbolKind.Function);
+                var vecCalleeIdent = new HirIdentifierExpr("__vec_literal", vecSym, inv.Span);
+                var vecArgs = inv.Arguments.Select(a => ResolveNode(a)!).ToList();
+                expanded = new HirCallExpr(vecCalleeIdent, vecArgs, inv.Span);
+                break;
+
+            case "assert":
+                // assert!(cond) expands to if !cond { panic("assertion failed") }
+                if (inv.Arguments.Count >= 1)
+                {
+                    var condNode = ResolveNode(inv.Arguments[0])!;
+                    var notCond = new HirUnaryExpr(UnaryOperator.Not, condNode, inv.Span);
+                    var panicSym = _currentScope.Lookup("panic") ?? new Symbol("panic", SymbolKind.Function);
+                    var panicCallee = new HirIdentifierExpr("panic", panicSym, inv.Span);
+                    var panicMsg = new HirLiteralExpr("assertion failed", LiteralKind.String, inv.Span);
+                    var panicCall = new HirCallExpr(panicCallee, new[] { (HirNode)panicMsg }, inv.Span);
+                    var panicBlock = new HirBlock(new[] { (HirNode)new HirExprStmt(panicCall, inv.Span) }, null, inv.Span);
+                    expanded = new HirIfExpr(notCond, panicBlock, null, inv.Span);
+                }
+                break;
+
+            case "println":
+            case "print":
+                // println!(val) / print!(val) expands to print(val)
+                {
+                    var printName = inv.MacroName == "println" ? "println" : "print";
+                    var printSym = _currentScope.Lookup(printName) ?? new Symbol(printName, SymbolKind.Function);
+                    var printCallee = new HirIdentifierExpr(printName, printSym, inv.Span);
+                    var printArgs = inv.Arguments.Select(a => ResolveNode(a)!).ToList();
+                    expanded = new HirCallExpr(printCallee, printArgs, inv.Span);
+                }
+                break;
+
+            case "panic":
+                // panic!(msg) expands to panic(msg)
+                {
+                    var panicSym2 = _currentScope.Lookup("panic") ?? new Symbol("panic", SymbolKind.Function);
+                    var panicCallee2 = new HirIdentifierExpr("panic", panicSym2, inv.Span);
+                    var panicArgs = inv.Arguments.Select(a => ResolveNode(a)!).ToList();
+                    expanded = new HirCallExpr(panicCallee2, panicArgs, inv.Span);
+                }
+                break;
+
+            default:
+                // Try user-defined macro
+                if (_macroTable.TryGetValue(inv.MacroName, out var userMacro) && userMacro.Rules.Count > 0)
+                {
+                    // Use the first rule's body (simplified — no pattern matching yet)
+                    expanded = ResolveBlock(userMacro.Rules[0].Body);
+                }
+                break;
+        }
+
+        return new HirMacroInvocationExpr(inv.MacroName, expanded, inv.Span);
     }
 
     // ===== Phase 2 Closeout: for / match / break / continue / index =====

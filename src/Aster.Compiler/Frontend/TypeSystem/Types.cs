@@ -150,6 +150,18 @@ public sealed class TypeAlias : AsterType
     public TypeAlias(string name, AsterType underlying) { Name = name; Underlying = underlying; }
 }
 
+/// <summary>
+/// Phase 4: Lifetime annotation type (e.g. 'a, 'static).
+/// Currently used only for parsing / source-level tracking; lifetime inference
+/// is not yet performed — lifetimes are erased before type checking.
+/// </summary>
+public sealed class LifetimeType : AsterType
+{
+    public string Name { get; }
+    public override string DisplayName => $"'{Name}";
+    public LifetimeType(string name) => Name = name;
+}
+
 /// <summary>Trait bound on a type parameter.</summary>
 public sealed class TraitBound
 {
