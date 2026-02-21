@@ -49,4 +49,7 @@ public interface IAstVisitor<T>
     T VisitMacroRule(MacroRuleNode node);
     T VisitMacroDecl(MacroDeclNode node);
     T VisitMacroInvocationExpr(MacroInvocationExprNode node);
+    // Phase 5: attributes
+    T VisitAttribute(AttributeNode node);
+    T VisitAttributeArg(AttributeArgNode node);
 }

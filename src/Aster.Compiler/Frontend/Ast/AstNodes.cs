@@ -92,8 +92,10 @@ public sealed class StructDeclNode : AstNode
     public IReadOnlyList<FieldDeclNode> Fields { get; }
     public bool IsPublic { get; }
     public IReadOnlyList<GenericParamNode> GenericParams { get; }
-    public StructDeclNode(string name, IReadOnlyList<FieldDeclNode> fields, bool isPublic, IReadOnlyList<GenericParamNode> genericParams, Span span)
-        : base(span) { Name = name; Fields = fields; IsPublic = isPublic; GenericParams = genericParams; }
+    /// <summary>Phase 5: outer attributes (e.g. #[derive(Clone)]).</summary>
+    public IReadOnlyList<AttributeNode> Attributes { get; }
+    public StructDeclNode(string name, IReadOnlyList<FieldDeclNode> fields, bool isPublic, IReadOnlyList<GenericParamNode> genericParams, Span span, IReadOnlyList<AttributeNode>? attributes = null)
+        : base(span) { Name = name; Fields = fields; IsPublic = isPublic; GenericParams = genericParams; Attributes = attributes ?? Array.Empty<AttributeNode>(); }
     public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitStructDecl(this);
 }
 
@@ -115,8 +117,10 @@ public sealed class EnumDeclNode : AstNode
     public IReadOnlyList<EnumVariantNode> Variants { get; }
     public bool IsPublic { get; }
     public IReadOnlyList<GenericParamNode> GenericParams { get; }
-    public EnumDeclNode(string name, IReadOnlyList<EnumVariantNode> variants, bool isPublic, IReadOnlyList<GenericParamNode> genericParams, Span span)
-        : base(span) { Name = name; Variants = variants; IsPublic = isPublic; GenericParams = genericParams; }
+    /// <summary>Phase 5: outer attributes (e.g. #[derive(Clone)]).</summary>
+    public IReadOnlyList<AttributeNode> Attributes { get; }
+    public EnumDeclNode(string name, IReadOnlyList<EnumVariantNode> variants, bool isPublic, IReadOnlyList<GenericParamNode> genericParams, Span span, IReadOnlyList<AttributeNode>? attributes = null)
+        : base(span) { Name = name; Variants = variants; IsPublic = isPublic; GenericParams = genericParams; Attributes = attributes ?? Array.Empty<AttributeNode>(); }
     public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitEnumDecl(this);
 }
 
@@ -464,6 +468,26 @@ public sealed class MacroInvocationExprNode : AstNode
     public MacroInvocationExprNode(string macroName, IReadOnlyList<AstNode> arguments, Span span)
         : base(span) { MacroName = macroName; Arguments = arguments; }
     public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitMacroInvocationExpr(this);
+}
+
+// ========== Phase 5 New Nodes ==========
+
+/// <summary>Phase 5: A single attribute argument: an identifier or a list of identifiers.</summary>
+public sealed class AttributeArgNode : AstNode
+{
+    public string Name { get; }
+    public AttributeArgNode(string name, Span span) : base(span) => Name = name;
+    public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitAttributeArg(this);
+}
+
+/// <summary>Phase 5: An outer attribute: #[name] or #[name(arg1, arg2, ...)]</summary>
+public sealed class AttributeNode : AstNode
+{
+    public string Name { get; }
+    public IReadOnlyList<AttributeArgNode> Arguments { get; }
+    public AttributeNode(string name, IReadOnlyList<AttributeArgNode> arguments, Span span)
+        : base(span) { Name = name; Arguments = arguments; }
+    public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitAttribute(this);
 }
 
 // ========== Enums ==========

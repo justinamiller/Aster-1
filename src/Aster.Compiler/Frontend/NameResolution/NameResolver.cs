@@ -1,6 +1,7 @@
 using Aster.Compiler.Diagnostics;
 using Aster.Compiler.Frontend.Ast;
 using Aster.Compiler.Frontend.Hir;
+using Aster.Compiler.MiddleEnd.ProcMacros;
 
 namespace Aster.Compiler.Frontend.NameResolution;
 
@@ -131,6 +132,11 @@ public sealed class NameResolver
             var hir = ResolveNode(decl);
             if (hir != null) hirDecls.Add(hir);
         }
+
+        // Phase 5: Expand #[derive(...)] attributes into synthesised impl blocks.
+        var procMacro = new ProcMacroProcessor();
+        procMacro.Expand(hirDecls);
+        Diagnostics.AddRange(procMacro.Diagnostics);
 
         return new HirProgram(hirDecls, program.Span);
     }
@@ -342,7 +348,10 @@ public sealed class NameResolver
         }
 
         _currentScope = prevScope;
-        return new HirStructDecl(symbol, hirGenericParams, fields, s.Span);
+
+        // Phase 5: convert #[derive(...)] attributes to HirDeriveAttr
+        var deriveAttrs = BuildDeriveAttrs(s.Attributes);
+        return new HirStructDecl(symbol, hirGenericParams, fields, s.Span, deriveAttrs);
     }
 
     private HirEnumDecl ResolveEnumDecl(EnumDeclNode e)
@@ -368,7 +377,22 @@ public sealed class NameResolver
         }
 
         _currentScope = prevScope;
-        return new HirEnumDecl(symbol, variants, e.Span);
+
+        // Phase 5: convert #[derive(...)] attributes to HirDeriveAttr
+        var deriveAttrs = BuildDeriveAttrs(e.Attributes);
+        return new HirEnumDecl(symbol, variants, e.Span, deriveAttrs);
+    }
+
+    /// <summary>Phase 5: Convert outer attributes to HirDeriveAttr list.</summary>
+    private static List<HirDeriveAttr> BuildDeriveAttrs(IReadOnlyList<Frontend.Ast.AttributeNode> attributes)
+    {
+        var result = new List<HirDeriveAttr>();
+        foreach (var attr in attributes)
+        {
+            if (attr.Name == "derive" && attr.Arguments.Count > 0)
+                result.Add(new HirDeriveAttr(attr.Arguments.Select(a => a.Name).ToList()));
+        }
+        return result;
     }
 
     private HirLetStmt ResolveLetStmt(LetStmtNode let)

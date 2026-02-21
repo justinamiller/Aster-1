@@ -4728,3 +4728,459 @@ fn main() {
         Assert.NotNull(driver.Compile(source, "t.ast"));
     }
 }
+
+// =============================================================================
+// Phase 5 Tests: Advanced Optimizations, Procedural Macros, Spec
+// =============================================================================
+
+public class Phase5LicmTests
+{
+    [Fact]
+    public void LicmPass_HoistsInvariantBinaryOp()
+    {
+        // Build a MIR module with a back-edge loop containing a loop-invariant add
+        var module = new MirModule("test");
+        var fn = new MirFunction("test_fn");
+        fn.ReturnType = MirType.Void;
+        module.Functions.Add(fn);
+
+        // Block 0 (entry / loop header)
+        var header = fn.CreateBlock("entry");
+        var inv = MirOperand.Temp("inv", MirType.I32);
+        header.AddInstruction(new MirInstruction(
+            MirOpcode.BinaryOp,
+            inv,
+            new[] { MirOperand.Constant(2L, MirType.I32), MirOperand.Constant(3L, MirType.I32) },
+            "add"));
+        // back-edge: unconditional branch to block 0
+        header.Terminator = new MirBranch(0);
+
+        var pass = new LicmPass();
+        var changed = pass.Hoist(module);
+
+        Assert.True(changed);
+        // A pre-header block should have been inserted
+        Assert.True(fn.BasicBlocks.Count >= 2);
+        // The pre-header should contain the hoisted instruction
+        var preHeader = fn.BasicBlocks[0];
+        Assert.Contains(preHeader.Instructions, i => i.Opcode == MirOpcode.BinaryOp);
+    }
+
+    [Fact]
+    public void LicmPass_DoesNotHoistVariantInstruction()
+    {
+        var module = new MirModule("test");
+        var fn = new MirFunction("test_fn");
+        fn.ReturnType = MirType.Void;
+        module.Functions.Add(fn);
+
+        var header = fn.CreateBlock("entry");
+        // loop-variant: operand "i" is defined in the loop (also in this block)
+        var iVar = MirOperand.Variable("i", MirType.I32);
+        header.AddInstruction(new MirInstruction(
+            MirOpcode.Assign, iVar,
+            new[] { MirOperand.Constant(0L, MirType.I32) }));
+        var sum = MirOperand.Temp("sum", MirType.I32);
+        header.AddInstruction(new MirInstruction(
+            MirOpcode.BinaryOp, sum,
+            new[] { iVar, MirOperand.Constant(1L, MirType.I32) }, "add"));
+        header.Terminator = new MirBranch(0);
+
+        var pass = new LicmPass();
+        var changed = pass.Hoist(module);
+
+        // The BinaryOp has a loop-defined operand ("i") — must NOT be hoisted
+        Assert.False(changed);
+        Assert.Equal(1, fn.BasicBlocks.Count);
+    }
+
+    [Fact]
+    public void LicmPass_NoLoop_NoChange()
+    {
+        var module = new MirModule("test");
+        var fn = new MirFunction("test_fn");
+        fn.ReturnType = MirType.Void;
+        module.Functions.Add(fn);
+
+        var b0 = fn.CreateBlock("b0");
+        b0.AddInstruction(new MirInstruction(MirOpcode.BinaryOp,
+            MirOperand.Temp("t", MirType.I32),
+            new[] { MirOperand.Constant(1L, MirType.I32), MirOperand.Constant(2L, MirType.I32) },
+            "add"));
+        b0.Terminator = new MirReturn();
+
+        Assert.False(new LicmPass().Hoist(module));
+    }
+}
+
+public class Phase5InliningTests
+{
+    [Fact]
+    public void InliningPass_InlinesSmallFunction()
+    {
+        var module = new MirModule("test");
+
+        // Callee: fn double(x: i32) -> i32 { x + x }
+        var callee = new MirFunction("double");
+        callee.ReturnType = MirType.I32;
+        callee.Parameters.Add(new MirParameter("x", MirType.I32, 0));
+        var calleeBlock = callee.CreateBlock("entry");
+        var result = MirOperand.Temp("r", MirType.I32);
+        var xParam = MirOperand.Variable("x", MirType.I32);
+        calleeBlock.AddInstruction(new MirInstruction(MirOpcode.BinaryOp, result,
+            new[] { xParam, xParam }, "add"));
+        calleeBlock.Terminator = new MirReturn(result);
+        module.Functions.Add(callee);
+
+        // Caller: fn main() { let y = double(5); }
+        var caller = new MirFunction("main");
+        caller.ReturnType = MirType.Void;
+        var callerBlock = caller.CreateBlock("entry");
+        var y = MirOperand.Variable("y", MirType.I32);
+        callerBlock.AddInstruction(new MirInstruction(MirOpcode.Call, y,
+            new[] { MirOperand.FunctionRef("double"), MirOperand.Constant(5L, MirType.I32) }));
+        callerBlock.Terminator = new MirReturn();
+        module.Functions.Add(caller);
+
+        var changed = new InliningPass().Inline(module);
+
+        Assert.True(changed);
+        // After inlining, the Call instruction should be replaced
+        Assert.DoesNotContain(callerBlock.Instructions, i => i.Opcode == MirOpcode.Call);
+        // Should contain a BinaryOp (the inlined body)
+        Assert.Contains(callerBlock.Instructions, i => i.Opcode == MirOpcode.BinaryOp);
+    }
+
+    [Fact]
+    public void InliningPass_DoesNotInlineLargeFunction()
+    {
+        var module = new MirModule("test");
+
+        // Callee with 10 instructions (> MaxInlineInstructions = 5)
+        var callee = new MirFunction("big");
+        callee.ReturnType = MirType.Void;
+        var calleeBlock = callee.CreateBlock("entry");
+        for (int i = 0; i < 10; i++)
+            calleeBlock.AddInstruction(new MirInstruction(MirOpcode.Assign,
+                MirOperand.Temp($"t{i}", MirType.I32),
+                new[] { MirOperand.Constant(0L, MirType.I32) }));
+        calleeBlock.Terminator = new MirReturn();
+        module.Functions.Add(callee);
+
+        var caller = new MirFunction("main");
+        caller.ReturnType = MirType.Void;
+        var callerBlock = caller.CreateBlock("entry");
+        callerBlock.AddInstruction(new MirInstruction(MirOpcode.Call, null,
+            new[] { MirOperand.FunctionRef("big") }));
+        callerBlock.Terminator = new MirReturn();
+        module.Functions.Add(caller);
+
+        Assert.False(new InliningPass().Inline(module));
+    }
+
+    [Fact]
+    public void InliningPass_ParameterSubstitution()
+    {
+        var module = new MirModule("test");
+
+        // fn add_one(n: i32) -> i32 { n + 1 }
+        var callee = new MirFunction("add_one");
+        callee.ReturnType = MirType.I32;
+        callee.Parameters.Add(new MirParameter("n", MirType.I32, 0));
+        var cb = callee.CreateBlock("entry");
+        var r = MirOperand.Temp("r", MirType.I32);
+        cb.AddInstruction(new MirInstruction(MirOpcode.BinaryOp, r,
+            new[] { MirOperand.Variable("n", MirType.I32), MirOperand.Constant(1L, MirType.I32) }, "add"));
+        cb.Terminator = new MirReturn(r);
+        module.Functions.Add(callee);
+
+        var caller = new MirFunction("main");
+        caller.ReturnType = MirType.Void;
+        var mb = caller.CreateBlock("entry");
+        var res = MirOperand.Variable("res", MirType.I32);
+        mb.AddInstruction(new MirInstruction(MirOpcode.Call, res,
+            new[] { MirOperand.FunctionRef("add_one"), MirOperand.Constant(42L, MirType.I32) }));
+        mb.Terminator = new MirReturn();
+        module.Functions.Add(caller);
+
+        Assert.True(new InliningPass().Inline(module));
+        // The BinaryOp's first operand should now be the constant 42 (substituted)
+        var binaryOp = mb.Instructions.FirstOrDefault(i => i.Opcode == MirOpcode.BinaryOp);
+        Assert.NotNull(binaryOp);
+        Assert.Equal(MirOperandKind.Constant, binaryOp!.Operands[0].Kind);
+        Assert.Equal(42L, binaryOp.Operands[0].Value);
+    }
+}
+
+public class Phase5SroaTests
+{
+    [Fact]
+    public void SroaPass_ReplacesConstantLoadWithConstant()
+    {
+        var module = new MirModule("test");
+        var fn = new MirFunction("test_fn");
+        fn.ReturnType = MirType.Void;
+        module.Functions.Add(fn);
+
+        var block = fn.CreateBlock("entry");
+        var structVar = MirOperand.Variable("p", MirType.I32);
+        var fieldDest  = MirOperand.Temp("x", MirType.I32);
+        var constVal   = MirOperand.Constant(99L, MirType.I32);
+
+        // %p = Assign c:99
+        block.AddInstruction(new MirInstruction(MirOpcode.Assign, structVar, new[] { constVal }));
+        // %x = Load %p field:"x"
+        block.AddInstruction(new MirInstruction(MirOpcode.Load, fieldDest, new[] { structVar }, "x"));
+        block.Terminator = new MirReturn();
+
+        var changed = new SroaPass().Replace(module);
+
+        Assert.True(changed);
+        // The Load should have been replaced with an Assign of the constant
+        var loadInstr = block.Instructions.FirstOrDefault(i => i.Destination?.Name == "x");
+        Assert.NotNull(loadInstr);
+        Assert.Equal(MirOpcode.Assign, loadInstr!.Opcode);
+    }
+
+    [Fact]
+    public void SroaPass_NoConstantSource_NoChange()
+    {
+        var module = new MirModule("test");
+        var fn = new MirFunction("test_fn");
+        fn.ReturnType = MirType.Void;
+        module.Functions.Add(fn);
+
+        var block = fn.CreateBlock("entry");
+        var structVar = MirOperand.Variable("p", MirType.I32);
+        var fieldDest  = MirOperand.Temp("x", MirType.I32);
+
+        // %p has no constant assignment — Load should remain
+        block.AddInstruction(new MirInstruction(MirOpcode.Load, fieldDest, new[] { structVar }, "x"));
+        block.Terminator = new MirReturn();
+
+        Assert.False(new SroaPass().Replace(module));
+    }
+}
+
+public class Phase5ProcMacroTests
+{
+    [Fact]
+    public void Parse_DeriveAttribute_OnStruct()
+    {
+        var source = @"
+#[derive(Debug, Clone)]
+struct Point { x: i32, y: i32 }
+fn main() {}
+";
+        var driver = new CompilationDriver();
+        var ok = driver.Check(source, "t.ast");
+        Assert.True(ok, driver.FormatDiagnostics());
+    }
+
+    [Fact]
+    public void Parse_DeriveAttribute_OnEnum()
+    {
+        var source = @"
+#[derive(Clone, PartialEq)]
+enum Color { Red, Green, Blue }
+fn main() {}
+";
+        var driver = new CompilationDriver();
+        var ok = driver.Check(source, "t.ast");
+        Assert.True(ok, driver.FormatDiagnostics());
+    }
+
+    [Fact]
+    public void Derive_Debug_GeneratesDebugMethod()
+    {
+        var source = @"
+#[derive(Debug)]
+struct Foo { value: i32 }
+fn main() {}
+";
+        var resolver = new NameResolver();
+        var tokens = new Aster.Compiler.Frontend.Lexer.AsterLexer(source, "t.ast").Tokenize();
+        var ast = new Aster.Compiler.Frontend.Parser.AsterParser(tokens).ParseProgram();
+        var hir = resolver.Resolve(ast);
+
+        // A synthesised impl for "Debug" should appear
+        var impls = hir.Declarations.OfType<HirImplDecl>().ToList();
+        Assert.Contains(impls, impl =>
+            impl.TargetTypeName == "Foo" && impl.TraitName == "Debug");
+    }
+
+    [Fact]
+    public void Derive_Clone_GeneratesCloneMethod()
+    {
+        var source = @"
+#[derive(Clone)]
+struct Bar { x: i32 }
+fn main() {}
+";
+        var resolver = new NameResolver();
+        var tokens = new Aster.Compiler.Frontend.Lexer.AsterLexer(source, "t.ast").Tokenize();
+        var ast = new Aster.Compiler.Frontend.Parser.AsterParser(tokens).ParseProgram();
+        var hir = resolver.Resolve(ast);
+
+        var impl = hir.Declarations.OfType<HirImplDecl>()
+            .FirstOrDefault(i => i.TargetTypeName == "Bar" && i.TraitName == "Clone");
+        Assert.NotNull(impl);
+        var cloneMethod = impl!.Methods.FirstOrDefault(m => m.Symbol.Name.Contains("clone"));
+        Assert.NotNull(cloneMethod);
+    }
+
+    [Fact]
+    public void Derive_PartialEq_GeneratesEqMethod()
+    {
+        var source = @"
+#[derive(PartialEq)]
+struct Num { n: i32 }
+fn main() {}
+";
+        var resolver = new NameResolver();
+        var tokens = new Aster.Compiler.Frontend.Lexer.AsterLexer(source, "t.ast").Tokenize();
+        var ast = new Aster.Compiler.Frontend.Parser.AsterParser(tokens).ParseProgram();
+        var hir = resolver.Resolve(ast);
+
+        var impl = hir.Declarations.OfType<HirImplDecl>()
+            .FirstOrDefault(i => i.TargetTypeName == "Num" && i.TraitName == "PartialEq");
+        Assert.NotNull(impl);
+        Assert.Contains(impl!.Methods, m => m.Symbol.Name.Contains("eq"));
+    }
+
+    [Fact]
+    public void Derive_Eq_IsMarkerNoMethods()
+    {
+        var source = @"
+#[derive(Eq)]
+struct Unit {}
+fn main() {}
+";
+        var resolver = new NameResolver();
+        var tokens = new Aster.Compiler.Frontend.Lexer.AsterLexer(source, "t.ast").Tokenize();
+        var ast = new Aster.Compiler.Frontend.Parser.AsterParser(tokens).ParseProgram();
+        var hir = resolver.Resolve(ast);
+
+        // Eq is a marker trait — no impl block should be generated for it
+        var eqImpl = hir.Declarations.OfType<HirImplDecl>()
+            .FirstOrDefault(i => i.TargetTypeName == "Unit" && i.TraitName == "Eq");
+        Assert.Null(eqImpl);
+    }
+
+    [Fact]
+    public void Derive_Hash_GeneratesHashMethod()
+    {
+        var source = @"
+#[derive(Hash)]
+struct Key { id: i64 }
+fn main() {}
+";
+        var driver = new CompilationDriver();
+        Assert.True(driver.Check(source, "t.ast"), driver.FormatDiagnostics());
+    }
+
+    [Fact]
+    public void Derive_Default_GeneratesDefaultMethod()
+    {
+        var source = @"
+#[derive(Default)]
+struct Config { timeout: i32 }
+fn main() {}
+";
+        var driver = new CompilationDriver();
+        Assert.True(driver.Check(source, "t.ast"), driver.FormatDiagnostics());
+    }
+
+    [Fact]
+    public void Derive_UnknownTrait_EmitsWarning()
+    {
+        var source = @"
+#[derive(UnknownTrait)]
+struct Weird {}
+fn main() {}
+";
+        var driver = new CompilationDriver();
+        // Should not fail — just warn
+        var ok = driver.Check(source, "t.ast");
+        Assert.True(ok);
+        Assert.Contains(driver.Diagnostics, d => d.Code == "E0800");
+    }
+
+    [Fact]
+    public void Derive_MultipleTraits_GeneratesAllImpls()
+    {
+        var source = @"
+#[derive(Debug, Clone, Hash)]
+struct Vec3 { x: f64, y: f64, z: f64 }
+fn main() {}
+";
+        var resolver = new NameResolver();
+        var tokens = new Aster.Compiler.Frontend.Lexer.AsterLexer(source, "t.ast").Tokenize();
+        var ast = new Aster.Compiler.Frontend.Parser.AsterParser(tokens).ParseProgram();
+        var hir = resolver.Resolve(ast);
+
+        var impls = hir.Declarations.OfType<HirImplDecl>()
+            .Where(i => i.TargetTypeName == "Vec3").ToList();
+        Assert.Equal(3, impls.Count);
+        Assert.Contains(impls, i => i.TraitName == "Debug");
+        Assert.Contains(impls, i => i.TraitName == "Clone");
+        Assert.Contains(impls, i => i.TraitName == "Hash");
+    }
+
+    [Fact]
+    public void Derive_FullPipeline_Compiles()
+    {
+        var source = @"
+#[derive(Debug, Clone, PartialEq)]
+struct Point { x: i32, y: i32 }
+fn main() {
+    let p = Point { x: 1, y: 2 };
+}
+";
+        var driver = new CompilationDriver();
+        Assert.NotNull(driver.Compile(source, "t.ast"));
+    }
+}
+
+public class Phase5IntegrationTests
+{
+    [Fact]
+    public void Phase5_AllOptimizations_PipelineCompiles()
+    {
+        var source = @"
+#[derive(Debug, Clone)]
+struct Rect { width: i32, height: i32 }
+fn area(r: Rect) -> i32 { r.width }
+fn main() {
+    let r = Rect { width: 10, height: 5 };
+}
+";
+        var driver = new CompilationDriver();
+        Assert.NotNull(driver.Compile(source, "t.ast"));
+    }
+
+    [Fact]
+    public void Phase5_DeriveOnEnum_FullPipeline()
+    {
+        var source = @"
+#[derive(Debug, Clone, PartialEq)]
+enum Direction { North, South, East, West }
+fn main() {}
+";
+        var driver = new CompilationDriver();
+        Assert.NotNull(driver.Compile(source, "t.ast"));
+    }
+
+    [Fact]
+    public void Phase5_MultipleAttributesStacked()
+    {
+        var source = @"
+#[derive(Debug)]
+#[derive(Clone)]
+struct Item { id: i32 }
+fn main() {}
+";
+        var driver = new CompilationDriver();
+        Assert.True(driver.Check(source, "t.ast"), driver.FormatDiagnostics());
+    }
+}

@@ -181,13 +181,23 @@ public sealed class HirWhileStmt : HirNode
 }
 
 /// <summary>HIR struct declaration.</summary>
+/// <summary>Phase 5: Derive attribute on a struct or enum.</summary>
+public sealed class HirDeriveAttr
+{
+    /// <summary>Trait names to derive, e.g. ["Debug", "Clone", "PartialEq"].</summary>
+    public IReadOnlyList<string> TraitNames { get; }
+    public HirDeriveAttr(IReadOnlyList<string> traitNames) => TraitNames = traitNames;
+}
+
 public sealed class HirStructDecl : HirNode
 {
     public Symbol Symbol { get; }
     public IReadOnlyList<HirGenericParam> GenericParams { get; }
     public IReadOnlyList<HirFieldDecl> Fields { get; }
-    public HirStructDecl(Symbol symbol, IReadOnlyList<HirGenericParam> genericParams, IReadOnlyList<HirFieldDecl> fields, Span span)
-        : base(span) { Symbol = symbol; GenericParams = genericParams; Fields = fields; }
+    /// <summary>Phase 5: derive attributes (may be empty).</summary>
+    public IReadOnlyList<HirDeriveAttr> DeriveAttrs { get; }
+    public HirStructDecl(Symbol symbol, IReadOnlyList<HirGenericParam> genericParams, IReadOnlyList<HirFieldDecl> fields, Span span, IReadOnlyList<HirDeriveAttr>? deriveAttrs = null)
+        : base(span) { Symbol = symbol; GenericParams = genericParams; Fields = fields; DeriveAttrs = deriveAttrs ?? Array.Empty<HirDeriveAttr>(); }
 }
 
 /// <summary>HIR field declaration.</summary>
@@ -203,8 +213,10 @@ public sealed class HirEnumDecl : HirNode
 {
     public Symbol Symbol { get; }
     public IReadOnlyList<HirEnumVariant> Variants { get; }
-    public HirEnumDecl(Symbol symbol, IReadOnlyList<HirEnumVariant> variants, Span span)
-        : base(span) { Symbol = symbol; Variants = variants; }
+    /// <summary>Phase 5: derive attributes (may be empty).</summary>
+    public IReadOnlyList<HirDeriveAttr> DeriveAttrs { get; }
+    public HirEnumDecl(Symbol symbol, IReadOnlyList<HirEnumVariant> variants, Span span, IReadOnlyList<HirDeriveAttr>? deriveAttrs = null)
+        : base(span) { Symbol = symbol; Variants = variants; DeriveAttrs = deriveAttrs ?? Array.Empty<HirDeriveAttr>(); }
 }
 
 /// <summary>HIR enum variant.</summary>

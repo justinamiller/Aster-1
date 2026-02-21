@@ -53,6 +53,9 @@ public sealed class AsterParser
 
     private AstNode? ParseDeclaration()
     {
+        // Phase 5: collect outer attributes (#[...]) before the declaration keyword.
+        var attributes = ParseOuterAttributes();
+
         var isPublic = false;
         if (Check(TokenKind.Pub))
         {
@@ -63,9 +66,9 @@ public sealed class AsterParser
         if (Check(TokenKind.Fn) || (Check(TokenKind.Async) && Peek(1).Kind == TokenKind.Fn))
             return ParseFunctionDecl(isPublic);
         if (Check(TokenKind.Struct))
-            return ParseStructDecl(isPublic);
+            return ParseStructDecl(isPublic, attributes);
         if (Check(TokenKind.Enum))
-            return ParseEnumDecl(isPublic);
+            return ParseEnumDecl(isPublic, attributes);
         if (Check(TokenKind.Trait))
         {
             if (_stage1Mode)
@@ -100,6 +103,37 @@ public sealed class AsterParser
 
         // Try parsing as expression statement
         return ParseExpressionStatement();
+    }
+
+    /// <summary>
+    /// Phase 5: Parse zero or more outer attributes: #[name] or #[name(arg, ...)]
+    /// </summary>
+    private List<AttributeNode> ParseOuterAttributes()
+    {
+        var attrs = new List<AttributeNode>();
+        while (Check(TokenKind.Hash) && Peek(1).Kind == TokenKind.LeftBracket)
+        {
+            var startSpan = Current.Span;
+            Advance(); // #
+            Advance(); // [
+            var name = ExpectIdentifier("Expected attribute name after '#['");
+            var args = new List<AttributeArgNode>();
+            if (Check(TokenKind.LeftParen))
+            {
+                Advance(); // (
+                while (!Check(TokenKind.RightParen) && !IsAtEnd)
+                {
+                    var argSpan = Current.Span;
+                    var argName = ExpectIdentifier("Expected attribute argument");
+                    args.Add(new AttributeArgNode(argName, argSpan));
+                    if (Check(TokenKind.Comma)) Advance();
+                }
+                if (Check(TokenKind.RightParen)) Advance();
+            }
+            Expect(TokenKind.RightBracket, "Expected ']' after attribute");
+            attrs.Add(new AttributeNode(name, args, MakeSpan(startSpan)));
+        }
+        return attrs;
     }
 
     private UseDeclNode ParseUseDeclaration()
@@ -271,7 +305,7 @@ public sealed class AsterParser
         return parameters;
     }
 
-    private StructDeclNode ParseStructDecl(bool isPublic)
+    private StructDeclNode ParseStructDecl(bool isPublic, List<AttributeNode>? attributes = null)
     {
         var startSpan = Current.Span;
         Expect(TokenKind.Struct, "Expected 'struct'");
@@ -305,10 +339,10 @@ public sealed class AsterParser
         }
 
         Expect(TokenKind.RightBrace, "Expected '}'");
-        return new StructDeclNode(name, fields, isPublic, genericParams, MakeSpan(startSpan));
+        return new StructDeclNode(name, fields, isPublic, genericParams, MakeSpan(startSpan), attributes);
     }
 
-    private EnumDeclNode ParseEnumDecl(bool isPublic)
+    private EnumDeclNode ParseEnumDecl(bool isPublic, List<AttributeNode>? attributes = null)
     {
         var startSpan = Current.Span;
         Expect(TokenKind.Enum, "Expected 'enum'");
@@ -347,7 +381,7 @@ public sealed class AsterParser
         }
 
         Expect(TokenKind.RightBrace, "Expected '}'");
-        return new EnumDeclNode(name, variants, isPublic, genericParams, MakeSpan(startSpan));
+        return new EnumDeclNode(name, variants, isPublic, genericParams, MakeSpan(startSpan), attributes);
     }
 
     private TraitDeclNode ParseTraitDecl(bool isPublic)
