@@ -167,6 +167,9 @@ public sealed class TypeChecker
         HirAssociatedTypeDecl assoc => CheckAssociatedTypeDecl(assoc),
         HirMacroDecl => PrimitiveType.Void,
         HirMacroInvocationExpr macroInv => CheckMacroInvocation(macroInv),
+        // Phase 6: casts, array literals
+        HirCastExpr cast => CheckCastExpr(cast),
+        HirArrayLiteralExpr arr => CheckArrayLiteralExpr(arr),
         HirLetStmt let => CheckLetStmt(let),
         HirReturnStmt ret => ret.Value != null ? CheckNode(ret.Value) : PrimitiveType.Void,
         HirExprStmt es => CheckNode(es.Expression),
@@ -605,6 +608,9 @@ public sealed class TypeChecker
                 => PrimitiveType.Bool,
             Ast.BinaryOperator.And or Ast.BinaryOperator.Or
                 => PrimitiveType.Bool,
+            // Phase 6: Range expression a..b  → Range<T>
+            Ast.BinaryOperator.Range
+                => new TypeApp(new StructType("Range", Array.Empty<(string, AsterType)>()), new[] { leftType }),
             _ => leftType,
         };
     }
@@ -757,6 +763,14 @@ public sealed class TypeChecker
         // Phase 4: dyn TraitName → TraitObjectType
         if (typeRef.Name == "dyn" && typeRef.TypeArguments.Count == 1)
             return new TraitObjectType(typeRef.TypeArguments[0].Name);
+
+        // Phase 6: __slice → SliceType, __array → ArrayType, str → StrType
+        if (typeRef.Name == "__slice" && typeRef.TypeArguments.Count == 1)
+            return new SliceType(ResolveTypeRef(typeRef.TypeArguments[0]));
+        if (typeRef.Name == "__array" && typeRef.TypeArguments.Count == 1)
+            return new ArrayType(ResolveTypeRef(typeRef.TypeArguments[0]), 0);
+        if (typeRef.Name == "str")
+            return StrType.Instance;
 
         // Check primitive types first
         var primitiveType = typeRef.Name switch
@@ -1045,4 +1059,48 @@ public sealed class TypeChecker
         // Already registered in CollectTypeDeclarations; nothing else to do here.
         return PrimitiveType.Void;
     }
+
+    // ========== Phase 6: Casts, Array Literals, Slices ==========
+
+    private AsterType CheckCastExpr(HirCastExpr cast)
+    {
+        var sourceType = CheckNode(cast.Expression);
+        var target = cast.TargetType;
+
+        // Validate: numeric casts are allowed between numeric types
+        bool sourceIsNumeric = IsNumericType(sourceType);
+        bool targetIsNumeric = IsNumericType(target);
+
+        if (!sourceIsNumeric && !targetIsNumeric)
+        {
+            // Allow pointer-like casts (references → slice, etc.) silently
+            // Report error only when both source and target are known non-numeric, non-pointer concrete types
+            if (sourceType is PrimitiveType && target is PrimitiveType &&
+                sourceType != PrimitiveType.Void && target != PrimitiveType.Void)
+            {
+                Diagnostics.ReportError("E0600", $"Cannot cast from '{sourceType.DisplayName}' to '{target.DisplayName}'", cast.Span);
+            }
+        }
+
+        // For `T as str` or `T as [U]`, just return the target type
+        return target;
+    }
+
+    private AsterType CheckArrayLiteralExpr(HirArrayLiteralExpr arr)
+    {
+        if (arr.Elements.Count == 0)
+            return new ArrayType(new TypeVariable(), 0);
+
+        var elemType = CheckNode(arr.Elements[0]);
+        for (int i = 1; i < arr.Elements.Count; i++)
+        {
+            var t = CheckNode(arr.Elements[i]);
+            _solver.AddConstraint(new EqualityConstraint(elemType, t, arr.Span));
+        }
+        return new ArrayType(elemType, arr.Elements.Count);
+    }
+
+    private static bool IsNumericType(AsterType t) =>
+        t == PrimitiveType.I32 || t == PrimitiveType.I64 ||
+        t == PrimitiveType.F32 || t == PrimitiveType.F64;
 }

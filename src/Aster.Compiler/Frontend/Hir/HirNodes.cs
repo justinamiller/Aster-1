@@ -1,4 +1,5 @@
 using Aster.Compiler.Diagnostics;
+using Aster.Compiler.Frontend.TypeSystem;
 
 namespace Aster.Compiler.Frontend.Hir;
 
@@ -456,4 +457,24 @@ public sealed class HirMacroInvocationExpr : HirNode
     public HirNode? Expanded { get; }
     public HirMacroInvocationExpr(string macroName, HirNode? expanded, Span span)
         : base(span) { MacroName = macroName; Expanded = expanded; }
+}
+
+// ========== Phase 6: Slices, Casts, Array Literals ==========
+
+/// <summary>Phase 6: Cast expression — expr as TargetType.</summary>
+public sealed class HirCastExpr : HirNode
+{
+    public HirNode Expression { get; }
+    public AsterType TargetType { get; }
+    public HirCastExpr(HirNode expression, AsterType targetType, Span span)
+        : base(span) { Expression = expression; TargetType = targetType; }
+}
+
+/// <summary>Phase 6: Array literal — [a, b, c].</summary>
+public sealed class HirArrayLiteralExpr : HirNode
+{
+    public IReadOnlyList<HirNode> Elements { get; }
+    public AsterType ElementType { get; }
+    public HirArrayLiteralExpr(IReadOnlyList<HirNode> elements, AsterType elementType, Span span)
+        : base(span) { Elements = elements; ElementType = elementType; }
 }

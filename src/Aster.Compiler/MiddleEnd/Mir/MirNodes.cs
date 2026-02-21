@@ -67,6 +67,9 @@ public enum MirOpcode
     BinaryOp,
     UnaryOp,
     Literal,
+    // Phase 6
+    Cast,       // numeric/bitcast conversion
+    Alloca,     // stack allocation (for array literals)
 }
 
 /// <summary>MIR instruction.</summary>

@@ -47,6 +47,7 @@ public sealed class AsterLexer : ILexer
         ["enum"] = TokenKind.Enum,
         ["true"] = TokenKind.True,
         ["false"] = TokenKind.False,
+        ["as"] = TokenKind.As,
     };
 
     public DiagnosticBag Diagnostics { get; } = new();

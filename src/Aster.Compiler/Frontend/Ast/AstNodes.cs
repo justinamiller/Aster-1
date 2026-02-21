@@ -490,6 +490,38 @@ public sealed class AttributeNode : AstNode
     public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitAttribute(this);
 }
 
+// ========== Phase 6 New Nodes ==========
+
+/// <summary>Phase 6: Cast expression — expr as Type.</summary>
+public sealed class CastExprNode : AstNode
+{
+    public AstNode Expression { get; }
+    public TypeAnnotationNode TargetType { get; }
+    public CastExprNode(AstNode expression, TypeAnnotationNode targetType, Span span)
+        : base(span) { Expression = expression; TargetType = targetType; }
+    public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitCastExpr(this);
+}
+
+/// <summary>Phase 6: Array literal — [a, b, c].</summary>
+public sealed class ArrayLiteralExprNode : AstNode
+{
+    public IReadOnlyList<AstNode> Elements { get; }
+    public ArrayLiteralExprNode(IReadOnlyList<AstNode> elements, Span span)
+        : base(span) => Elements = elements;
+    public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitArrayLiteralExpr(this);
+}
+
+/// <summary>Phase 6: Slice or fixed-size array type annotation — [T] or [T; N].</summary>
+public sealed class SliceTypeAnnotationNode : AstNode
+{
+    public TypeAnnotationNode ElementType { get; }
+    /// <summary>Length expression for [T; N], or null for [T].</summary>
+    public AstNode? Length { get; }
+    public SliceTypeAnnotationNode(TypeAnnotationNode elementType, AstNode? length, Span span)
+        : base(span) { ElementType = elementType; Length = length; }
+    public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitSliceTypeAnnotation(this);
+}
+
 // ========== Enums ==========
 
 public enum BinaryOperator

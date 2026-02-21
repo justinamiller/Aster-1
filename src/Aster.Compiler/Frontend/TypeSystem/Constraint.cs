@@ -193,6 +193,28 @@ public sealed class ConstraintSolver
         if (a is EnumType ea && b is EnumType eb)
             return ea.Name == eb.Name;
 
+        // Phase 6: slice and array types
+        if (a is SliceType sla && b is SliceType slb)
+            return Unify(sla.ElementType, slb.ElementType);
+
+        if (a is ArrayType ata && b is ArrayType atb)
+            return ata.Length == atb.Length && Unify(ata.ElementType, atb.ElementType);
+
+        if (a is StrType && b is StrType)
+            return true;
+
+        // Allow SliceType ↔ ArrayType coercion (array coerces to slice)
+        if (a is ArrayType atc && b is SliceType slc)
+            return Unify(atc.ElementType, slc.ElementType);
+        if (a is SliceType sld && b is ArrayType atd)
+            return Unify(sld.ElementType, atd.ElementType);
+
+        // Allow StrType ↔ String coercion
+        if (a is StrType && b is PrimitiveType pb2 && pb2.Kind == PrimitiveKind.String)
+            return true;
+        if (b is StrType && a is PrimitiveType pa2 && pa2.Kind == PrimitiveKind.String)
+            return true;
+
         return false;
     }
 

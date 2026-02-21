@@ -175,6 +175,31 @@ public sealed class TraitObjectType : AsterType
     public TraitObjectType(string traitName) => TraitName = traitName;
 }
 
+/// <summary>Phase 6: Slice type — dynamically-sized view [T].</summary>
+public sealed class SliceType : AsterType
+{
+    public AsterType ElementType { get; }
+    public override string DisplayName => $"[{ElementType.DisplayName}]";
+    public SliceType(AsterType elementType) => ElementType = elementType;
+}
+
+/// <summary>Phase 6: Fixed-size array type [T; N].</summary>
+public sealed class ArrayType : AsterType
+{
+    public AsterType ElementType { get; }
+    public int Length { get; }
+    public override string DisplayName => $"[{ElementType.DisplayName}; {Length}]";
+    public ArrayType(AsterType elementType, int length) { ElementType = elementType; Length = length; }
+}
+
+/// <summary>Phase 6: String slice type &amp;str (distinct from owned String).</summary>
+public sealed class StrType : AsterType
+{
+    public override string DisplayName => "str";
+    public static readonly StrType Instance = new();
+    private StrType() { }
+}
+
 /// <summary>Trait bound on a type parameter.</summary>
 public sealed class TraitBound
 {

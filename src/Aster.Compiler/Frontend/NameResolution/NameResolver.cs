@@ -1,6 +1,7 @@
 using Aster.Compiler.Diagnostics;
 using Aster.Compiler.Frontend.Ast;
 using Aster.Compiler.Frontend.Hir;
+using Aster.Compiler.Frontend.TypeSystem;
 using Aster.Compiler.MiddleEnd.ProcMacros;
 
 namespace Aster.Compiler.Frontend.NameResolution;
@@ -270,6 +271,9 @@ public sealed class NameResolver
         TypeAliasDeclNode alias => ResolveTypeAliasDecl(alias),
         MacroDeclNode macro => ResolveMacroDecl(macro),
         MacroInvocationExprNode macroInv => ResolveMacroInvocation(macroInv),
+        // Phase 6: cast, array literal
+        CastExprNode cast => new HirCastExpr(ResolveNode(cast.Expression)!, ResolveTypeAnnotation(cast.TargetType), cast.Span),
+        ArrayLiteralExprNode arr => ResolveArrayLiteral(arr),
         UseDeclNode => null,
         _ => null,
     };
@@ -472,6 +476,17 @@ public sealed class NameResolver
             return new HirTypeRef("dyn", null, args, typeAnnotation.Span);
         }
 
+        // Phase 6: `__slice` and `__array` synthetic names from ParseTypeAnnotation
+        if (typeAnnotation.Name == "__slice" || typeAnnotation.Name == "__array")
+        {
+            var args = typeAnnotation.TypeArguments.Select(a => ResolveTypeRef(a)).ToList();
+            return new HirTypeRef(typeAnnotation.Name, null, args, typeAnnotation.Span);
+        }
+
+        // Phase 6: `str` type
+        if (typeAnnotation.Name == "str")
+            return new HirTypeRef("str", null, Array.Empty<HirTypeRef>(), typeAnnotation.Span);
+
         var symbol = _currentScope.Lookup(typeAnnotation.Name);
         if (symbol == null)
         {
@@ -479,6 +494,46 @@ public sealed class NameResolver
         }
         var typeArgs = typeAnnotation.TypeArguments.Select(a => ResolveTypeRef(a)).ToList();
         return new HirTypeRef(typeAnnotation.Name, symbol, typeArgs, typeAnnotation.Span);
+    }
+
+    /// <summary>Phase 6: Resolve a TypeAnnotationNode to an AsterType (for cast expressions).</summary>
+    private AsterType ResolveTypeAnnotation(TypeAnnotationNode annot)
+    {
+        if (annot.Name == "__slice" && annot.TypeArguments.Count == 1)
+        {
+            var elem = ResolveTypeAnnotation(annot.TypeArguments[0]);
+            return new SliceType(elem);
+        }
+        if (annot.Name == "__array" && annot.TypeArguments.Count == 1)
+        {
+            var elem = ResolveTypeAnnotation(annot.TypeArguments[0]);
+            return new ArrayType(elem, 0); // length unknown at resolve time
+        }
+        if (annot.Name == "str") return StrType.Instance;
+        // Fall back to primitive name matching
+        return annot.Name switch
+        {
+            "i32" => PrimitiveType.I32,
+            "i64" => PrimitiveType.I64,
+            "f32" => PrimitiveType.F32,
+            "f64" => PrimitiveType.F64,
+            "bool" => PrimitiveType.Bool,
+            "String" => PrimitiveType.StringType,
+            "void" or "()" => PrimitiveType.Void,
+            "u8" => PrimitiveType.U8,
+            "u32" => PrimitiveType.U32,
+            "u64" => PrimitiveType.U64,
+            "usize" => PrimitiveType.I64,
+            "isize" => PrimitiveType.I64,
+            _ => new StructType(annot.Name, Array.Empty<(string, AsterType)>()),
+        };
+    }
+
+    /// <summary>Phase 6: Resolve array literal [a, b, c].</summary>
+    private HirArrayLiteralExpr ResolveArrayLiteral(ArrayLiteralExprNode arr)
+    {
+        var elems = arr.Elements.Select(e => ResolveNode(e)!).ToList();
+        return new HirArrayLiteralExpr(elems, new TypeVariable(), arr.Span);
     }
 
     // ===== Weeks 17-19: Module declarations =====

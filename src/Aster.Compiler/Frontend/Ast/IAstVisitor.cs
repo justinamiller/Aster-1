@@ -52,4 +52,8 @@ public interface IAstVisitor<T>
     // Phase 5: attributes
     T VisitAttribute(AttributeNode node);
     T VisitAttributeArg(AttributeArgNode node);
+    // Phase 6: slices, casts, array literals
+    T VisitCastExpr(CastExprNode node);
+    T VisitArrayLiteralExpr(ArrayLiteralExprNode node);
+    T VisitSliceTypeAnnotation(SliceTypeAnnotationNode node);
 }

@@ -93,6 +93,9 @@ public enum TokenKind
     // Lifetime annotation token: 'a, 'static (distinct from char literal 'a')
     Lifetime,       // 'name
 
+    // Phase 6 keyword
+    As,             // as (cast)
+
     // Special
     Eof,
     Error,

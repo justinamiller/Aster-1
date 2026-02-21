@@ -1,6 +1,7 @@
 using Aster.Compiler.Diagnostics;
 using Aster.Compiler.Frontend.Ast;
 using Aster.Compiler.Frontend.Hir;
+using Aster.Compiler.Frontend.TypeSystem;
 
 namespace Aster.Compiler.MiddleEnd.Mir;
 
@@ -290,6 +291,12 @@ public sealed class MirLowering
 
             case HirMacroInvocationExpr macroInv:
                 return LowerMacroInvocation(macroInv);
+
+            // Phase 6: casts, array literals
+            case HirCastExpr cast:
+                return LowerCastExpr(cast);
+            case HirArrayLiteralExpr arr:
+                return LowerArrayLiteral(arr);
 
             default:
                 return null;
@@ -768,5 +775,51 @@ public sealed class MirLowering
             return LowerExpr(macroInv.Expanded);
         // Unknown macro with no expansion: no-op
         return null;
+    }
+
+    // ========== Phase 6: Casts and Array Literals ==========
+
+    /// <summary>
+    /// Lower a cast expression (expr as Type).
+    /// Emits a Cast MIR instruction that the backend can lower to an appropriate
+    /// numeric conversion or bitcast.
+    /// </summary>
+    private MirOperand LowerCastExpr(HirCastExpr cast)
+    {
+        var src = LowerExpr(cast.Expression);
+        var targetMirType = cast.TargetType switch
+        {
+            PrimitiveType pt when pt == PrimitiveType.I32 || pt == PrimitiveType.I64 => MirType.I64,
+            PrimitiveType pt when pt == PrimitiveType.F32 || pt == PrimitiveType.F64 => MirType.F64,
+            _ => MirType.I64,
+        };
+
+        var result = NewTemp(targetMirType);
+        Emit(new MirInstruction(MirOpcode.Cast, result,
+            src != null ? new List<MirOperand> { src } : new List<MirOperand>(),
+            cast.TargetType.DisplayName));
+        return result;
+    }
+
+    /// <summary>
+    /// Lower an array literal [a, b, c] to a sequence of stores into a stack-allocated array.
+    /// Returns a pointer to the first element (i64 index 0).
+    /// </summary>
+    private MirOperand LowerArrayLiteral(HirArrayLiteralExpr arr)
+    {
+        var arrayPtr = NewTemp(MirType.I64);
+        // Emit array allocation with length as metadata
+        Emit(new MirInstruction(MirOpcode.Alloca, arrayPtr, new List<MirOperand>(), arr.Elements.Count.ToString()));
+
+        for (int i = 0; i < arr.Elements.Count; i++)
+        {
+            var elemVal = LowerExpr(arr.Elements[i]);
+            if (elemVal == null) continue;
+            var idxOp = MirOperand.Constant((long)i, MirType.I64);
+            Emit(new MirInstruction(MirOpcode.Store, null,
+                new List<MirOperand> { arrayPtr, idxOp, elemVal }, $"array_store_{i}"));
+        }
+
+        return arrayPtr;
     }
 }

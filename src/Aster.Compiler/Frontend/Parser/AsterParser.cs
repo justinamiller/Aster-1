@@ -842,6 +842,13 @@ public sealed class AsterParser
                 Advance();
                 expr = new UnaryExprNode(UnaryOperator.Try, expr, MakeSpan(expr.Span));
             }
+            // Phase 6: cast expression: expr as Type
+            else if (Check(TokenKind.As))
+            {
+                Advance();
+                var targetType = ParseTypeAnnotation();
+                expr = new CastExprNode(expr, targetType, MakeSpan(expr.Span));
+            }
             // Phase 4: macro invocation: name!(args) or name![args]
             else if (Check(TokenKind.Bang) && (Peek(1).Kind == TokenKind.LeftParen || Peek(1).Kind == TokenKind.LeftBracket))
             {
@@ -1049,6 +1056,24 @@ public sealed class AsterParser
         // Let (as expression/statement)
         if (Check(TokenKind.Let))
             return ParseLetStmt();
+
+        // Phase 6: Array literal: [a, b, c] or [val; N]
+        if (Check(TokenKind.LeftBracket))
+        {
+            var bracketSpan = Current.Span;
+            Advance(); // consume '['
+            var elements = new List<AstNode>();
+            while (!Check(TokenKind.RightBracket) && !IsAtEnd)
+            {
+                elements.Add(ParseExpression());
+                if (Check(TokenKind.Comma))
+                    Advance();
+                else
+                    break;
+            }
+            Expect(TokenKind.RightBracket, "Expected ']'");
+            return new ArrayLiteralExprNode(elements, MakeSpan(bracketSpan));
+        }
 
         ReportError("E0100", $"Unexpected token '{Current.Value}'");
         Advance();
@@ -1264,7 +1289,26 @@ public sealed class AsterParser
     private TypeAnnotationNode ParseTypeAnnotation()
     {
         var span = Current.Span;
-        
+
+        // Phase 6: slice type [T] or array type [T; N]
+        if (Check(TokenKind.LeftBracket))
+        {
+            Advance(); // consume '['
+            var elemType = ParseTypeAnnotation();
+            AstNode? length = null;
+            if (Check(TokenKind.Semicolon))
+            {
+                Advance(); // consume ';'
+                length = ParseExpression();
+            }
+            Expect(TokenKind.RightBracket, "Expected ']'");
+            // Represent as a special TypeAnnotationNode: name="slice" with args=[elemType] or "array"
+            var sliceNode = new SliceTypeAnnotationNode(elemType, length, MakeSpan(span));
+            // Return a synthetic TypeAnnotationNode wrapping slice info for downstream use
+            return new TypeAnnotationNode(length == null ? "__slice" : "__array",
+                new[] { elemType }, MakeSpan(span));
+        }
+
         // Check for reference type prefix (&, &mut)
         if (Check(TokenKind.Ampersand))
         {

@@ -110,13 +110,14 @@ public sealed class CompilationDriver
         if (_diagnostics.HasErrors)
             return null;
 
-        // Phase 6b: Optimization passes (Phase 3 — constant folding + DCE; Phase 4 — CSE; Phase 5 — LICM + inlining + SROA)
+        // Phase 6b: Optimization passes (Phase 3 — constant folding + DCE; Phase 4 — CSE; Phase 5 — LICM + inlining + SROA; Phase 6 — loop unrolling)
         new ConstantFolder().Fold(mir);
         new DeadCodeEliminator().Eliminate(mir);
         new CsePass().Eliminate(mir);
         new LicmPass().Hoist(mir);
         new InliningPass().Inline(mir);
         new SroaPass().Replace(mir);
+        mir = new LoopUnrollPass().Run(mir);
 
         // Phase 7: Pattern Lowering
         var patternLower = new PatternLower();

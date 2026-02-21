@@ -5184,3 +5184,363 @@ fn main() {}
         Assert.True(driver.Check(source, "t.ast"), driver.FormatDiagnostics());
     }
 }
+
+
+// ============================================================
+// Phase 6: Slices, Casts, Ranges, Loop Unrolling
+// ============================================================
+
+public class Phase6SliceTests
+{
+    private static ProgramNode Parse(string source)
+    {
+        var tokens = new AsterLexer(source, "t.ast").Tokenize();
+        return new AsterParser(tokens).ParseProgram();
+    }
+
+    [Fact]
+    public void Parse_ArrayLiteral_ThreeInts_NoErrors()
+    {
+        var tokens = new AsterLexer("fn f() -> i32 { let a = [1, 2, 3]; 0 }", "t.ast").Tokenize();
+        var parser = new AsterParser(tokens);
+        parser.ParseProgram();
+        Assert.False(parser.Diagnostics.HasErrors);
+    }
+
+    [Fact]
+    public void Parse_SliceTypeAnnotation_InFunctionParam_NoErrors()
+    {
+        var source = "fn f(x: [i32]) -> i32 { 0 }";
+        var tokens = new AsterLexer(source, "t.ast").Tokenize();
+        var parser = new AsterParser(tokens);
+        parser.ParseProgram();
+        Assert.False(parser.Diagnostics.HasErrors);
+    }
+
+    [Fact]
+    public void TypeCheck_ArrayLiteral_NoErrors()
+    {
+        var source = "fn main() -> i32 { let arr = [1, 2, 3]; 0 }";
+        var driver = new CompilationDriver();
+        Assert.True(driver.Check(source, "t.ast"), driver.FormatDiagnostics());
+    }
+
+    [Fact]
+    public void TypeCheck_SliceTypeRef_Resolves()
+    {
+        var source = "fn sum(data: [i32]) -> i32 { 0 }\nfn main() -> i32 { 0 }";
+        var driver = new CompilationDriver();
+        Assert.True(driver.Check(source, "t.ast"), driver.FormatDiagnostics());
+    }
+
+    [Fact]
+    public void TypeCheck_StrTypeRef_Resolves()
+    {
+        var source = "fn greet(name: str) -> i32 { 0 }\nfn main() -> i32 { 0 }";
+        var driver = new CompilationDriver();
+        Assert.True(driver.Check(source, "t.ast"), driver.FormatDiagnostics());
+    }
+
+    [Fact]
+    public void Compile_ArrayLiteral_ProducesIr()
+    {
+        var source = "fn main() -> i32 { let arr = [10, 20, 30]; 0 }";
+        var driver = new CompilationDriver();
+        Assert.NotNull(driver.Compile(source, "t.ast"));
+    }
+}
+
+public class Phase6CastTests
+{
+    [Fact]
+    public void Lex_AsKeyword_ProducesAsToken()
+    {
+        var tokens = new AsterLexer("x as i64", "t.ast").Tokenize();
+        Assert.Contains(tokens, t => t.Kind == TokenKind.As);
+    }
+
+    [Fact]
+    public void Parse_CastExpr_IntToI64_NoErrors()
+    {
+        var source = "fn f() -> i64 { let x = 42; x as i64 }";
+        var tokens = new AsterLexer(source, "t.ast").Tokenize();
+        var parser = new AsterParser(tokens);
+        parser.ParseProgram();
+        Assert.False(parser.Diagnostics.HasErrors);
+    }
+
+    [Fact]
+    public void Parse_CastExpr_FloatToI32_NoErrors()
+    {
+        var source = "fn f() -> i32 { let x = 3.14; x as i32 }";
+        var tokens = new AsterLexer(source, "t.ast").Tokenize();
+        var parser = new AsterParser(tokens);
+        parser.ParseProgram();
+        Assert.False(parser.Diagnostics.HasErrors);
+    }
+
+    [Fact]
+    public void TypeCheck_CastExpr_I32ToI64_NoError()
+    {
+        var source = "fn main() -> i64 { let x = 5; x as i64 }";
+        var driver = new CompilationDriver();
+        Assert.True(driver.Check(source, "t.ast"), driver.FormatDiagnostics());
+    }
+
+    [Fact]
+    public void TypeCheck_CastExpr_I32ToF64_NoError()
+    {
+        var source = "fn main() -> f64 { let x = 5; x as f64 }";
+        var driver = new CompilationDriver();
+        Assert.True(driver.Check(source, "t.ast"), driver.FormatDiagnostics());
+    }
+
+    [Fact]
+    public void Compile_CastExpr_ProducesIr()
+    {
+        var source = "fn main() -> i64 { let x = 42; x as i64 }";
+        var driver = new CompilationDriver();
+        var ir = driver.Compile(source, "t.ast");
+        Assert.NotNull(ir);
+    }
+
+    [Fact]
+    public void Parse_CastExpr_ChainedCasts_NoErrors()
+    {
+        var source = "fn f() -> f64 { let x = 1; x as i64 as f64 }";
+        var tokens = new AsterLexer(source, "t.ast").Tokenize();
+        var parser = new AsterParser(tokens);
+        parser.ParseProgram();
+        Assert.False(parser.Diagnostics.HasErrors);
+    }
+}
+
+public class Phase6RangeTests
+{
+    [Fact]
+    public void TypeCheck_RangeExpr_I32_NoErrors()
+    {
+        var source = "fn main() -> i32 { let r = 0..10; 0 }";
+        var driver = new CompilationDriver();
+        Assert.True(driver.Check(source, "t.ast"), driver.FormatDiagnostics());
+    }
+
+    [Fact]
+    public void Parse_RangeExpr_Simple_NoErrors()
+    {
+        var source = "fn f() -> i32 { let r = 1..5; 0 }";
+        var tokens = new AsterLexer(source, "t.ast").Tokenize();
+        var parser = new AsterParser(tokens);
+        parser.ParseProgram();
+        Assert.False(parser.Diagnostics.HasErrors);
+    }
+
+    [Fact]
+    public void Compile_ForLoopWithRange_ProducesIr()
+    {
+        var source = @"
+fn main() -> i32 {
+    let total = 0;
+    for i in 0..5 {
+        total = total + i;
+    }
+    total
+}
+";
+        var driver = new CompilationDriver();
+        Assert.NotNull(driver.Compile(source, "t.ast"));
+    }
+
+    [Fact]
+    public void TypeCheck_RangeExpr_InForLoop_NoErrors()
+    {
+        var source = @"
+fn main() -> i32 {
+    let s = 0;
+    for i in 0..10 {
+        s = s + 1;
+    }
+    s
+}
+";
+        var driver = new CompilationDriver();
+        Assert.True(driver.Check(source, "t.ast"), driver.FormatDiagnostics());
+    }
+
+    [Fact]
+    public void Parse_RangeExpr_InVariable_NoErrors()
+    {
+        var source = "fn f() -> i32 { let r = 0..3; 0 }";
+        var tokens = new AsterLexer(source, "t.ast").Tokenize();
+        var parser = new AsterParser(tokens);
+        parser.ParseProgram();
+        Assert.False(parser.Diagnostics.HasErrors);
+    }
+}
+
+public class Phase6LoopUnrollTests
+{
+    [Fact]
+    public void LoopUnroll_EmptyModule_ReturnsEmpty()
+    {
+        var module = new MirModule("test");
+        var result = new LoopUnrollPass().Run(module);
+        Assert.NotNull(result);
+        Assert.Empty(result.Functions);
+    }
+
+    [Fact]
+    public void LoopUnroll_FunctionWithNoRangeCall_Unchanged()
+    {
+        var module = new MirModule("test");
+        var fn = new MirFunction("f");
+        module.Functions.Add(fn);
+        var bb = fn.CreateBlock("entry");
+        bb.AddInstruction(new MirInstruction(MirOpcode.Assign,
+            MirOperand.Temp("t0", MirType.I64),
+            new List<MirOperand> { MirOperand.Constant(42L, MirType.I64) }));
+        bb.Terminator = new MirReturn();
+
+        var result = new LoopUnrollPass().Run(module);
+        Assert.Single(result.Functions);
+        Assert.Single(result.Functions[0].BasicBlocks);
+    }
+
+    [Fact]
+    public void LoopUnroll_ConstantRange_UnrollsToTripCount()
+    {
+        // Set up a two-block loop where the BODY block has both
+        // the __range_new call and a back-edge (in the last instruction's Extra).
+        var module = new MirModule("test");
+        var fn = new MirFunction("f");
+        module.Functions.Add(fn);
+
+        // pre-header (not part of the loop body)
+        var preHeader = fn.CreateBlock("pre_header");
+        preHeader.AddInstruction(new MirInstruction(
+            MirOpcode.Assign,
+            MirOperand.Temp("init", MirType.I64),
+            new List<MirOperand> { MirOperand.Constant(0L, MirType.I64) }));
+
+        // loop body: __range_new(0, 3) + back-edge to pre_header label
+        var loopBody = fn.CreateBlock("loop_body");
+        loopBody.AddInstruction(new MirInstruction(
+            MirOpcode.Call,
+            MirOperand.Temp("range", MirType.I64),
+            new List<MirOperand> {
+                MirOperand.Constant(0, MirType.I64),
+                MirOperand.Constant(3, MirType.I64),
+            },
+            "__range_new"));
+        // Last instruction with back-edge label pointing to pre_header
+        loopBody.AddInstruction(new MirInstruction(
+            MirOpcode.Assign,
+            MirOperand.Temp("back", MirType.I64),
+            new List<MirOperand> { MirOperand.Constant(0L, MirType.I64) },
+            "pre_header"));   // back-edge target label
+        loopBody.Terminator = new MirReturn();
+
+        var result = new LoopUnrollPass().Run(module);
+        // tripCount=3, bodyBlocks = blocks[0..1] (pre_header + loop_body) = 2
+        // Unrolled: 3 * 2 = 6 blocks
+        Assert.Equal(6, result.Functions[0].BasicBlocks.Count);
+    }
+
+    [Fact]
+    public void LoopUnroll_TripCountAboveMax_DoesNotUnroll()
+    {
+        var module = new MirModule("test");
+        var fn = new MirFunction("f");
+        module.Functions.Add(fn);
+
+        var header = fn.CreateBlock("header");
+        header.AddInstruction(new MirInstruction(
+            MirOpcode.Call,
+            MirOperand.Temp("r", MirType.I64),
+            new List<MirOperand> {
+                MirOperand.Constant(0, MirType.I64),
+                MirOperand.Constant(100, MirType.I64), // 100 > MaxUnrollCount(8)
+            },
+            "__range_new"));
+        header.Terminator = new MirReturn();
+
+        var result = new LoopUnrollPass().Run(module);
+        Assert.Single(result.Functions[0].BasicBlocks); // unchanged
+    }
+
+    [Fact]
+    public void LoopUnroll_FullPipeline_CompilationSucceeds()
+    {
+        var source = @"
+fn main() -> i32 {
+    let s = 0;
+    for i in 0..3 {
+        s = s + 1;
+    }
+    s
+}
+";
+        Assert.NotNull(new CompilationDriver().Compile(source, "t.ast"));
+    }
+}
+
+public class Phase6IntegrationTests
+{
+    [Fact]
+    public void Compile_ArrayLiteralUsedInFunction_Works()
+    {
+        var source = @"
+fn make_total() -> i32 {
+    let arr = [1, 2, 3];
+    0
+}
+fn main() -> i32 { 0 }
+";
+        Assert.True(new CompilationDriver().Check(source, "t.ast"),
+            new CompilationDriver().FormatDiagnostics());
+    }
+
+    [Fact]
+    public void Compile_CastInArithmeticExpr_Works()
+    {
+        var source = @"
+fn add(a: i32, b: i32) -> i64 {
+    (a + b) as i64
+}
+fn main() -> i32 { 0 }
+";
+        Assert.True(new CompilationDriver().Check(source, "t.ast"),
+            new CompilationDriver().FormatDiagnostics());
+    }
+
+    [Fact]
+    public void Compile_RangeAndCastCombined_Works()
+    {
+        var source = @"
+fn count_up(max: i32) -> i32 {
+    let total = 0;
+    for i in 0..max {
+        total = total + i;
+    }
+    total
+}
+fn main() -> i32 { 0 }
+";
+        Assert.True(new CompilationDriver().Check(source, "t.ast"),
+            new CompilationDriver().FormatDiagnostics());
+    }
+
+    [Fact]
+    public void Compile_SliceParamAndArrayArg_Works()
+    {
+        var source = @"
+fn process(items: [i32]) -> i32 { 0 }
+fn main() -> i32 {
+    let data = [5, 10, 15];
+    process(data)
+}
+";
+        Assert.True(new CompilationDriver().Check(source, "t.ast"),
+            new CompilationDriver().FormatDiagnostics());
+    }
+}
