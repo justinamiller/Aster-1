@@ -441,13 +441,20 @@ public sealed class NameResolver
 
     private HirTypeRef ResolveTypeRef(TypeAnnotationNode typeAnnotation)
     {
+        // Phase 4: `dyn TraitName` — don't look up "dyn" as a symbol; treat as trait object
+        if (typeAnnotation.Name == "dyn")
+        {
+            var args = typeAnnotation.TypeArguments.Select(a => ResolveTypeRef(a)).ToList();
+            return new HirTypeRef("dyn", null, args, typeAnnotation.Span);
+        }
+
         var symbol = _currentScope.Lookup(typeAnnotation.Name);
         if (symbol == null)
         {
             Diagnostics.ReportError("E0202", $"Undefined type '{typeAnnotation.Name}'", typeAnnotation.Span);
         }
-        var args = typeAnnotation.TypeArguments.Select(a => ResolveTypeRef(a)).ToList();
-        return new HirTypeRef(typeAnnotation.Name, symbol, args, typeAnnotation.Span);
+        var typeArgs = typeAnnotation.TypeArguments.Select(a => ResolveTypeRef(a)).ToList();
+        return new HirTypeRef(typeAnnotation.Name, symbol, typeArgs, typeAnnotation.Span);
     }
 
     // ===== Weeks 17-19: Module declarations =====
@@ -492,7 +499,8 @@ public sealed class NameResolver
                 .Select(p => p.TypeAnnotation?.Name ?? "unknown")
                 .ToList();
             var returnTypeName = m.ReturnType?.Name;
-            return new HirTraitMethod(m.Name, paramTypeNames, returnTypeName, m.Span);
+            // IsAbstract == false means the method has a default body in the trait
+            return new HirTraitMethod(m.Name, paramTypeNames, returnTypeName, m.Span, hasDefaultBody: !m.IsAbstract);
         }).ToList();
 
         return new HirTraitDecl(symbol, hirGenericParams, methods, t.Span);

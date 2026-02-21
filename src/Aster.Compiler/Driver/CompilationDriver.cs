@@ -110,9 +110,10 @@ public sealed class CompilationDriver
         if (_diagnostics.HasErrors)
             return null;
 
-        // Phase 6b: Optimization passes (Phase 3 — constant folding + DCE)
+        // Phase 6b: Optimization passes (Phase 3 — constant folding + DCE; Phase 4 — CSE)
         new ConstantFolder().Fold(mir);
         new DeadCodeEliminator().Eliminate(mir);
+        new CsePass().Eliminate(mir);
 
         // Phase 7: Pattern Lowering
         var patternLower = new PatternLower();

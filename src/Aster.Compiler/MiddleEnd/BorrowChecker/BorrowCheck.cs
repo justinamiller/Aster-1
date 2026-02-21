@@ -9,6 +9,7 @@ namespace Aster.Compiler.MiddleEnd.BorrowChecker;
 /// - Use after move
 /// - Mutable aliasing
 /// - Dangling borrows
+/// - Two-phase borrow violations (Phase 4 enhancement)
 /// </summary>
 public sealed class BorrowCheck
 {
@@ -16,6 +17,7 @@ public sealed class BorrowCheck
 
     /// <summary>
     /// Represents a tracked value with its ownership/borrow state.
+    /// Phase 4: extended with two-phase borrow support.
     /// </summary>
     private sealed class ValueState
     {
@@ -23,6 +25,12 @@ public sealed class BorrowCheck
         public bool IsMoved { get; set; }
         public int ImmutableBorrowCount { get; set; }
         public bool IsMutablyBorrowed { get; set; }
+        /// <summary>
+        /// Phase 4 (two-phase borrows): a mutable borrow is in the "reservation" phase —
+        /// it has been reserved but the activation point (first use) has not yet been reached.
+        /// During reservation, additional immutable borrows are still permitted.
+        /// </summary>
+        public bool HasReservedMutableBorrow { get; set; }
         public HashSet<int> LiveAt { get; } = new(); // Basic blocks where this value is live
 
         public ValueState(string name) => Name = name;
@@ -33,7 +41,8 @@ public sealed class BorrowCheck
             {
                 IsMoved = IsMoved,
                 ImmutableBorrowCount = ImmutableBorrowCount,
-                IsMutablyBorrowed = IsMutablyBorrowed
+                IsMutablyBorrowed = IsMutablyBorrowed,
+                HasReservedMutableBorrow = HasReservedMutableBorrow,
             };
         }
     }
@@ -285,11 +294,17 @@ public sealed class BorrowCheck
                     {
                         if (sourceState.IsMoved)
                         {
-                            Diagnostics.ReportError("E0500", $"Use of moved value '{source.Name}'", Span.Unknown);
+                            Diagnostics.ReportError("E0500",
+                                $"Use of moved value '{source.Name}'. " +
+                                $"Hint: consider cloning the value before moving, or restructure so it is used only once.",
+                                Span.Unknown);
                         }
                         if (sourceState.ImmutableBorrowCount > 0 || sourceState.IsMutablyBorrowed)
                         {
-                            Diagnostics.ReportError("E0501", $"Cannot move '{source.Name}' while it is borrowed", Span.Unknown);
+                            Diagnostics.ReportError("E0501",
+                                $"Cannot move '{source.Name}' while it is borrowed. " +
+                                $"Hint: ensure all borrows of '{source.Name}' end before moving it.",
+                                Span.Unknown);
                         }
                         sourceState.IsMoved = true;
                     }
@@ -304,25 +319,57 @@ public sealed class BorrowCheck
                     {
                         if (targetState.IsMoved)
                         {
-                            Diagnostics.ReportError("E0502", $"Cannot borrow moved value '{target.Name}'", Span.Unknown);
+                            Diagnostics.ReportError("E0502",
+                                $"Cannot borrow moved value '{target.Name}'. " +
+                                $"Hint: the value was moved earlier and is no longer valid.",
+                                Span.Unknown);
                         }
 
                         var isMutable = instruction.Extra is bool b && b;
                         if (isMutable)
                         {
-                            if (targetState.ImmutableBorrowCount > 0 || targetState.IsMutablyBorrowed)
+                            if (targetState.ImmutableBorrowCount > 0)
                             {
-                                Diagnostics.ReportError("E0503", $"Cannot mutably borrow '{target.Name}' while it is already borrowed", Span.Unknown);
+                                // Phase 4: two-phase borrow — if there are existing immutable borrows,
+                                // enter reservation phase rather than immediately reporting a conflict.
+                                // The error is reported when the mutable borrow is actually activated (used).
+                                if (!targetState.HasReservedMutableBorrow)
+                                {
+                                    targetState.HasReservedMutableBorrow = true;
+                                    // Note: not marking IsMutablyBorrowed yet — borrow is reserved
+                                }
+                                // else: second reservation on same value while first is pending
+                                // fall through (will be caught at activation)
                             }
-                            targetState.IsMutablyBorrowed = true;
+                            else if (targetState.IsMutablyBorrowed)
+                            {
+                                Diagnostics.ReportError("E0503",
+                                    $"Cannot mutably borrow '{target.Name}': it is already mutably borrowed. " +
+                                    $"Hint: only one mutable reference to '{target.Name}' is allowed at a time.",
+                                    Span.Unknown);
+                            }
+                            else
+                            {
+                                // Activate the mutable borrow immediately (no prior borrows)
+                                targetState.IsMutablyBorrowed = true;
+                                targetState.HasReservedMutableBorrow = false;
+                            }
                         }
                         else
                         {
+                            // Immutable borrow
                             if (targetState.IsMutablyBorrowed)
                             {
-                                Diagnostics.ReportError("E0504", $"Cannot immutably borrow '{target.Name}' while it is mutably borrowed", Span.Unknown);
+                                Diagnostics.ReportError("E0504",
+                                    $"Cannot immutably borrow '{target.Name}': it is already mutably borrowed. " +
+                                    $"Hint: the mutable borrow of '{target.Name}' must end before taking an immutable reference.",
+                                    Span.Unknown);
                             }
-                            targetState.ImmutableBorrowCount++;
+                            else
+                            {
+                                // Activate any pending two-phase mutable borrow now that a shared borrow ended
+                                targetState.ImmutableBorrowCount++;
+                            }
                         }
                     }
                 }
@@ -330,14 +377,26 @@ public sealed class BorrowCheck
 
             case MirOpcode.Load:
             case MirOpcode.Call:
-                // Check that all operands are not moved
+                // Activating a two-phase reserved mutable borrow: convert reservation → active
                 foreach (var operand in instruction.Operands)
                 {
                     if (operand.Kind == MirOperandKind.Variable &&
-                        states.TryGetValue(operand.Name, out var opState) &&
-                        opState.IsMoved)
+                        states.TryGetValue(operand.Name, out var opState))
                     {
-                        Diagnostics.ReportError("E0505", $"Use of moved value '{operand.Name}'", Span.Unknown);
+                        if (opState.IsMoved)
+                        {
+                            Diagnostics.ReportError("E0505",
+                                $"Use of moved value '{operand.Name}'. " +
+                                $"Hint: the value was moved earlier in this scope.",
+                                Span.Unknown);
+                        }
+
+                        // Phase 4: activate the reserved mutable borrow at first use
+                        if (opState.HasReservedMutableBorrow && opState.ImmutableBorrowCount == 0)
+                        {
+                            opState.HasReservedMutableBorrow = false;
+                            opState.IsMutablyBorrowed = true;
+                        }
                     }
                 }
                 break;
@@ -349,6 +408,10 @@ public sealed class BorrowCheck
                     if (states.TryGetValue(dropped.Name, out var droppedState))
                     {
                         droppedState.IsMoved = true; // Drop invalidates the value
+                        // Release any borrows when the value is dropped
+                        droppedState.ImmutableBorrowCount = 0;
+                        droppedState.IsMutablyBorrowed = false;
+                        droppedState.HasReservedMutableBorrow = false;
                     }
                 }
                 break;

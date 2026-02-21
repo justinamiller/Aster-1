@@ -363,11 +363,57 @@ public sealed class AsterParser
         var methods = new List<FunctionDeclNode>();
         while (!Check(TokenKind.RightBrace) && !IsAtEnd)
         {
-            methods.Add(ParseFunctionDecl(false));
+            methods.Add(ParseTraitMethod());
         }
 
         Expect(TokenKind.RightBrace, "Expected '}'");
         return new TraitDeclNode(name, methods, isPublic, genericParams, MakeSpan(startSpan));
+    }
+
+    /// <summary>
+    /// Parse a trait method declaration. Abstract methods end with ';' (no body).
+    /// Default methods have a full '{ body }'. Returns a <see cref="FunctionDeclNode"/>
+    /// with <see cref="FunctionDeclNode.IsAbstract"/> set accordingly.
+    /// </summary>
+    private FunctionDeclNode ParseTraitMethod()
+    {
+        var startSpan = Current.Span;
+        var isAsync = false;
+        var isPublic = false;
+
+        if (Check(TokenKind.Pub)) { isPublic = true; Advance(); }
+        if (Check(TokenKind.Async)) { isAsync = true; Advance(); }
+
+        Expect(TokenKind.Fn, "Expected 'fn'");
+        var name = ExpectIdentifier("Expected method name");
+        var genericParams = ParseOptionalGenericParams();
+
+        Expect(TokenKind.LeftParen, "Expected '('");
+        var parameters = ParseParameterList();
+        Expect(TokenKind.RightParen, "Expected ')'");
+
+        TypeAnnotationNode? returnType = null;
+        if (Check(TokenKind.Arrow))
+        {
+            Advance();
+            returnType = ParseTypeAnnotation();
+        }
+
+        if (Check(TokenKind.Semicolon))
+        {
+            // Abstract method — no body. Use an empty block as a placeholder so the
+            // AST node is well-formed; FunctionDeclNode.IsAbstract distinguishes this
+            // from a concrete function that happens to have an empty body.
+            Advance();
+            var emptyBody = new BlockExprNode(new List<AstNode>(), null, startSpan);
+            return new FunctionDeclNode(name, genericParams, parameters, returnType, emptyBody,
+                isPublic, isAsync, MakeSpan(startSpan), isAbstract: true);
+        }
+
+        // Default method — parse body
+        var body = ParseBlock();
+        return new FunctionDeclNode(name, genericParams, parameters, returnType, body,
+            isPublic, isAsync, MakeSpan(startSpan), isAbstract: false);
     }
 
     private ImplDeclNode ParseImplDecl()
@@ -1208,6 +1254,16 @@ public sealed class AsterParser
         }
         
         var name = ExpectIdentifier("Expected type name");
+
+        // Phase 4: handle `dyn TraitName` — trait object type annotation
+        // `dyn` is not a reserved keyword but treated specially here.
+        if (name == "dyn" && Check(TokenKind.Identifier))
+        {
+            var traitName = Advance().Value;
+            // Represent as TypeAnnotationNode("dyn", [TypeAnnotationNode(traitName)])
+            var traitArg = new TypeAnnotationNode(traitName, Array.Empty<TypeAnnotationNode>(), MakeSpan(span));
+            return new TypeAnnotationNode("dyn", new[] { traitArg }, MakeSpan(span));
+        }
 
         var typeArgs = new List<TypeAnnotationNode>();
         if (Check(TokenKind.Less))

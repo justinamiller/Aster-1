@@ -54,8 +54,13 @@ public sealed class FunctionDeclNode : AstNode
     public BlockExprNode Body { get; }
     public bool IsPublic { get; }
     public bool IsAsync { get; }
-    public FunctionDeclNode(string name, IReadOnlyList<GenericParamNode> genericParams, IReadOnlyList<ParameterNode> parameters, TypeAnnotationNode? returnType, BlockExprNode body, bool isPublic, bool isAsync, Span span)
-        : base(span) { Name = name; GenericParams = genericParams; Parameters = parameters; ReturnType = returnType; Body = body; IsPublic = isPublic; IsAsync = isAsync; }
+    /// <summary>
+    /// True for trait method signatures without a body (abstract/required methods).
+    /// The Body will be an empty block used as a placeholder.
+    /// </summary>
+    public bool IsAbstract { get; }
+    public FunctionDeclNode(string name, IReadOnlyList<GenericParamNode> genericParams, IReadOnlyList<ParameterNode> parameters, TypeAnnotationNode? returnType, BlockExprNode body, bool isPublic, bool isAsync, Span span, bool isAbstract = false)
+        : base(span) { Name = name; GenericParams = genericParams; Parameters = parameters; ReturnType = returnType; Body = body; IsPublic = isPublic; IsAsync = isAsync; IsAbstract = isAbstract; }
     public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitFunctionDecl(this);
 }
 

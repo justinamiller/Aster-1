@@ -24,6 +24,8 @@ public sealed class TypeChecker
     private readonly Dictionary<string, AsterType> _typeAliases = new();
     // Phase 4: associated types: "TypeName::AssocName" -> AsterType
     private readonly Dictionary<string, AsterType> _associatedTypes = new();
+    // Phase 4: registered trait declarations for required-method checking: traitName -> list of required method names
+    private readonly Dictionary<string, List<string>> _traitRequiredMethods = new();
     public DiagnosticBag Diagnostics { get; } = new();
 
     // Built-in generic type constructors (Weeks 13-16)
@@ -293,6 +295,8 @@ public sealed class TypeChecker
             StructType st => st.Name,
             EnumType et => et.Name,
             PrimitiveType pt => pt.Kind.ToString().ToLowerInvariant(),
+            // Phase 4: dyn Trait — dispatch via the trait's impl method table
+            TraitObjectType tot => tot.TraitName,
             _ => null,
         };
 
@@ -750,6 +754,10 @@ public sealed class TypeChecker
     {
         if (typeRef == null) return new TypeVariable();
 
+        // Phase 4: dyn TraitName → TraitObjectType
+        if (typeRef.Name == "dyn" && typeRef.TypeArguments.Count == 1)
+            return new TraitObjectType(typeRef.TypeArguments[0].Name);
+
         // Check primitive types first
         var primitiveType = typeRef.Name switch
         {
@@ -810,6 +818,29 @@ public sealed class TypeChecker
     {
         var traitType = new TraitType(trait.Symbol.Name);
         trait.Symbol.Type = traitType;
+
+        // Phase 4: Register required (non-default) methods so CheckImplDecl can verify completeness
+        var requiredMethods = trait.Methods
+            .Where(m => !m.HasDefaultBody)
+            .Select(m => m.Name)
+            .ToList();
+        _traitRequiredMethods[trait.Symbol.Name] = requiredMethods;
+
+        // Also populate the impl method table with default method stubs so dyn dispatch works
+        if (trait.Methods.Any(m => m.HasDefaultBody))
+        {
+            if (!_implMethods.TryGetValue(trait.Symbol.Name, out var defaultTable))
+            {
+                defaultTable = new Dictionary<string, FunctionType>(StringComparer.Ordinal);
+                _implMethods[trait.Symbol.Name] = defaultTable;
+            }
+            foreach (var m in trait.Methods.Where(m => m.HasDefaultBody))
+            {
+                // Register a stub FunctionType for the default method (return void for now)
+                defaultTable[m.Name] = new FunctionType(Array.Empty<AsterType>(), PrimitiveType.Void);
+            }
+        }
+
         return PrimitiveType.Void;
     }
 
@@ -836,7 +867,7 @@ public sealed class TypeChecker
             _associatedTypes[$"{impl.TargetTypeName}::{assoc.Name}"] = resolvedType;
         }
 
-        // If this is a trait impl, register it in the trait solver
+        // If this is a trait impl, register it in the trait solver and verify required methods
         if (impl.TraitName != null)
         {
             // Resolve target type
@@ -844,6 +875,29 @@ public sealed class TypeChecker
                 ? st
                 : (_enumTypes.TryGetValue(impl.TargetTypeName, out var et) ? et : new TypeVariable());
             _traitSolver.RegisterImpl(new TraitImpl(impl.TraitName, targetType));
+
+            // Phase 4: verify all required (non-default) methods of the trait are provided
+            if (_traitRequiredMethods.TryGetValue(impl.TraitName, out var requiredMethods))
+            {
+                // Impl method symbols use qualified names like "Square::area"; extract the unqualified part
+                var providedMethodNames = impl.Methods
+                    .Select(m =>
+                    {
+                        var n = m.Symbol.Name;
+                        var sep = n.LastIndexOf("::", StringComparison.Ordinal);
+                        return sep >= 0 ? n[(sep + 2)..] : n;
+                    })
+                    .ToHashSet(StringComparer.Ordinal);
+                foreach (var required in requiredMethods)
+                {
+                    if (!providedMethodNames.Contains(required))
+                    {
+                        Diagnostics.ReportError("E0700",
+                            $"impl of '{impl.TraitName}' for '{impl.TargetTypeName}' is missing required method '{required}'",
+                            impl.Span);
+                    }
+                }
+            }
         }
 
         return PrimitiveType.Void;

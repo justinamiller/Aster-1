@@ -265,8 +265,14 @@ public sealed class HirTraitMethod : HirNode
     public string Name { get; }
     public IReadOnlyList<string> ParamTypeNames { get; }
     public string? ReturnTypeName { get; }
-    public HirTraitMethod(string name, IReadOnlyList<string> paramTypeNames, string? returnTypeName, Span span)
-        : base(span) { Name = name; ParamTypeNames = paramTypeNames; ReturnTypeName = returnTypeName; }
+    /// <summary>
+    /// True when the trait method has a default implementation body.
+    /// Impl blocks are NOT required to override this method.
+    /// False means the method is abstract/required.
+    /// </summary>
+    public bool HasDefaultBody { get; }
+    public HirTraitMethod(string name, IReadOnlyList<string> paramTypeNames, string? returnTypeName, Span span, bool hasDefaultBody = false)
+        : base(span) { Name = name; ParamTypeNames = paramTypeNames; ReturnTypeName = returnTypeName; HasDefaultBody = hasDefaultBody; }
 }
 
 /// <summary>HIR trait declaration (Week 20).</summary>

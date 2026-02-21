@@ -162,6 +162,19 @@ public sealed class LifetimeType : AsterType
     public LifetimeType(string name) => Name = name;
 }
 
+/// <summary>
+/// Phase 4: Trait object type — `dyn TraitName`.
+/// Used to represent dynamically-dispatched trait values.
+/// Method calls on dyn types are dispatched via the impl method table.
+/// </summary>
+public sealed class TraitObjectType : AsterType
+{
+    /// <summary>The trait this object must implement.</summary>
+    public string TraitName { get; }
+    public override string DisplayName => $"dyn {TraitName}";
+    public TraitObjectType(string traitName) => TraitName = traitName;
+}
+
 /// <summary>Trait bound on a type parameter.</summary>
 public sealed class TraitBound
 {

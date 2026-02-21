@@ -4158,3 +4158,573 @@ fn main() {
     }
 }
 
+
+// ========== Phase 4 Completion: dyn Trait, Default Methods, CSE, NLL ==========
+
+/// <summary>Tests for dyn Trait (trait object) support.</summary>
+public class Phase4DynTraitTests
+{
+    [Fact]
+    public void Parse_DynTrait_TypeAnnotation_NoCrash()
+    {
+        // A parameter typed as `dyn Display` should parse without errors
+        var source = @"
+trait Display {
+    fn display(&self) -> String;
+}
+
+fn print_it(obj: dyn Display) {
+    obj.display();
+}
+";
+        var lexer = new AsterLexer(source, "t.ast");
+        var tokens = lexer.Tokenize();
+        Assert.False(lexer.Diagnostics.HasErrors);
+        var parser = new AsterParser(tokens);
+        var ast = parser.ParseProgram();
+        Assert.False(parser.Diagnostics.HasErrors);
+    }
+
+    [Fact]
+    public void Resolve_DynTrait_ProducesTraitObjectType()
+    {
+        var source = @"
+trait Greet {
+    fn hello(&self) -> String;
+}
+
+fn greet(g: dyn Greet) {
+    g.hello();
+}
+";
+        var lexer = new AsterLexer(source, "t.ast");
+        var hir = new NameResolver().Resolve(new AsterParser(lexer.Tokenize()).ParseProgram());
+        var checker = new TypeChecker();
+        checker.Check(hir);
+        // Should have no errors for the trait object parameter
+        Assert.False(checker.Diagnostics.HasErrors);
+    }
+
+    [Fact]
+    public void TypeCheck_DynTrait_MethodCall_Resolves()
+    {
+        var source = @"
+trait Speak {
+    fn speak(&self) -> String;
+}
+
+struct Dog {}
+
+impl Speak for Dog {
+    fn speak(&self) -> String {
+        ""woof""
+    }
+}
+
+fn make_speak(animal: dyn Speak) {
+    animal.speak();
+}
+";
+        var driver = new CompilationDriver();
+        var ok = driver.Check(source, "t.ast");
+        Assert.True(ok, driver.FormatDiagnostics());
+    }
+
+    [Fact]
+    public void FullPipeline_DynTrait_Compiles()
+    {
+        var source = @"
+trait Area {
+    fn area(&self) -> f64;
+}
+
+struct Circle { radius: f64 }
+
+impl Area for Circle {
+    fn area(&self) -> f64 {
+        3.14
+    }
+}
+
+fn print_area(shape: dyn Area) {
+    let a = shape.area();
+}
+";
+        var driver = new CompilationDriver();
+        Assert.NotNull(driver.Compile(source, "t.ast"));
+    }
+
+    [Fact]
+    public void TypeCheck_DynTrait_DisplayName_IsCorrect()
+    {
+        // TraitObjectType.DisplayName should be "dyn TraitName"
+        var t = new TraitObjectType("Display");
+        Assert.Equal("dyn Display", t.DisplayName);
+    }
+}
+
+/// <summary>Tests for abstract trait methods (required methods) and default trait methods.</summary>
+public class Phase4DefaultTraitMethodTests
+{
+    [Fact]
+    public void Parse_AbstractTraitMethod_Semicolon_NoCrash()
+    {
+        // Abstract method ends with ; not { }
+        var source = @"
+trait Animal {
+    fn name(&self) -> String;
+    fn sound(&self) -> String;
+}
+";
+        var lexer = new AsterLexer(source, "t.ast");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        Assert.False(lexer.Diagnostics.HasErrors);
+    }
+
+    [Fact]
+    public void Parse_DefaultTraitMethod_Body_NoCrash()
+    {
+        // Default method has a body
+        var source = @"
+trait Greeter {
+    fn name(&self) -> String;
+    fn greet(&self) -> String {
+        ""hello""
+    }
+}
+";
+        var lexer = new AsterLexer(source, "t.ast");
+        var ast = new AsterParser(lexer.Tokenize()).ParseProgram();
+        Assert.False(lexer.Diagnostics.HasErrors);
+    }
+
+    [Fact]
+    public void Resolve_AbstractMethod_FlagSet()
+    {
+        var source = @"
+trait Foo {
+    fn required(&self) -> i32;
+    fn provided(&self) -> i32 {
+        42
+    }
+}
+";
+        var lexer = new AsterLexer(source, "t.ast");
+        var tokens = lexer.Tokenize();
+        var ast = new AsterParser(tokens).ParseProgram();
+
+        // Find the trait decl and check IsAbstract flags
+        var traitDecl = ast.Declarations.OfType<TraitDeclNode>().FirstOrDefault();
+        Assert.NotNull(traitDecl);
+        var required = traitDecl!.Methods.FirstOrDefault(m => m.Name == "required");
+        var provided = traitDecl.Methods.FirstOrDefault(m => m.Name == "provided");
+        Assert.NotNull(required);
+        Assert.NotNull(provided);
+        Assert.True(required!.IsAbstract);
+        Assert.False(provided!.IsAbstract);
+    }
+
+    [Fact]
+    public void TypeCheck_RequiredMethod_MissingImpl_ReportsError()
+    {
+        var source = @"
+trait Shape {
+    fn area(&self) -> f64;
+}
+
+struct Box {}
+
+impl Shape for Box {
+}
+";
+        var lexer = new AsterLexer(source, "t.ast");
+        var hir = new NameResolver().Resolve(new AsterParser(lexer.Tokenize()).ParseProgram());
+        var checker = new TypeChecker();
+        checker.Check(hir);
+        // Should report E0700: missing required method 'area'
+        Assert.True(checker.Diagnostics.HasErrors);
+        Assert.Contains(checker.Diagnostics, d => d.Code == "E0700");
+    }
+
+    [Fact]
+    public void TypeCheck_RequiredMethod_Provided_NoError()
+    {
+        var source = @"
+trait Shape {
+    fn area(&self) -> f64;
+}
+
+struct Square { side: f64 }
+
+impl Shape for Square {
+    fn area(&self) -> f64 {
+        2.0
+    }
+}
+";
+        var driver = new CompilationDriver();
+        var ok = driver.Check(source, "t.ast");
+        Assert.True(ok, driver.FormatDiagnostics());
+    }
+
+    [Fact]
+    public void TypeCheck_DefaultMethod_NotRequired_NoError()
+    {
+        // Impl that doesn't override the default method should be fine
+        var source = @"
+trait Describable {
+    fn describe(&self) -> String {
+        ""an object""
+    }
+}
+
+struct Widget {}
+
+impl Describable for Widget {
+}
+";
+        var driver = new CompilationDriver();
+        var ok = driver.Check(source, "t.ast");
+        Assert.True(ok, driver.FormatDiagnostics());
+    }
+
+    [Fact]
+    public void HirTraitMethod_HasDefaultBody_CorrectValues()
+    {
+        var source = @"
+trait Mix {
+    fn required(&self) -> i32;
+    fn optional(&self) -> i32 {
+        0
+    }
+}
+";
+        var lexer = new AsterLexer(source, "t.ast");
+        var hir = new NameResolver().Resolve(new AsterParser(lexer.Tokenize()).ParseProgram());
+        var traitDecl = hir.Declarations.OfType<HirTraitDecl>().FirstOrDefault();
+        Assert.NotNull(traitDecl);
+        var req = traitDecl!.Methods.FirstOrDefault(m => m.Name == "required");
+        var opt = traitDecl.Methods.FirstOrDefault(m => m.Name == "optional");
+        Assert.NotNull(req);
+        Assert.NotNull(opt);
+        Assert.False(req!.HasDefaultBody);   // abstract → no default body
+        Assert.True(opt!.HasDefaultBody);    // has body → default body
+    }
+}
+
+/// <summary>Tests for the CSE (Common Subexpression Elimination) pass.</summary>
+public class Phase4CsePassTests
+{
+    [Fact]
+    public void CsePass_EliminatesRedundantBinaryOp()
+    {
+        var fn = new MirFunction("test");
+        var block = fn.CreateBlock("entry");
+
+        // x = a + b
+        var xInstr = new MirInstruction(
+            MirOpcode.BinaryOp,
+            MirOperand.Variable("x", MirType.I32),
+            new[] { MirOperand.Variable("a", MirType.I32), MirOperand.Variable("b", MirType.I32) },
+            extra: "+");
+        // y = a + b  (same expression — should be replaced by y = x)
+        var yInstr = new MirInstruction(
+            MirOpcode.BinaryOp,
+            MirOperand.Variable("y", MirType.I32),
+            new[] { MirOperand.Variable("a", MirType.I32), MirOperand.Variable("b", MirType.I32) },
+            extra: "+");
+        block.AddInstruction(xInstr);
+        block.AddInstruction(yInstr);
+        block.Terminator = new MirReturn();
+
+        var module = new MirModule("test");
+        module.Functions.Add(fn);
+
+        var cse = new CsePass();
+        bool changed = cse.Eliminate(module);
+        Assert.True(changed);
+        // Second instruction should now be an Assign (copy), not BinaryOp
+        Assert.Equal(MirOpcode.Assign, block.Instructions[1].Opcode);
+    }
+
+    [Fact]
+    public void CsePass_NoChange_UniqueExpressions()
+    {
+        var fn = new MirFunction("test");
+        var block = fn.CreateBlock("entry");
+
+        // x = a + b  (unique)
+        // y = a + c  (different — should NOT be CSE'd)
+        block.AddInstruction(new MirInstruction(
+            MirOpcode.BinaryOp,
+            MirOperand.Variable("x", MirType.I32),
+            new[] { MirOperand.Variable("a", MirType.I32), MirOperand.Variable("b", MirType.I32) },
+            extra: "+"));
+        block.AddInstruction(new MirInstruction(
+            MirOpcode.BinaryOp,
+            MirOperand.Variable("y", MirType.I32),
+            new[] { MirOperand.Variable("a", MirType.I32), MirOperand.Variable("c", MirType.I32) },
+            extra: "+"));
+        block.Terminator = new MirReturn();
+
+        var module = new MirModule("test");
+        module.Functions.Add(fn);
+
+        var cse = new CsePass();
+        bool changed = cse.Eliminate(module);
+        Assert.False(changed);
+        Assert.Equal(MirOpcode.BinaryOp, block.Instructions[0].Opcode);
+        Assert.Equal(MirOpcode.BinaryOp, block.Instructions[1].Opcode);
+    }
+
+    [Fact]
+    public void CsePass_Invalidates_OnRedefinition()
+    {
+        var fn = new MirFunction("test");
+        var block = fn.CreateBlock("entry");
+
+        // x = a + b
+        // a = 10    <- redefines a, invalidates the cached expression
+        // y = a + b <- NOT a duplicate (a changed)
+        block.AddInstruction(new MirInstruction(
+            MirOpcode.BinaryOp,
+            MirOperand.Variable("x", MirType.I32),
+            new[] { MirOperand.Variable("a", MirType.I32), MirOperand.Variable("b", MirType.I32) },
+            extra: "+"));
+        block.AddInstruction(new MirInstruction(
+            MirOpcode.Assign,
+            MirOperand.Variable("a", MirType.I32),
+            new[] { MirOperand.Constant(10, MirType.I32) }));
+        block.AddInstruction(new MirInstruction(
+            MirOpcode.BinaryOp,
+            MirOperand.Variable("y", MirType.I32),
+            new[] { MirOperand.Variable("a", MirType.I32), MirOperand.Variable("b", MirType.I32) },
+            extra: "+"));
+        block.Terminator = new MirReturn();
+
+        var module = new MirModule("test");
+        module.Functions.Add(fn);
+
+        var cse = new CsePass();
+        bool changed = cse.Eliminate(module);
+        Assert.False(changed); // No CSE possible
+        Assert.Equal(MirOpcode.BinaryOp, block.Instructions[2].Opcode);
+    }
+
+    [Fact]
+    public void CsePass_EmptyModule_NoCrash()
+    {
+        var module = new MirModule("empty");
+        Assert.False(new CsePass().Eliminate(module));
+    }
+}
+
+/// <summary>Tests for Phase 4 NLL borrow checker enhancements.</summary>
+public class Phase4NllBorrowCheckerTests
+{
+    [Fact]
+    public void BorrowCheck_TwoPhase_ReservedMutableBorrow_ThenActivated()
+    {
+        // Two-phase borrow: reserve mutable borrow while shared borrow is live,
+        // then activate after shared borrow ends. This should NOT error.
+        var checker = new BorrowCheck();
+        var module = new MirModule("test");
+        var fn = new MirFunction("test_fn");
+        var block = fn.CreateBlock("entry");
+
+        // x = something
+        block.AddInstruction(new MirInstruction(
+            MirOpcode.Assign,
+            MirOperand.Variable("x", MirType.I32),
+            new[] { MirOperand.Constant(42, MirType.I32) }));
+        // &x (immutable borrow)
+        block.AddInstruction(new MirInstruction(
+            MirOpcode.Borrow,
+            MirOperand.Variable("r", MirType.I32),
+            new[] { MirOperand.Variable("x", MirType.I32) },
+            extra: false)); // immutable
+        // &mut x (tries to reserve mutable borrow while shared borrow exists → two-phase reserve)
+        block.AddInstruction(new MirInstruction(
+            MirOpcode.Borrow,
+            MirOperand.Variable("rm", MirType.I32),
+            new[] { MirOperand.Variable("x", MirType.I32) },
+            extra: true)); // mutable
+        block.Terminator = new MirReturn();
+
+        module.Functions.Add(fn);
+        checker.Check(module);
+        // Two-phase borrows allow this — should not report E0503
+        Assert.DoesNotContain(checker.Diagnostics, d => d.Code == "E0503");
+    }
+
+    [Fact]
+    public void BorrowCheck_UseAfterMove_HasHintMessage()
+    {
+        var checker = new BorrowCheck();
+        var module = new MirModule("test");
+        var fn = new MirFunction("test_fn");
+        var block = fn.CreateBlock("entry");
+
+        block.AddInstruction(new MirInstruction(
+            MirOpcode.Assign,
+            MirOperand.Variable("x", MirType.I32),
+            new[] { MirOperand.Constant(1, MirType.I32) }));
+        // Move x
+        block.AddInstruction(new MirInstruction(
+            MirOpcode.Move,
+            MirOperand.Variable("y", MirType.I32),
+            new[] { MirOperand.Variable("x", MirType.I32) }));
+        // Use x again after move
+        block.AddInstruction(new MirInstruction(
+            MirOpcode.Move,
+            MirOperand.Variable("z", MirType.I32),
+            new[] { MirOperand.Variable("x", MirType.I32) }));
+        block.Terminator = new MirReturn();
+
+        module.Functions.Add(fn);
+        checker.Check(module);
+        Assert.True(checker.Diagnostics.HasErrors);
+        var error = checker.Diagnostics.First(d => d.Code == "E0500");
+        // Phase 4: error messages should include a hint
+        Assert.Contains("Hint:", error.Message);
+    }
+
+    [Fact]
+    public void BorrowCheck_MutableAliasing_HasHintMessage()
+    {
+        var checker = new BorrowCheck();
+        var module = new MirModule("test");
+        var fn = new MirFunction("fn1");
+        var block = fn.CreateBlock("entry");
+
+        block.AddInstruction(new MirInstruction(
+            MirOpcode.Assign,
+            MirOperand.Variable("v", MirType.I32),
+            new[] { MirOperand.Constant(0, MirType.I32) }));
+        // &mut v
+        block.AddInstruction(new MirInstruction(
+            MirOpcode.Borrow,
+            MirOperand.Variable("rm1", MirType.I32),
+            new[] { MirOperand.Variable("v", MirType.I32) },
+            extra: true));
+        // &mut v again — should error with a hint
+        block.AddInstruction(new MirInstruction(
+            MirOpcode.Borrow,
+            MirOperand.Variable("rm2", MirType.I32),
+            new[] { MirOperand.Variable("v", MirType.I32) },
+            extra: true));
+        block.Terminator = new MirReturn();
+
+        module.Functions.Add(fn);
+        checker.Check(module);
+        Assert.True(checker.Diagnostics.HasErrors);
+        var error = checker.Diagnostics.First(d => d.Code == "E0503");
+        Assert.Contains("Hint:", error.Message);
+    }
+
+    [Fact]
+    public void BorrowCheck_Drop_ClearsAllBorrows()
+    {
+        // After Drop, value should no longer be borrowed
+        var checker = new BorrowCheck();
+        var module = new MirModule("test");
+        var fn = new MirFunction("drop_test");
+        var block = fn.CreateBlock("entry");
+
+        block.AddInstruction(new MirInstruction(
+            MirOpcode.Assign,
+            MirOperand.Variable("x", MirType.I32),
+            new[] { MirOperand.Constant(5, MirType.I32) }));
+        // Drop x — should clear borrow state
+        block.AddInstruction(new MirInstruction(
+            MirOpcode.Drop,
+            null,
+            new[] { MirOperand.Variable("x", MirType.I32) }));
+        block.Terminator = new MirReturn();
+
+        module.Functions.Add(fn);
+        checker.Check(module);
+        Assert.False(checker.Diagnostics.HasErrors);
+    }
+}
+
+/// <summary>Integration tests tying together all Phase 4 completion features.</summary>
+public class Phase4IntegrationTests
+{
+    [Fact]
+    public void FullPipeline_AbstractAndDefaultTraitMethods_Compiles()
+    {
+        var source = @"
+trait Printable {
+    fn as_string(&self) -> String;
+    fn print(&self) -> void {
+        as_string(self);
+    }
+}
+
+struct Number { value: i32 }
+
+impl Printable for Number {
+    fn as_string(&self) -> String {
+        ""a number""
+    }
+}
+
+fn main() {
+    let n = Number { value: 42 };
+}
+";
+        var driver = new CompilationDriver();
+        var ok = driver.Check(source, "t.ast");
+        Assert.True(ok, driver.FormatDiagnostics());
+    }
+
+    [Fact]
+    public void FullPipeline_DynTrait_FunctionParam_Compiles()
+    {
+        var source = @"
+trait Logger {
+    fn log(&self, msg: String);
+}
+
+fn do_work(logger: dyn Logger) {
+    logger.log(""working"");
+}
+";
+        var driver = new CompilationDriver();
+        var ok = driver.Check(source, "t.ast");
+        Assert.True(ok, driver.FormatDiagnostics());
+    }
+
+    [Fact]
+    public void FullPipeline_MissingRequiredMethod_ReportsError()
+    {
+        var source = @"
+trait Runnable {
+    fn run(&self);
+}
+
+struct Task {}
+
+impl Runnable for Task {
+}
+";
+        var driver = new CompilationDriver();
+        var ok = driver.Check(source, "t.ast");
+        Assert.False(ok);
+        Assert.Contains(driver.Diagnostics, d => d.Code == "E0700");
+    }
+
+    [Fact]
+    public void CsePass_IntegratedInPipeline_Compiles()
+    {
+        var source = @"
+fn main() {
+    let a = 1 + 2;
+    let b = 1 + 2;
+}
+";
+        var driver = new CompilationDriver();
+        Assert.NotNull(driver.Compile(source, "t.ast"));
+    }
+}
