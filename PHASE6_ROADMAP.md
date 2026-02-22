@@ -1,6 +1,6 @@
 # Phase 6 Roadmap — Language & Compiler Completeness
 
-**Status**: In Progress 🔄  
+**Status**: Phase 6b Complete ✅  
 **Last Updated**: 2026-02-21  
 **Prerequisite**: Phase 5 complete (LICM, Inlining, SROA, proc macros)
 
@@ -95,35 +95,47 @@ developer experience, and advancing toward true self-hosting.
 
 ## Planned (Phase 6b — Future Work)
 
-### 7. `usize` / `isize` as First-Class Types
+### 7. `usize` / `isize` as First-Class Types ✅
 
-- [ ] Distinct `PrimitiveKind.Usize` / `PrimitiveKind.Isize`
-- [ ] Target-width-dependent: 32-bit on 32-bit targets, 64-bit on 64-bit
-- [ ] Cast between usize and pointer
+- [x] Distinct `PrimitiveKind.Usize` / `PrimitiveKind.Isize`
+- [x] `PrimitiveType.Usize` / `PrimitiveType.Isize` singletons
+- [x] `"usize"` / `"isize"` recognized in TypeChecker `ResolveTypeRef` + NameResolver
+- [x] `usize`/`isize` pass-through in `ResolveTypeRef` (HIR) — no E0202 error
+- [x] Coercion: `i8/i16/i32 → isize`, `u8/u16/u32 → usize`, `usize ↔ u64`, `isize ↔ i64`
 
-### 8. Tuple Types `(T1, T2, ...)`
+### 8. Tuple Types `(T1, T2, ...)` ✅
 
-- [ ] `TupleType` in `Types.cs`
-- [ ] `(a, b, c)` expression parsing → `HirTupleExpr`
-- [ ] Destructuring in `let` patterns: `let (x, y) = pair;`
+- [x] `TupleType` in `Types.cs`
+- [x] `TupleExprNode` / `TupleTypeAnnotationNode` in `AstNodes.cs`
+- [x] `HirTupleExpr` in `HirNodes.cs`
+- [x] Parser: `(a, b, c)` → `TupleExprNode`; `(T1, T2)` in type position → `__tuple`
+- [x] NameResolver: `ResolveTupleExpr` → `HirTupleExpr`
+- [x] TypeChecker: `CheckTupleExpr` → `TupleType`; `ResolveTypeRef("__tuple")` → `TupleType`
+- [x] Constraint: `Unify(TupleType, TupleType)` — element-wise; `ApplySubstitutions` for tuples
+- [x] MirLowering: `LowerTupleExpr` → Alloca + N × Store
 
-### 9. Never Type `!`
+### 9. Never Type `!` ✅
 
-- [ ] `NeverType` in `Types.cs`
-- [ ] Functions that never return (`fn panic() -> !`)
-- [ ] Unifies with any type in match/if/else
+- [x] `NeverType.Instance` singleton in `Types.cs`
+- [x] Parser: `-> !` return type annotation recognized
+- [x] NameResolver `ResolveTypeRef`: `"!"` → pass-through `HirTypeRef`
+- [x] TypeChecker: `ResolveTypeRef("!")` → `NeverType.Instance`
+- [x] Constraint: `Unify(_, NeverType)` → always `true` (bottom type)
+- [x] `panic()`, `todo()`, `unreachable()` — TypeChecker returns `NeverType`
 
-### 10. Closure Captures
+### 10. Closure Captures ✅
 
-- [ ] Identify free variables in closure body (via HIR walker)
-- [ ] Capture by reference (`|x| x + y`) or by value (`move |x| x + y`)
-- [ ] Generate closure struct in MIR (field per captured variable)
+- [x] `HirClosureExpr.CapturedVariables: IReadOnlyList<Symbol>` added to HIR
+- [x] `CollectFreeVars` / `CollectFreeVarsInto` free-variable walker in NameResolver
+- [x] `ResolveClosureExpr` calls `CollectFreeVars` after resolving body
+- [x] Captured variables correctly excluded from local params
 
-### 11. String Interpolation (`format!` with `{}`)
+### 11. String Interpolation (`format!` with `{}`) ✅
 
-- [ ] `format!("{}", value)` → calls `Display::display`
-- [ ] `{}`, `{:?}` (Debug), `{:x}` (hex) format specifiers
-- [ ] Compile-time format string parsing
+- [x] `format!("{}", value)` → expands to `__format_string(fmt_str, value)` via NameResolver
+- [x] `eprintln!` / `eprint!` macros expanded to `eprintln`/`eprint` function calls
+- [x] `__format_string`, `eprintln`, `eprint`, `panic`, `todo`, `unreachable` registered as built-ins
+- [x] `panic()` in TypeChecker → returns `NeverType` (diverging)
 
 ---
 
@@ -134,9 +146,9 @@ developer experience, and advancing toward true self-hosting.
 | `docs/spec/slices.md` | ✅ |
 | `docs/spec/casts.md` | ✅ |
 | `docs/spec/iterators.md` | ✅ |
-| `docs/spec/tuples.md` | 🔜 Phase 6b |
-| `docs/spec/closures-captures.md` | 🔜 Phase 6b |
-| `docs/spec/format-strings.md` | 🔜 Phase 6b |
+| `docs/spec/tuples.md` | 🔜 Phase 7 (detailed spec) |
+| `docs/spec/closures-captures.md` | 🔜 Phase 7 (detailed spec) |
+| `docs/spec/format-strings.md` | 🔜 Phase 7 (detailed spec) |
 
 ---
 

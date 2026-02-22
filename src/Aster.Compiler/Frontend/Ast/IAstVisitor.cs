@@ -56,4 +56,7 @@ public interface IAstVisitor<T>
     T VisitCastExpr(CastExprNode node);
     T VisitArrayLiteralExpr(ArrayLiteralExprNode node);
     T VisitSliceTypeAnnotation(SliceTypeAnnotationNode node);
+    // Phase 6b: tuples
+    T VisitTupleExpr(TupleExprNode node);
+    T VisitTupleTypeAnnotation(TupleTypeAnnotationNode node);
 }

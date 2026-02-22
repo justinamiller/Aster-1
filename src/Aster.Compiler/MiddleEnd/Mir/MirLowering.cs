@@ -297,6 +297,9 @@ public sealed class MirLowering
                 return LowerCastExpr(cast);
             case HirArrayLiteralExpr arr:
                 return LowerArrayLiteral(arr);
+            // Phase 6b: tuple expression
+            case HirTupleExpr tuple:
+                return LowerTupleExpr(tuple);
 
             default:
                 return null;
@@ -821,5 +824,30 @@ public sealed class MirLowering
         }
 
         return arrayPtr;
+    }
+
+    /// <summary>
+    /// Phase 6b: Lower a tuple expression (a, b, c) to a stack-allocated struct-like sequence of stores.
+    /// Returns an i64 pointer (Alloca) with N stored elements.
+    /// </summary>
+    private MirOperand LowerTupleExpr(HirTupleExpr tuple)
+    {
+        if (tuple.Elements.Count == 0)
+            return MirOperand.Constant(0L, MirType.I64); // unit ()
+
+        var tuplePtr = NewTemp(MirType.I64);
+        Emit(new MirInstruction(MirOpcode.Alloca, tuplePtr, new List<MirOperand>(),
+            $"tuple_{tuple.Elements.Count}"));
+
+        for (int i = 0; i < tuple.Elements.Count; i++)
+        {
+            var elemVal = LowerExpr(tuple.Elements[i]);
+            if (elemVal == null) continue;
+            var idxOp = MirOperand.Constant((long)i, MirType.I64);
+            Emit(new MirInstruction(MirOpcode.Store, null,
+                new List<MirOperand> { tuplePtr, idxOp, elemVal }, $"tuple_field_{i}"));
+        }
+
+        return tuplePtr;
     }
 }

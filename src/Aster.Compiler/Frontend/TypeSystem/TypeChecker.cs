@@ -170,6 +170,8 @@ public sealed class TypeChecker
         // Phase 6: casts, array literals
         HirCastExpr cast => CheckCastExpr(cast),
         HirArrayLiteralExpr arr => CheckArrayLiteralExpr(arr),
+        // Phase 6b: tuples
+        HirTupleExpr tuple => CheckTupleExpr(tuple),
         HirLetStmt let => CheckLetStmt(let),
         HirReturnStmt ret => ret.Value != null ? CheckNode(ret.Value) : PrimitiveType.Void,
         HirExprStmt es => CheckNode(es.Expression),
@@ -498,11 +500,25 @@ public sealed class TypeChecker
     {
         var calleeType = CheckNode(call.Callee);
 
-        // Handle built-in print function
-        if (call.Callee is HirIdentifierExpr id && (id.Name == "print" || id.Name == "println"))
+        // Handle built-in functions that take any args and return void or never
+        if (call.Callee is HirIdentifierExpr id)
         {
-            foreach (var arg in call.Arguments) CheckNode(arg);
-            return PrimitiveType.Void;
+            switch (id.Name)
+            {
+                case "print":
+                case "println":
+                case "eprint":
+                case "eprintln":
+                case "__format_string":
+                    foreach (var arg in call.Arguments) CheckNode(arg);
+                    return PrimitiveType.Void;
+                case "panic":
+                case "todo":
+                case "unreachable":
+                    // Diverging builtins — return NeverType
+                    foreach (var arg in call.Arguments) CheckNode(arg);
+                    return NeverType.Instance;
+            }
         }
 
         if (calleeType is FunctionType fnType)
@@ -772,6 +788,16 @@ public sealed class TypeChecker
         if (typeRef.Name == "str")
             return StrType.Instance;
 
+        // Phase 6b: tuple type (T1, T2, ...)
+        if (typeRef.Name == "__tuple")
+        {
+            var elemTypes = typeRef.TypeArguments.Select(a => ResolveTypeRef(a)).ToList();
+            return new TupleType(elemTypes);
+        }
+        // Phase 6b: never type !
+        if (typeRef.Name == "!")
+            return NeverType.Instance;
+
         // Check primitive types first
         var primitiveType = typeRef.Name switch
         {
@@ -783,6 +809,8 @@ public sealed class TypeChecker
             "u16" => PrimitiveType.U16,
             "u32" => PrimitiveType.U32,
             "u64" => PrimitiveType.U64,
+            "usize" => PrimitiveType.Usize,
+            "isize" => PrimitiveType.Isize,
             "f32" => PrimitiveType.F32,
             "f64" => PrimitiveType.F64,
             "bool" => PrimitiveType.Bool,
@@ -1100,7 +1128,20 @@ public sealed class TypeChecker
         return new ArrayType(elemType, arr.Elements.Count);
     }
 
+    /// <summary>Phase 6b: Check tuple expression (a, b, c) → TupleType(T1, T2, T3).</summary>
+    private AsterType CheckTupleExpr(HirTupleExpr tuple)
+    {
+        if (tuple.Elements.Count == 0)
+            return PrimitiveType.Void; // unit ()
+        var elemTypes = tuple.Elements.Select(e => CheckNode(e)).ToList();
+        return new TupleType(elemTypes);
+    }
+
     private static bool IsNumericType(AsterType t) =>
         t == PrimitiveType.I32 || t == PrimitiveType.I64 ||
-        t == PrimitiveType.F32 || t == PrimitiveType.F64;
+        t == PrimitiveType.F32 || t == PrimitiveType.F64 ||
+        t == PrimitiveType.Usize || t == PrimitiveType.Isize ||
+        t == PrimitiveType.I8 || t == PrimitiveType.I16 ||
+        t == PrimitiveType.U8 || t == PrimitiveType.U16 ||
+        t == PrimitiveType.U32 || t == PrimitiveType.U64;
 }

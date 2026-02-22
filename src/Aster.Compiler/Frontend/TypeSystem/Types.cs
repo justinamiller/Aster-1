@@ -25,6 +25,8 @@ public sealed class PrimitiveType : AsterType
     public static readonly PrimitiveType U16 = new(PrimitiveKind.U16);
     public static readonly PrimitiveType U32 = new(PrimitiveKind.U32);
     public static readonly PrimitiveType U64 = new(PrimitiveKind.U64);
+    public static readonly PrimitiveType Usize = new(PrimitiveKind.Usize);
+    public static readonly PrimitiveType Isize = new(PrimitiveKind.Isize);
     public static readonly PrimitiveType F32 = new(PrimitiveKind.F32);
     public static readonly PrimitiveType F64 = new(PrimitiveKind.F64);
     public static readonly PrimitiveType Bool = new(PrimitiveKind.Bool);
@@ -37,6 +39,7 @@ public enum PrimitiveKind
 {
     I8, I16, I32, I64,
     U8, U16, U32, U64,
+    Usize, Isize,
     F32, F64,
     Bool, Char, String, Void,
 }
@@ -198,6 +201,23 @@ public sealed class StrType : AsterType
     public override string DisplayName => "str";
     public static readonly StrType Instance = new();
     private StrType() { }
+}
+
+/// <summary>Phase 6b: Tuple type (T1, T2, ..., Tn).</summary>
+public sealed class TupleType : AsterType
+{
+    public IReadOnlyList<AsterType> Elements { get; }
+    public TupleType(IReadOnlyList<AsterType> elements) => Elements = elements;
+    public override string DisplayName =>
+        "(" + string.Join(", ", Elements.Select(e => e.DisplayName)) + ")";
+}
+
+/// <summary>Phase 6b: The never type `!` — the return type of diverging functions.</summary>
+public sealed class NeverType : AsterType
+{
+    public override string DisplayName => "!";
+    public static readonly NeverType Instance = new();
+    private NeverType() { }
 }
 
 /// <summary>Trait bound on a type parameter.</summary>

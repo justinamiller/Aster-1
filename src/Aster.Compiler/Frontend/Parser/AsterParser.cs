@@ -1006,13 +1006,32 @@ public sealed class AsterParser
                 return new IdentifierExprNode(name, span);
         }
 
-        // Grouped expression
+        // Grouped expression or tuple expression (a, b, c)
         if (Check(TokenKind.LeftParen))
         {
             Advance();
-            var expr = ParseExpression();
+            // Empty tuple () → unit literal
+            if (Check(TokenKind.RightParen))
+            {
+                Advance();
+                return new TupleExprNode(Array.Empty<AstNode>(), MakeSpan(span));
+            }
+            var firstElem = ParseExpression();
+            // If there's a comma, this is a tuple; otherwise it's a grouped expression
+            if (Check(TokenKind.Comma))
+            {
+                var elements = new List<AstNode> { firstElem };
+                while (Check(TokenKind.Comma))
+                {
+                    Advance(); // consume ','
+                    if (Check(TokenKind.RightParen)) break; // trailing comma
+                    elements.Add(ParseExpression());
+                }
+                Expect(TokenKind.RightParen, "Expected ')'");
+                return new TupleExprNode(elements, MakeSpan(span));
+            }
             Expect(TokenKind.RightParen, "Expected ')'");
-            return expr;
+            return firstElem;
         }
 
         // If expression
@@ -1289,6 +1308,31 @@ public sealed class AsterParser
     private TypeAnnotationNode ParseTypeAnnotation()
     {
         var span = Current.Span;
+
+        // Phase 6b: never type `!`
+        if (Check(TokenKind.Bang))
+        {
+            Advance();
+            return new TypeAnnotationNode("!", Array.Empty<TypeAnnotationNode>(), MakeSpan(span));
+        }
+
+        // Phase 6b: tuple type (T1, T2, ...) or unit type ()
+        if (Check(TokenKind.LeftParen))
+        {
+            Advance(); // consume '('
+            var elemTypes = new List<TypeAnnotationNode>();
+            while (!Check(TokenKind.RightParen) && !IsAtEnd)
+            {
+                elemTypes.Add(ParseTypeAnnotation());
+                if (!Check(TokenKind.RightParen))
+                    Expect(TokenKind.Comma, "Expected ',' in tuple type");
+            }
+            Expect(TokenKind.RightParen, "Expected ')'");
+            // Unit type () maps to void; tuple (T1, T2, ...) maps to a synthetic __tuple annotation
+            if (elemTypes.Count == 0)
+                return new TypeAnnotationNode("void", Array.Empty<TypeAnnotationNode>(), MakeSpan(span));
+            return new TypeAnnotationNode("__tuple", elemTypes, MakeSpan(span));
+        }
 
         // Phase 6: slice type [T] or array type [T; N]
         if (Check(TokenKind.LeftBracket))

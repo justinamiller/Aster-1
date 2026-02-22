@@ -395,15 +395,18 @@ public sealed class HirMatchExpr : HirNode
         : base(span) { Scrutinee = scrutinee; Arms = arms; }
 }
 
-/// <summary>Closure expression: |x, y| body. Captures are resolved at type-check time.</summary>
+/// <summary>Closure expression: |x, y| body. CapturedVariables lists free vars identified at resolve time.</summary>
 public sealed class HirClosureExpr : HirNode
 {
     public IReadOnlyList<HirParameter> Parameters { get; }
     public HirNode Body { get; }
     /// <summary>Unique mangled name for this closure (e.g. "__closure_0").</summary>
     public string MangledName { get; }
-    public HirClosureExpr(IReadOnlyList<HirParameter> parameters, HirNode body, string mangledName, Span span)
-        : base(span) { Parameters = parameters; Body = body; MangledName = mangledName; }
+    /// <summary>Variables captured from the enclosing scope (free variables).</summary>
+    public IReadOnlyList<Symbol> CapturedVariables { get; }
+    public HirClosureExpr(IReadOnlyList<HirParameter> parameters, HirNode body, string mangledName,
+        IReadOnlyList<Symbol> capturedVariables, Span span)
+        : base(span) { Parameters = parameters; Body = body; MangledName = mangledName; CapturedVariables = capturedVariables; }
 }
 
 /// <summary>Type alias declaration: type Name = SomeType;</summary>
@@ -477,4 +480,15 @@ public sealed class HirArrayLiteralExpr : HirNode
     public AsterType ElementType { get; }
     public HirArrayLiteralExpr(IReadOnlyList<HirNode> elements, AsterType elementType, Span span)
         : base(span) { Elements = elements; ElementType = elementType; }
+}
+
+// ========== Phase 6b: Tuples ==========
+
+/// <summary>Phase 6b: Tuple expression — (a, b, c).</summary>
+public sealed class HirTupleExpr : HirNode
+{
+    public IReadOnlyList<HirNode> Elements { get; }
+    public TupleType TupleType { get; }
+    public HirTupleExpr(IReadOnlyList<HirNode> elements, TupleType tupleType, Span span)
+        : base(span) { Elements = elements; TupleType = tupleType; }
 }

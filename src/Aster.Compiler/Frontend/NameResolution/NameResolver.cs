@@ -110,6 +110,13 @@ public sealed class NameResolver
         // Register built-in functions
         _currentScope.Define(new Symbol("print", SymbolKind.Function));
         _currentScope.Define(new Symbol("println", SymbolKind.Function));
+        _currentScope.Define(new Symbol("eprintln", SymbolKind.Function));
+        _currentScope.Define(new Symbol("eprint", SymbolKind.Function));
+        _currentScope.Define(new Symbol("__format_string", SymbolKind.Function));
+        _currentScope.Define(new Symbol("format", SymbolKind.Function));
+        _currentScope.Define(new Symbol("panic", SymbolKind.Function));
+        _currentScope.Define(new Symbol("todo", SymbolKind.Function));
+        _currentScope.Define(new Symbol("unreachable", SymbolKind.Function));
 
         // Register all stdlib module exports as globals so they are accessible
         // without an explicit `use` statement (single source of truth)
@@ -274,6 +281,8 @@ public sealed class NameResolver
         // Phase 6: cast, array literal
         CastExprNode cast => new HirCastExpr(ResolveNode(cast.Expression)!, ResolveTypeAnnotation(cast.TargetType), cast.Span),
         ArrayLiteralExprNode arr => ResolveArrayLiteral(arr),
+        // Phase 6b: tuples
+        TupleExprNode tuple => ResolveTupleExpr(tuple),
         UseDeclNode => null,
         _ => null,
     };
@@ -487,6 +496,13 @@ public sealed class NameResolver
         if (typeAnnotation.Name == "str")
             return new HirTypeRef("str", null, Array.Empty<HirTypeRef>(), typeAnnotation.Span);
 
+        // Phase 6b: `__tuple` synthetic tuple type, `!` never type, `usize`/`isize` target-sized ints
+        if (typeAnnotation.Name is "__tuple" or "!" or "usize" or "isize")
+        {
+            var args = typeAnnotation.TypeArguments.Select(a => ResolveTypeRef(a)).ToList();
+            return new HirTypeRef(typeAnnotation.Name, null, args, typeAnnotation.Span);
+        }
+
         var symbol = _currentScope.Lookup(typeAnnotation.Name);
         if (symbol == null)
         {
@@ -509,22 +525,34 @@ public sealed class NameResolver
             var elem = ResolveTypeAnnotation(annot.TypeArguments[0]);
             return new ArrayType(elem, 0); // length unknown at resolve time
         }
+        // Phase 6b: tuple type (T1, T2, ...)
+        if (annot.Name == "__tuple")
+        {
+            var elems = annot.TypeArguments.Select(a => ResolveTypeAnnotation(a)).ToList();
+            return new TupleType(elems);
+        }
         if (annot.Name == "str") return StrType.Instance;
+        // Phase 6b: never type
+        if (annot.Name == "!") return NeverType.Instance;
         // Fall back to primitive name matching
         return annot.Name switch
         {
+            "i8" => PrimitiveType.I8,
+            "i16" => PrimitiveType.I16,
             "i32" => PrimitiveType.I32,
             "i64" => PrimitiveType.I64,
+            "u8" => PrimitiveType.U8,
+            "u16" => PrimitiveType.U16,
+            "u32" => PrimitiveType.U32,
+            "u64" => PrimitiveType.U64,
+            "usize" => PrimitiveType.Usize,
+            "isize" => PrimitiveType.Isize,
             "f32" => PrimitiveType.F32,
             "f64" => PrimitiveType.F64,
             "bool" => PrimitiveType.Bool,
+            "char" => PrimitiveType.Char,
             "String" => PrimitiveType.StringType,
             "void" or "()" => PrimitiveType.Void,
-            "u8" => PrimitiveType.U8,
-            "u32" => PrimitiveType.U32,
-            "u64" => PrimitiveType.U64,
-            "usize" => PrimitiveType.I64,
-            "isize" => PrimitiveType.I64,
             _ => new StructType(annot.Name, Array.Empty<(string, AsterType)>()),
         };
     }
@@ -722,6 +750,30 @@ public sealed class NameResolver
                 }
                 break;
 
+            case "format":
+            case "format_args":
+                // format!("{}", x) expands to __format_string(fmt_str, x)
+                // The first arg is the format string literal; rest are interpolation values.
+                {
+                    var fmtSym = _currentScope.Lookup("__format_string") ?? new Symbol("__format_string", SymbolKind.Function);
+                    var fmtCallee = new HirIdentifierExpr("__format_string", fmtSym, inv.Span);
+                    var fmtArgs = inv.Arguments.Select(a => ResolveNode(a)!).ToList();
+                    expanded = new HirCallExpr(fmtCallee, fmtArgs, inv.Span);
+                }
+                break;
+
+            case "eprintln":
+            case "eprint":
+                // eprintln!(val) expands to eprintln(val)
+                {
+                    var eprintName = inv.MacroName == "eprintln" ? "eprintln" : "eprint";
+                    var eprintSym = _currentScope.Lookup(eprintName) ?? new Symbol(eprintName, SymbolKind.Function);
+                    var eprintCallee = new HirIdentifierExpr(eprintName, eprintSym, inv.Span);
+                    var eprintArgs = inv.Arguments.Select(a => ResolveNode(a)!).ToList();
+                    expanded = new HirCallExpr(eprintCallee, eprintArgs, inv.Span);
+                }
+                break;
+
             default:
                 // Try user-defined macro
                 if (_macroTable.TryGetValue(inv.MacroName, out var userMacro) && userMacro.Rules.Count > 0)
@@ -805,8 +857,11 @@ public sealed class NameResolver
     {
         var mangledName = $"__closure_{_closureCounter++}";
 
-        var prevScope = _currentScope;
+        var outerScope = _currentScope;
         _currentScope = _currentScope.CreateChild(ScopeKind.Function);
+
+        // Collect closure parameter names so we can exclude them from capture analysis
+        var paramNames = new HashSet<string>(closure.Parameters.Select(p => p.Item1));
 
         var hirParams = new List<HirParameter>();
         foreach (var (name, typeAnnot) in closure.Parameters)
@@ -819,8 +874,90 @@ public sealed class NameResolver
 
         var body = ResolveNode(closure.Body) ?? new HirLiteralExpr(0L, LiteralKind.Integer, closure.Span);
 
-        _currentScope = prevScope;
-        return new HirClosureExpr(hirParams, body, mangledName, closure.Span);
+        _currentScope = outerScope;
+
+        // Phase 6b: identify captured (free) variables — variables referenced in the body
+        // that are defined in outer scopes, not as closure parameters.
+        var capturedVars = CollectFreeVars(body, paramNames, outerScope);
+
+        return new HirClosureExpr(hirParams, body, mangledName, capturedVars, closure.Span);
+    }
+
+    /// <summary>
+    /// Walk a HIR subtree and collect Symbol references that are from an outer scope
+    /// (i.e., free variables the closure must capture).
+    /// </summary>
+    private static List<Symbol> CollectFreeVars(HirNode? node, HashSet<string> localNames, Scope outerScope)
+    {
+        var captured = new Dictionary<string, Symbol>();
+        CollectFreeVarsInto(node, localNames, outerScope, captured);
+        return captured.Values.ToList();
+    }
+
+    private static void CollectFreeVarsInto(HirNode? node, HashSet<string> localNames, Scope outerScope,
+        Dictionary<string, Symbol> captured)
+    {
+        if (node == null) return;
+        switch (node)
+        {
+            case HirIdentifierExpr id:
+                // If not a local param and the outer scope can see it, it's captured
+                if (!localNames.Contains(id.Name))
+                {
+                    var sym = outerScope.Lookup(id.Name);
+                    if (sym != null && sym.Kind == SymbolKind.Value)
+                        captured.TryAdd(sym.Name, sym);
+                }
+                break;
+            case HirBinaryExpr bin:
+                CollectFreeVarsInto(bin.Left, localNames, outerScope, captured);
+                CollectFreeVarsInto(bin.Right, localNames, outerScope, captured);
+                break;
+            case HirUnaryExpr un:
+                CollectFreeVarsInto(un.Operand, localNames, outerScope, captured);
+                break;
+            case HirLetStmt let:
+                CollectFreeVarsInto(let.Initializer, localNames, outerScope, captured);
+                break;
+            case HirCallExpr call:
+                CollectFreeVarsInto(call.Callee, localNames, outerScope, captured);
+                foreach (var arg in call.Arguments) CollectFreeVarsInto(arg, localNames, outerScope, captured);
+                break;
+            case HirBlock block:
+                foreach (var stmt in block.Statements) CollectFreeVarsInto(stmt, localNames, outerScope, captured);
+                CollectFreeVarsInto(block.TailExpression, localNames, outerScope, captured);
+                break;
+            case HirReturnStmt ret:
+                CollectFreeVarsInto(ret.Value, localNames, outerScope, captured);
+                break;
+            case HirIfExpr ifExpr:
+                CollectFreeVarsInto(ifExpr.Condition, localNames, outerScope, captured);
+                CollectFreeVarsInto(ifExpr.ThenBranch, localNames, outerScope, captured);
+                CollectFreeVarsInto(ifExpr.ElseBranch, localNames, outerScope, captured);
+                break;
+            case HirMemberAccessExpr mem:
+                CollectFreeVarsInto(mem.Object, localNames, outerScope, captured);
+                break;
+            case HirIndexExpr idx:
+                CollectFreeVarsInto(idx.Target, localNames, outerScope, captured);
+                CollectFreeVarsInto(idx.Index, localNames, outerScope, captured);
+                break;
+            case HirTupleExpr tup:
+                foreach (var e in tup.Elements) CollectFreeVarsInto(e, localNames, outerScope, captured);
+                break;
+            default:
+                // For any unhandled node types, do nothing (conservative: no capture)
+                break;
+        }
+    }
+
+    /// <summary>Phase 6b: Resolve tuple expression (a, b, c).</summary>
+    private HirTupleExpr ResolveTupleExpr(TupleExprNode tuple)
+    {
+        var hirElems = tuple.Elements.Select(e => ResolveNode(e)!).ToList();
+        // Element types will be inferred by TypeChecker; use TypeVariables as placeholders
+        var elemTypes = hirElems.Select(_ => (AsterType)new TypeVariable()).ToList();
+        return new HirTupleExpr(hirElems, new TupleType(elemTypes), tuple.Span);
     }
 
     private HirTypeAliasDecl ResolveTypeAliasDecl(TypeAliasDeclNode alias)

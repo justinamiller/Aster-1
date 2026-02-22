@@ -522,6 +522,24 @@ public sealed class SliceTypeAnnotationNode : AstNode
     public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitSliceTypeAnnotation(this);
 }
 
+/// <summary>Phase 6b: Tuple expression — (a, b, c).</summary>
+public sealed class TupleExprNode : AstNode
+{
+    public IReadOnlyList<AstNode> Elements { get; }
+    public TupleExprNode(IReadOnlyList<AstNode> elements, Span span)
+        : base(span) => Elements = elements;
+    public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitTupleExpr(this);
+}
+
+/// <summary>Phase 6b: Tuple type annotation — (T1, T2, ...).</summary>
+public sealed class TupleTypeAnnotationNode : AstNode
+{
+    public IReadOnlyList<TypeAnnotationNode> ElementTypes { get; }
+    public TupleTypeAnnotationNode(IReadOnlyList<TypeAnnotationNode> elementTypes, Span span)
+        : base(span) => ElementTypes = elementTypes;
+    public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitTupleTypeAnnotation(this);
+}
+
 // ========== Enums ==========
 
 public enum BinaryOperator

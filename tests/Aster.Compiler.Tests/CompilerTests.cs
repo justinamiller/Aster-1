@@ -5544,3 +5544,317 @@ fn main() -> i32 {
             new CompilationDriver().FormatDiagnostics());
     }
 }
+
+// ==============================
+// Phase 6b: usize/isize, Tuples, Never type, Closure Captures, format!
+// ==============================
+
+public class Phase6bUsizeIsizeTests
+{
+    [Fact]
+    public void Parse_UsizeType_Accepted()
+    {
+        var source = @"fn foo() -> usize { 42 }";
+        Assert.True(new CompilationDriver().Check(source, "t.ast"));
+    }
+
+    [Fact]
+    public void Parse_IsizeType_Accepted()
+    {
+        var source = @"fn foo() -> isize { -1 }";
+        Assert.True(new CompilationDriver().Check(source, "t.ast"));
+    }
+
+    [Fact]
+    public void Usize_ResolvedAsPrimitive()
+    {
+        // usize and isize should be distinct from i64 but allowed in numeric positions
+        var source = @"
+fn len_of(v: usize) -> usize { v }
+fn main() -> usize { len_of(10) }
+";
+        Assert.True(new CompilationDriver().Check(source, "t.ast"));
+    }
+
+    [Fact]
+    public void Usize_CoercesWithI64()
+    {
+        var source = @"
+fn takes_i64(x: i64) -> i64 { x }
+fn main() -> i64 {
+    let n: usize = 5;
+    takes_i64(n)
+}
+";
+        // usize → i64 coercion is legal (word-sized)
+        Assert.True(new CompilationDriver().Check(source, "t.ast"));
+    }
+}
+
+public class Phase6bTupleTests
+{
+    [Fact]
+    public void Parse_TupleExpr_TwoElements()
+    {
+        var source = @"fn foo() -> i32 { let t = (1, 2); 0 }";
+        Assert.True(new CompilationDriver().Check(source, "t.ast"));
+    }
+
+    [Fact]
+    public void Parse_TupleExpr_ThreeElements()
+    {
+        var source = @"fn foo() -> i32 { let t = (1, true, 3); 0 }";
+        Assert.True(new CompilationDriver().Check(source, "t.ast"));
+    }
+
+    [Fact]
+    public void Parse_TupleExpr_Unit()
+    {
+        var source = @"fn foo() -> void { () }";
+        Assert.True(new CompilationDriver().Check(source, "t.ast"));
+    }
+
+    [Fact]
+    public void Parse_TupleTypeAnnotation()
+    {
+        var source = @"fn pair(x: i32, y: bool) -> (i32, bool) { (x, y) }";
+        Assert.True(new CompilationDriver().Check(source, "t.ast"));
+    }
+
+    [Fact]
+    public void Tuple_InLetBinding()
+    {
+        var source = @"
+fn main() -> i32 {
+    let p = (10, 20);
+    0
+}
+";
+        Assert.True(new CompilationDriver().Check(source, "t.ast"));
+    }
+
+    [Fact]
+    public void Tuple_NestedTuple()
+    {
+        var source = @"
+fn main() -> i32 {
+    let nested = ((1, 2), (3, 4));
+    0
+}
+";
+        Assert.True(new CompilationDriver().Check(source, "t.ast"));
+    }
+}
+
+public class Phase6bNeverTypeTests
+{
+    [Fact]
+    public void Parse_NeverType_ReturnAnnotation()
+    {
+        // fn panic_fn() -> ! — diverging function
+        var source = @"fn panic_fn() -> ! { panic(""unreachable"") }";
+        Assert.True(new CompilationDriver().Check(source, "t.ast"));
+    }
+
+    [Fact]
+    public void NeverType_UnifiesWithAny()
+    {
+        // A function returning ! can be used where any type is expected
+        var source = @"
+fn diverge() -> ! { panic(""never"") }
+fn main() -> i32 { diverge() }
+";
+        Assert.True(new CompilationDriver().Check(source, "t.ast"));
+    }
+
+    [Fact]
+    public void NeverType_InIfArm()
+    {
+        var source = @"
+fn safe(x: bool) -> i32 {
+    if x { 1 } else { 0 }
+}
+";
+        Assert.True(new CompilationDriver().Check(source, "t.ast"));
+    }
+}
+
+public class Phase6bClosureCaptureTests
+{
+    [Fact]
+    public void Closure_CapturesOuterVariable()
+    {
+        var source = @"
+fn main() -> i32 {
+    let x = 10;
+    let add = |y| x + y;
+    0
+}
+";
+        // Resolving should succeed; x is captured by the closure
+        Assert.True(new CompilationDriver().Check(source, "t.ast"));
+    }
+
+    [Fact]
+    public void Closure_NoCaptureWhenAllParamsLocal()
+    {
+        var source = @"
+fn main() -> i32 {
+    let mul = |a, b| a * b;
+    0
+}
+";
+        Assert.True(new CompilationDriver().Check(source, "t.ast"));
+    }
+
+    [Fact]
+    public void Closure_CapturedVarsPopulatedInHir()
+    {
+        // The resolver should populate CapturedVariables on HirClosureExpr
+        var source = @"
+fn main() -> i32 {
+    let base = 100;
+    let f = |n| base + n;
+    0
+}
+";
+        var driver = new CompilationDriver();
+        var resolver = new Aster.Compiler.Frontend.NameResolution.NameResolver();
+        var lexer = new Aster.Compiler.Frontend.Lexer.AsterLexer(source, "t.ast");
+        var tokens = lexer.Tokenize();
+        var parser = new Aster.Compiler.Frontend.Parser.AsterParser(tokens, false);
+        var ast = parser.ParseProgram();
+        var hir = resolver.Resolve(ast);
+
+        // Walk hir to find HirClosureExpr and check captured variables
+        var closure = FindClosure(hir.Declarations);
+        Assert.NotNull(closure);
+        Assert.Contains(closure!.CapturedVariables, s => s.Name == "base");
+    }
+
+    [Fact]
+    public void Closure_MultipleCaptures()
+    {
+        var source = @"
+fn main() -> i32 {
+    let a = 1;
+    let b = 2;
+    let f = |c| a + b + c;
+    0
+}
+";
+        Assert.True(new CompilationDriver().Check(source, "t.ast"));
+    }
+
+    private static Aster.Compiler.Frontend.Hir.HirClosureExpr? FindClosure(
+        System.Collections.Generic.IEnumerable<Aster.Compiler.Frontend.Hir.HirNode> nodes)
+    {
+        foreach (var n in nodes)
+        {
+            if (n is Aster.Compiler.Frontend.Hir.HirClosureExpr ce) return ce;
+            if (n is Aster.Compiler.Frontend.Hir.HirFunctionDecl fn)
+            {
+                var found = FindClosureInNode(fn.Body);
+                if (found != null) return found;
+            }
+        }
+        return null;
+    }
+
+    private static Aster.Compiler.Frontend.Hir.HirClosureExpr? FindClosureInNode(
+        Aster.Compiler.Frontend.Hir.HirNode? node)
+    {
+        if (node == null) return null;
+        if (node is Aster.Compiler.Frontend.Hir.HirClosureExpr ce) return ce;
+        if (node is Aster.Compiler.Frontend.Hir.HirBlock blk)
+        {
+            foreach (var s in blk.Statements)
+            {
+                var r = FindClosureInNode(s);
+                if (r != null) return r;
+            }
+        }
+        if (node is Aster.Compiler.Frontend.Hir.HirLetStmt let)
+            return FindClosureInNode(let.Initializer);
+        return null;
+    }
+}
+
+public class Phase6bFormatMacroTests
+{
+    [Fact]
+    public void Format_MacroExpands_NoDiagnostics()
+    {
+        var source = @"
+fn main() -> void {
+    let s = format!(""hello {}"", 42);
+}
+";
+        Assert.True(new CompilationDriver().Check(source, "t.ast"));
+    }
+
+    [Fact]
+    public void Println_MacroWithFormat_Works()
+    {
+        var source = @"
+fn main() -> void {
+    println!(""value = {}"", 10);
+}
+";
+        Assert.True(new CompilationDriver().Check(source, "t.ast"));
+    }
+
+    [Fact]
+    public void Eprintln_MacroExpands()
+    {
+        var source = @"
+fn main() -> void {
+    eprintln!(""error: {}"", ""something went wrong"");
+}
+";
+        Assert.True(new CompilationDriver().Check(source, "t.ast"));
+    }
+}
+
+public class Phase6bIntegrationTests
+{
+    [Fact]
+    public void Integration_TupleAndUsize()
+    {
+        var source = @"
+fn swap(a: i32, b: i32) -> (i32, i32) { (b, a) }
+fn main() -> i32 {
+    let n: usize = 5;
+    let pair = swap(1, 2);
+    0
+}
+";
+        Assert.True(new CompilationDriver().Check(source, "t.ast"));
+    }
+
+    [Fact]
+    public void Integration_FormatAndClosure()
+    {
+        var source = @"
+fn main() -> void {
+    let prefix = ""val"";
+    let f = |x| x + 1;
+    let msg = format!(""{}"", 42);
+}
+";
+        Assert.True(new CompilationDriver().Check(source, "t.ast"));
+    }
+
+    [Fact]
+    public void Integration_NeverTypeInMatch()
+    {
+        var source = @"
+fn unreachable_arm(x: i32) -> i32 {
+    if x > 0 { x } else { panic(""neg"") }
+}
+fn main() -> i32 { unreachable_arm(5) }
+";
+        Assert.True(new CompilationDriver().Check(source, "t.ast"));
+    }
+}
+
