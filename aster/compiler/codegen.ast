@@ -80,7 +80,7 @@ fn new_code_buffer() -> CodeBuffer {
 // ===== Module Generation =====
 
 /// Generate code for entire module
-fn generate_module(mut gen: CodeGenerator, module: HirModule) -> CodeGenResult {
+fn generate_module(mut gen: CodeGenerator, hir: HirModule) -> CodeGenResult {
     let mut output = "";
     
     // Generate header
@@ -94,7 +94,7 @@ fn generate_module(mut gen: CodeGenerator, module: HirModule) -> CodeGenResult {
     }
     
     // Generate each function
-    for func in module.functions {
+    for func in hir.functions {
         let result = generate_function(gen, func);
         gen = result.generator;
         output = output + result.code + "\n\n";
@@ -615,26 +615,26 @@ fn generate_array_lit(mut gen: CodeGenerator, lit: HirArrayLit) -> GenerateExprR
 // ===== Type Generation =====
 
 fn generate_type(type_id: i32) -> String {
-    // Map type IDs to C type names
-    if type_id == TYPE_I32 {
+    // Map type IDs to C type names (1=i32, 2=i64, 3=u32, 4=u64, 5=f32, 6=f64, 7=bool, 8=char, 9=string, 10=void)
+    if type_id == 1 {
         "int32_t"
-    } else if type_id == TYPE_I64 {
+    } else if type_id == 2 {
         "int64_t"
-    } else if type_id == TYPE_U32 {
+    } else if type_id == 3 {
         "uint32_t"
-    } else if type_id == TYPE_U64 {
+    } else if type_id == 4 {
         "uint64_t"
-    } else if type_id == TYPE_F32 {
+    } else if type_id == 5 {
         "float"
-    } else if type_id == TYPE_F64 {
+    } else if type_id == 6 {
         "double"
-    } else if type_id == TYPE_BOOL {
+    } else if type_id == 7 {
         "bool"
-    } else if type_id == TYPE_CHAR {
+    } else if type_id == 8 {
         "char"
-    } else if type_id == TYPE_STRING {
+    } else if type_id == 9 {
         "char*"
-    } else if type_id == TYPE_VOID {
+    } else if type_id == 10 {
         "void"
     } else {
         "void" // Unknown type
@@ -711,15 +711,3 @@ fn int_to_string(value: i32) -> String {
 fn float_to_string(value: f64) -> String {
     "3.14" // Placeholder - would use actual conversion
 }
-
-// Type ID constants (matching typecheck.ast)
-const TYPE_I32: i32 = 1;
-const TYPE_I64: i32 = 2;
-const TYPE_U32: i32 = 3;
-const TYPE_U64: i32 = 4;
-const TYPE_F32: i32 = 5;
-const TYPE_F64: i32 = 6;
-const TYPE_BOOL: i32 = 7;
-const TYPE_CHAR: i32 = 8;
-const TYPE_STRING: i32 = 9;
-const TYPE_VOID: i32 = 10;

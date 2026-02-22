@@ -1,0 +1,183 @@
+# Phase 6 Roadmap — Language & Compiler Completeness
+
+**Status**: Phase 6b Complete ✅  
+**Last Updated**: 2026-02-21  
+**Prerequisite**: Phase 5 complete (LICM, Inlining, SROA, proc macros)
+
+## Overview
+
+Phase 6 focuses on completing the type system for practical use, improving the
+developer experience, and advancing toward true self-hosting.
+
+## Feature List
+
+### 1. Slice Types `[T]` and `[T; N]` ✅
+
+**Timeline**: Weeks 29-30  
+**What**: Fixed-size arrays and dynamically-sized slice views.
+
+- [x] `SliceType`, `ArrayType`, `StrType` in `Types.cs`
+- [x] `[T]` and `[T; N]` type annotation parsing  
+- [x] Array literal `[a, b, c]` parsing and HIR
+- [x] `HirArrayLiteralExpr`, `HirCastExpr` HIR nodes
+- [x] NameResolver: `ResolveArrayLiteral`, `ResolveTypeAnnotation`
+- [x] TypeChecker: `CheckArrayLiteralExpr`, `ResolveTypeRef` for `__slice`/`__array`/`str`
+- [x] MirLowering: `LowerArrayLiteral` (Alloca + Store sequence)
+- [x] Spec: `docs/spec/slices.md`
+
+---
+
+### 2. `as` Cast Expressions ✅
+
+**Timeline**: Weeks 31-32  
+**What**: Explicit numeric and pointer casts.
+
+- [x] `As` token in `TokenKind`, `"as"` keyword in lexer
+- [x] `CastExprNode` AST node
+- [x] `VisitCastExpr` in `IAstVisitor`
+- [x] `HirCastExpr` HIR node
+- [x] Parser: `expr as Type` in postfix loop
+- [x] NameResolver: `CastExprNode` → `HirCastExpr` via `ResolveTypeAnnotation`
+- [x] TypeChecker: `CheckCastExpr` (validates numeric cast legality)
+- [x] MirLowering: `LowerCastExpr` → `MirOpcode.Cast`
+- [x] Spec: `docs/spec/casts.md`
+
+---
+
+### 3. Range Expressions ✅
+
+**Timeline**: Weeks 33-34  
+**What**: `lo..hi` and `lo..=hi` range expressions for `for` loops and slicing.
+
+- [x] `BinaryOperator.Range` (DotDot) already in lexer + parser
+- [x] TypeChecker: `BinaryOperator.Range` → `Range<T>` TypeApp
+- [x] MirLowering: range lowers through BinaryOp path (loop integration)
+- [x] Spec: `docs/spec/iterators.md` (range section)
+
+---
+
+### 4. Loop Unrolling Optimization ✅
+
+**Timeline**: Week 35  
+**What**: Unroll constant-trip-count loops to eliminate branch overhead.
+
+- [x] `LoopUnrollPass.cs` in `MiddleEnd/Optimizations/`
+- [x] Detects `__range_new(lo, hi)` calls with constant integer operands
+- [x] Clones loop body `tripCount` times with renamed temporaries
+- [x] Guard: only unrolls ≤ 8 iterations
+- [x] Wired into `CompilationDriver` Phase 6b
+- [x] Spec: `docs/spec/optimizations.md` (Phase 6 section)
+
+---
+
+### 5. `str` Type / String Slices ✅
+
+**Timeline**: Week 36  
+**What**: `str` as a distinct string-slice type (distinct from owned `String`).
+
+- [x] `StrType` singleton in `Types.cs`
+- [x] `"str"` recognized in `ResolveTypeRef` (TypeChecker and NameResolver)
+- [x] String literals may coerce to `&str`
+- [x] Spec: `docs/spec/slices.md` (str section)
+
+---
+
+### 6. Iterator Protocol ✅ (Spec only)
+
+**Timeline**: Week 36  
+**What**: Formal specification of the Iterator trait and for-loop desugaring.
+
+- [x] `IntoIterator` registered as built-in trait in TypeChecker
+- [x] `for x in iterable` desugaring documented
+- [x] Spec: `docs/spec/iterators.md`
+
+---
+
+## Planned (Phase 6b — Future Work)
+
+### 7. `usize` / `isize` as First-Class Types ✅
+
+- [x] Distinct `PrimitiveKind.Usize` / `PrimitiveKind.Isize`
+- [x] `PrimitiveType.Usize` / `PrimitiveType.Isize` singletons
+- [x] `"usize"` / `"isize"` recognized in TypeChecker `ResolveTypeRef` + NameResolver
+- [x] `usize`/`isize` pass-through in `ResolveTypeRef` (HIR) — no E0202 error
+- [x] Coercion: `i8/i16/i32 → isize`, `u8/u16/u32 → usize`, `usize ↔ u64`, `isize ↔ i64`
+
+### 8. Tuple Types `(T1, T2, ...)` ✅
+
+- [x] `TupleType` in `Types.cs`
+- [x] `TupleExprNode` / `TupleTypeAnnotationNode` in `AstNodes.cs`
+- [x] `HirTupleExpr` in `HirNodes.cs`
+- [x] Parser: `(a, b, c)` → `TupleExprNode`; `(T1, T2)` in type position → `__tuple`
+- [x] NameResolver: `ResolveTupleExpr` → `HirTupleExpr`
+- [x] TypeChecker: `CheckTupleExpr` → `TupleType`; `ResolveTypeRef("__tuple")` → `TupleType`
+- [x] Constraint: `Unify(TupleType, TupleType)` — element-wise; `ApplySubstitutions` for tuples
+- [x] MirLowering: `LowerTupleExpr` → Alloca + N × Store
+
+### 9. Never Type `!` ✅
+
+- [x] `NeverType.Instance` singleton in `Types.cs`
+- [x] Parser: `-> !` return type annotation recognized
+- [x] NameResolver `ResolveTypeRef`: `"!"` → pass-through `HirTypeRef`
+- [x] TypeChecker: `ResolveTypeRef("!")` → `NeverType.Instance`
+- [x] Constraint: `Unify(_, NeverType)` → always `true` (bottom type)
+- [x] `panic()`, `todo()`, `unreachable()` — TypeChecker returns `NeverType`
+
+### 10. Closure Captures ✅
+
+- [x] `HirClosureExpr.CapturedVariables: IReadOnlyList<Symbol>` added to HIR
+- [x] `CollectFreeVars` / `CollectFreeVarsInto` free-variable walker in NameResolver
+- [x] `ResolveClosureExpr` calls `CollectFreeVars` after resolving body
+- [x] Captured variables correctly excluded from local params
+
+### 11. String Interpolation (`format!` with `{}`) ✅
+
+- [x] `format!("{}", value)` → expands to `__format_string(fmt_str, value)` via NameResolver
+- [x] `eprintln!` / `eprint!` macros expanded to `eprintln`/`eprint` function calls
+- [x] `__format_string`, `eprintln`, `eprint`, `panic`, `todo`, `unreachable` registered as built-ins
+- [x] `panic()` in TypeChecker → returns `NeverType` (diverging)
+
+---
+
+## Spec Documents
+
+| Document | Status |
+|----------|--------|
+| `docs/spec/slices.md` | ✅ |
+| `docs/spec/casts.md` | ✅ |
+| `docs/spec/iterators.md` | ✅ |
+| `docs/spec/tuples.md` | 🔜 Phase 7 (detailed spec) |
+| `docs/spec/closures-captures.md` | 🔜 Phase 7 (detailed spec) |
+| `docs/spec/format-strings.md` | 🔜 Phase 7 (detailed spec) |
+
+---
+
+## Test Coverage
+
+| Test Class | Count | Status |
+|-----------|-------|--------|
+| `Phase6SliceTests` | 6 | ✅ |
+| `Phase6CastTests` | 7 | ✅ |
+| `Phase6RangeTests` | 5 | ✅ |
+| `Phase6LoopUnrollTests` | 5 | ✅ |
+| `Phase6IntegrationTests` | 4 | ✅ |
+| **Total Phase 6** | **27** | **✅** |
+
+---
+
+## Success Criteria
+
+- ✅ Spec complete for all Phase 6 features
+- ✅ All new tests passing (27 tests)
+- ✅ No regressions in Phase 1-5 tests
+- ✅ Build: 0 errors
+- ✅ `PHASE6_ROADMAP.md` reflects accurate status
+
+---
+
+## References
+
+- [PHASE4_ROADMAP.md](PHASE4_ROADMAP.md) — Phase 4 feature expansion  
+- [NEXT_CODING_STEPS_FOR_SELF_HOSTING.md](NEXT_CODING_STEPS_FOR_SELF_HOSTING.md) — Self-hosting roadmap  
+- [docs/spec/](docs/spec/) — Language specification  
+- [SELF_HOSTING_ROADMAP.md](SELF_HOSTING_ROADMAP.md) — Long-term bootstrap plan  

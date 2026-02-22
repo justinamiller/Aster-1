@@ -314,7 +314,7 @@ fn empty_hir_block() -> HirBlock {
 
 /// IR generator state
 struct IrGenerator {
-    module: HirModule,
+    hir_module: HirModule,
     next_local: i32,
     errors: Vec<String>,
     error_count: i32
@@ -336,7 +336,7 @@ fn new_ir_generator() -> IrGenerator {
     };
     
     IrGenerator {
-        module: empty_module,
+        hir_module: empty_module,
         next_local: 0,
         errors: Vec::new(),
         error_count: 0
@@ -366,7 +366,7 @@ fn generate_ir(mut gen: IrGenerator) -> IrGenResult {
 
 /// Add a function to IR module
 fn add_ir_function(mut gen: IrGenerator, name: String) -> IrGenerator {
-    gen.next_register = gen.next_register + 1;
+    gen.next_local = gen.next_local + 1;
     gen
 }
 
@@ -410,7 +410,7 @@ fn lower_function(mut gen: IrGenerator, name: String, return_type: i32) -> IrGen
         span: dummy_span_hir()
     };
     
-    gen.module.function_count = gen.module.function_count + 1;
+    gen.hir_module.function_count = gen.hir_module.function_count + 1;
     gen
 }
 
@@ -678,7 +678,7 @@ fn count_locals(func: HirFunction) -> i32 {
 // ============================================================================
 
 /// Validate HIR module structure
-fn validate_hir_module(module: HirModule) -> bool {
+fn validate_hir_module(hir: HirModule) -> bool {
     // In full implementation, would check:
     // 1. All function names unique
     // 2. All type IDs valid
@@ -715,7 +715,7 @@ fn validate_hir_expression(expr: HirExpression) -> bool {
 
 /// Get function count
 fn get_function_count(gen: IrGenerator) -> i32 {
-    gen.module.function_count
+    gen.hir_module.function_count
 }
 
 /// Get error count
