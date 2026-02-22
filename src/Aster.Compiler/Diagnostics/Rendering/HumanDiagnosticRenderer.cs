@@ -79,6 +79,23 @@ public sealed class HumanDiagnosticRenderer
             }
         }
 
+        // Fix-it suggestions
+        foreach (var suggestion in diagnostic.Suggestions)
+        {
+            var applicability = suggestion.IsMachineApplicable ? " (machine-applicable)" : "";
+            if (_useColor)
+            {
+                sb.Append(Colorize($"suggestion{applicability}: ", AnsiColor.Green, bold: true));
+                sb.AppendLine(suggestion.Message);
+                sb.AppendLine(Colorize($"  --> replace `{suggestion.Span}` with: {suggestion.Replacement}", AnsiColor.Green, bold: false));
+            }
+            else
+            {
+                sb.AppendLine($"suggestion{applicability}: {suggestion.Message}");
+                sb.AppendLine($"  --> replace `{suggestion.Span}` with: {suggestion.Replacement}");
+            }
+        }
+
         // Notes
         foreach (var note in diagnostic.Notes)
         {

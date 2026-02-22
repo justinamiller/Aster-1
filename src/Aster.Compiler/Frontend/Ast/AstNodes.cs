@@ -54,8 +54,13 @@ public sealed class FunctionDeclNode : AstNode
     public BlockExprNode Body { get; }
     public bool IsPublic { get; }
     public bool IsAsync { get; }
-    public FunctionDeclNode(string name, IReadOnlyList<GenericParamNode> genericParams, IReadOnlyList<ParameterNode> parameters, TypeAnnotationNode? returnType, BlockExprNode body, bool isPublic, bool isAsync, Span span)
-        : base(span) { Name = name; GenericParams = genericParams; Parameters = parameters; ReturnType = returnType; Body = body; IsPublic = isPublic; IsAsync = isAsync; }
+    /// <summary>
+    /// True for trait method signatures without a body (abstract/required methods).
+    /// The Body will be an empty block used as a placeholder.
+    /// </summary>
+    public bool IsAbstract { get; }
+    public FunctionDeclNode(string name, IReadOnlyList<GenericParamNode> genericParams, IReadOnlyList<ParameterNode> parameters, TypeAnnotationNode? returnType, BlockExprNode body, bool isPublic, bool isAsync, Span span, bool isAbstract = false)
+        : base(span) { Name = name; GenericParams = genericParams; Parameters = parameters; ReturnType = returnType; Body = body; IsPublic = isPublic; IsAsync = isAsync; IsAbstract = isAbstract; }
     public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitFunctionDecl(this);
 }
 
@@ -87,8 +92,10 @@ public sealed class StructDeclNode : AstNode
     public IReadOnlyList<FieldDeclNode> Fields { get; }
     public bool IsPublic { get; }
     public IReadOnlyList<GenericParamNode> GenericParams { get; }
-    public StructDeclNode(string name, IReadOnlyList<FieldDeclNode> fields, bool isPublic, IReadOnlyList<GenericParamNode> genericParams, Span span)
-        : base(span) { Name = name; Fields = fields; IsPublic = isPublic; GenericParams = genericParams; }
+    /// <summary>Phase 5: outer attributes (e.g. #[derive(Clone)]).</summary>
+    public IReadOnlyList<AttributeNode> Attributes { get; }
+    public StructDeclNode(string name, IReadOnlyList<FieldDeclNode> fields, bool isPublic, IReadOnlyList<GenericParamNode> genericParams, Span span, IReadOnlyList<AttributeNode>? attributes = null)
+        : base(span) { Name = name; Fields = fields; IsPublic = isPublic; GenericParams = genericParams; Attributes = attributes ?? Array.Empty<AttributeNode>(); }
     public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitStructDecl(this);
 }
 
@@ -110,8 +117,10 @@ public sealed class EnumDeclNode : AstNode
     public IReadOnlyList<EnumVariantNode> Variants { get; }
     public bool IsPublic { get; }
     public IReadOnlyList<GenericParamNode> GenericParams { get; }
-    public EnumDeclNode(string name, IReadOnlyList<EnumVariantNode> variants, bool isPublic, IReadOnlyList<GenericParamNode> genericParams, Span span)
-        : base(span) { Name = name; Variants = variants; IsPublic = isPublic; GenericParams = genericParams; }
+    /// <summary>Phase 5: outer attributes (e.g. #[derive(Clone)]).</summary>
+    public IReadOnlyList<AttributeNode> Attributes { get; }
+    public EnumDeclNode(string name, IReadOnlyList<EnumVariantNode> variants, bool isPublic, IReadOnlyList<GenericParamNode> genericParams, Span span, IReadOnlyList<AttributeNode>? attributes = null)
+        : base(span) { Name = name; Variants = variants; IsPublic = isPublic; GenericParams = genericParams; Attributes = attributes ?? Array.Empty<AttributeNode>(); }
     public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitEnumDecl(this);
 }
 
@@ -143,8 +152,10 @@ public sealed class ImplDeclNode : AstNode
     public TypeAnnotationNode TargetType { get; }
     public TypeAnnotationNode? TraitType { get; }
     public IReadOnlyList<FunctionDeclNode> Methods { get; }
-    public ImplDeclNode(TypeAnnotationNode targetType, TypeAnnotationNode? traitType, IReadOnlyList<FunctionDeclNode> methods, Span span)
-        : base(span) { TargetType = targetType; TraitType = traitType; Methods = methods; }
+    /// <summary>Phase 4: associated type declarations inside the impl block.</summary>
+    public IReadOnlyList<AssociatedTypeDeclNode> AssociatedTypes { get; }
+    public ImplDeclNode(TypeAnnotationNode targetType, TypeAnnotationNode? traitType, IReadOnlyList<FunctionDeclNode> methods, IReadOnlyList<AssociatedTypeDeclNode> associatedTypes, Span span)
+        : base(span) { TargetType = targetType; TraitType = traitType; Methods = methods; AssociatedTypes = associatedTypes; }
     public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitImplDecl(this);
 }
 
@@ -380,6 +391,153 @@ public sealed class ExpressionStmtNode : AstNode
     public AstNode Expression { get; }
     public ExpressionStmtNode(AstNode expression, Span span) : base(span) => Expression = expression;
     public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitExpressionStmt(this);
+}
+
+/// <summary>Closure expression: |x: T, y| body</summary>
+public sealed class ClosureExprNode : AstNode
+{
+    public IReadOnlyList<(string Name, TypeAnnotationNode? Type)> Parameters { get; }
+    public AstNode Body { get; }
+    public ClosureExprNode(IReadOnlyList<(string, TypeAnnotationNode?)> parameters, AstNode body, Span span)
+        : base(span) { Parameters = parameters; Body = body; }
+    public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitClosureExpr(this);
+}
+
+/// <summary>Type alias declaration: type Name = SomeType;</summary>
+public sealed class TypeAliasDeclNode : AstNode
+{
+    public string Name { get; }
+    public TypeAnnotationNode Target { get; }
+    public bool IsPublic { get; }
+    public TypeAliasDeclNode(string name, TypeAnnotationNode target, bool isPublic, Span span)
+        : base(span) { Name = name; Target = target; IsPublic = isPublic; }
+    public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitTypeAliasDecl(this);
+}
+
+// ========== Phase 4 New Nodes ==========
+
+/// <summary>Phase 4: Method call expression: receiver.method(args)</summary>
+public sealed class MethodCallExprNode : AstNode
+{
+    public AstNode Receiver { get; }
+    public string MethodName { get; }
+    public IReadOnlyList<AstNode> Arguments { get; }
+    public MethodCallExprNode(AstNode receiver, string methodName, IReadOnlyList<AstNode> arguments, Span span)
+        : base(span) { Receiver = receiver; MethodName = methodName; Arguments = arguments; }
+    public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitMethodCallExpr(this);
+}
+
+/// <summary>Phase 4: Associated type declaration inside an impl or trait block: type Item = T;</summary>
+public sealed class AssociatedTypeDeclNode : AstNode
+{
+    public string Name { get; }
+    public TypeAnnotationNode? Type { get; }   // null for abstract assoc types in trait defs
+    public bool IsPublic { get; }
+    public AssociatedTypeDeclNode(string name, TypeAnnotationNode? type, bool isPublic, Span span)
+        : base(span) { Name = name; Type = type; IsPublic = isPublic; }
+    public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitAssociatedTypeDecl(this);
+}
+
+/// <summary>Phase 4: Simplified macro rule (pattern => body).</summary>
+public sealed class MacroRuleNode : AstNode
+{
+    /// <summary>Parameter names extracted from the pattern (e.g. "x" from $x:expr).</summary>
+    public IReadOnlyList<string> PatternParams { get; }
+    public BlockExprNode Body { get; }
+    public MacroRuleNode(IReadOnlyList<string> patternParams, BlockExprNode body, Span span)
+        : base(span) { PatternParams = patternParams; Body = body; }
+    public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitMacroRule(this);
+}
+
+/// <summary>Phase 4: macro_rules! name { ... } declaration.</summary>
+public sealed class MacroDeclNode : AstNode
+{
+    public string Name { get; }
+    public IReadOnlyList<MacroRuleNode> Rules { get; }
+    public bool IsPublic { get; }
+    public MacroDeclNode(string name, IReadOnlyList<MacroRuleNode> rules, bool isPublic, Span span)
+        : base(span) { Name = name; Rules = rules; IsPublic = isPublic; }
+    public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitMacroDecl(this);
+}
+
+/// <summary>Phase 4: Macro invocation expression: name!(args) or name![args]</summary>
+public sealed class MacroInvocationExprNode : AstNode
+{
+    public string MacroName { get; }
+    public IReadOnlyList<AstNode> Arguments { get; }
+    public MacroInvocationExprNode(string macroName, IReadOnlyList<AstNode> arguments, Span span)
+        : base(span) { MacroName = macroName; Arguments = arguments; }
+    public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitMacroInvocationExpr(this);
+}
+
+// ========== Phase 5 New Nodes ==========
+
+/// <summary>Phase 5: A single attribute argument: an identifier or a list of identifiers.</summary>
+public sealed class AttributeArgNode : AstNode
+{
+    public string Name { get; }
+    public AttributeArgNode(string name, Span span) : base(span) => Name = name;
+    public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitAttributeArg(this);
+}
+
+/// <summary>Phase 5: An outer attribute: #[name] or #[name(arg1, arg2, ...)]</summary>
+public sealed class AttributeNode : AstNode
+{
+    public string Name { get; }
+    public IReadOnlyList<AttributeArgNode> Arguments { get; }
+    public AttributeNode(string name, IReadOnlyList<AttributeArgNode> arguments, Span span)
+        : base(span) { Name = name; Arguments = arguments; }
+    public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitAttribute(this);
+}
+
+// ========== Phase 6 New Nodes ==========
+
+/// <summary>Phase 6: Cast expression — expr as Type.</summary>
+public sealed class CastExprNode : AstNode
+{
+    public AstNode Expression { get; }
+    public TypeAnnotationNode TargetType { get; }
+    public CastExprNode(AstNode expression, TypeAnnotationNode targetType, Span span)
+        : base(span) { Expression = expression; TargetType = targetType; }
+    public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitCastExpr(this);
+}
+
+/// <summary>Phase 6: Array literal — [a, b, c].</summary>
+public sealed class ArrayLiteralExprNode : AstNode
+{
+    public IReadOnlyList<AstNode> Elements { get; }
+    public ArrayLiteralExprNode(IReadOnlyList<AstNode> elements, Span span)
+        : base(span) => Elements = elements;
+    public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitArrayLiteralExpr(this);
+}
+
+/// <summary>Phase 6: Slice or fixed-size array type annotation — [T] or [T; N].</summary>
+public sealed class SliceTypeAnnotationNode : AstNode
+{
+    public TypeAnnotationNode ElementType { get; }
+    /// <summary>Length expression for [T; N], or null for [T].</summary>
+    public AstNode? Length { get; }
+    public SliceTypeAnnotationNode(TypeAnnotationNode elementType, AstNode? length, Span span)
+        : base(span) { ElementType = elementType; Length = length; }
+    public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitSliceTypeAnnotation(this);
+}
+
+/// <summary>Phase 6b: Tuple expression — (a, b, c).</summary>
+public sealed class TupleExprNode : AstNode
+{
+    public IReadOnlyList<AstNode> Elements { get; }
+    public TupleExprNode(IReadOnlyList<AstNode> elements, Span span)
+        : base(span) => Elements = elements;
+    public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitTupleExpr(this);
+}
+
+/// <summary>Phase 6b: Tuple type annotation — (T1, T2, ...).</summary>
+public sealed class TupleTypeAnnotationNode : AstNode
+{
+    public IReadOnlyList<TypeAnnotationNode> ElementTypes { get; }
+    public TupleTypeAnnotationNode(IReadOnlyList<TypeAnnotationNode> elementTypes, Span span)
+        : base(span) => ElementTypes = elementTypes;
+    public override T Accept<T>(IAstVisitor<T> visitor) => visitor.VisitTupleTypeAnnotation(this);
 }
 
 // ========== Enums ==========

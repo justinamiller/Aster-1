@@ -47,6 +47,7 @@ public sealed class AsterLexer : ILexer
         ["enum"] = TokenKind.Enum,
         ["true"] = TokenKind.True,
         ["false"] = TokenKind.False,
+        ["as"] = TokenKind.As,
     };
 
     public DiagnosticBag Diagnostics { get; } = new();
@@ -232,6 +233,30 @@ public sealed class AsterLexer : ILexer
         var startCol = _column;
         Advance(); // skip opening '\''
 
+        // Phase 4: Disambiguate lifetime annotation from char literal.
+        // A lifetime starts with a letter/underscore (e.g. 'a, 'static, 'self) and has
+        // NO closing '\'' immediately after the identifier characters.
+        // A char literal has a closing '\'' after exactly one character: 'a'
+        if (_position < _source.Length && (char.IsLetter(_source[_position]) || _source[_position] == '_'))
+        {
+            // Peek ahead to find where the identifier ends
+            var peekPos = _position;
+            while (peekPos < _source.Length && IsIdentContinue(_source[peekPos]))
+                peekPos++;
+            // If there is no closing '\'' right after the identifier chars → lifetime
+            if (peekPos >= _source.Length || _source[peekPos] != '\'')
+            {
+                var sb = new System.Text.StringBuilder();
+                while (_position < _source.Length && IsIdentContinue(_source[_position]))
+                {
+                    sb.Append(_source[_position]);
+                    Advance();
+                }
+                var lifetimeName = _interner.Intern(sb.ToString());
+                return new Token(TokenKind.Lifetime, new Span(_fileName, startLine, startCol, start, _position - start), lifetimeName);
+            }
+        }
+
         var value = "";
         if (_position < _source.Length)
         {
@@ -330,6 +355,7 @@ public sealed class AsterLexer : ILexer
             ';' => TokenKind.Semicolon,
             '@' => TokenKind.At,
             '#' => TokenKind.Hash,
+            '$' => TokenKind.Dollar,
             _ => TokenKind.Error,
         };
 

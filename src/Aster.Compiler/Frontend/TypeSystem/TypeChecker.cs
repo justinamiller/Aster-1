@@ -14,11 +14,315 @@ public sealed class TypeChecker
     private readonly Dictionary<int, TypeScheme> _symbolSchemes = new();
     private readonly Dictionary<string, StructType> _structTypes = new();
     private readonly Dictionary<string, EnumType> _enumTypes = new();
+    // Tracks the current function/struct's generic type parameters by name
+    private readonly Dictionary<string, GenericParameter> _currentGenericParams = new();
+    // Collects trait constraints emitted at call sites (e.g. T: Clone when calling clone<T: Clone>)
+    private readonly List<TraitConstraint> _pendingTraitConstraints = new();
+    // Method tables registered from impl blocks: TargetType -> (methodName -> FunctionType)
+    private readonly Dictionary<string, Dictionary<string, FunctionType>> _implMethods = new();
+    // Type aliases: alias name -> underlying AsterType
+    private readonly Dictionary<string, AsterType> _typeAliases = new();
+    // Phase 4: associated types: "TypeName::AssocName" -> AsterType
+    private readonly Dictionary<string, AsterType> _associatedTypes = new();
+    // Phase 4: registered trait declarations for required-method checking: traitName -> list of required method names
+    private readonly Dictionary<string, List<string>> _traitRequiredMethods = new();
     public DiagnosticBag Diagnostics { get; } = new();
+
+    // Built-in generic type constructors (Weeks 13-16)
+    private static readonly HashSet<string> BuiltinGenericTypes =
+        new(StringComparer.Ordinal) { "Vec", "Option", "Result", "HashMap" };
 
     public TypeChecker()
     {
         _traitSolver.RegisterBuiltins();
+        RegisterBuiltinImpls();
+    }
+
+    /// <summary>Register built-in trait impls for collection types and numeric traits.</summary>
+    private void RegisterBuiltinImpls()
+    {
+        // Display + Debug for all primitives
+        var displayableTypes = new AsterType[]
+        {
+            PrimitiveType.I32, PrimitiveType.I64, PrimitiveType.F32, PrimitiveType.F64,
+            PrimitiveType.Bool, PrimitiveType.StringType, PrimitiveType.Char,
+        };
+        foreach (var t in displayableTypes)
+        {
+            _traitSolver.RegisterImpl(new TraitImpl("Display", t));
+            _traitSolver.RegisterImpl(new TraitImpl("Debug", t));
+        }
+
+        // Ord for numeric types
+        var ordTypes = new AsterType[]
+        {
+            PrimitiveType.I8, PrimitiveType.I16, PrimitiveType.I32, PrimitiveType.I64,
+            PrimitiveType.U8, PrimitiveType.U16, PrimitiveType.U32, PrimitiveType.U64,
+            PrimitiveType.F32, PrimitiveType.F64, PrimitiveType.Char,
+        };
+        foreach (var t in ordTypes)
+        {
+            _traitSolver.RegisterImpl(new TraitImpl("Ord", t));
+            _traitSolver.RegisterImpl(new TraitImpl("PartialOrd", t));
+            _traitSolver.RegisterImpl(new TraitImpl("Eq", t));
+            _traitSolver.RegisterImpl(new TraitImpl("PartialEq", t));
+            _traitSolver.RegisterImpl(new TraitImpl("Hash", t));
+        }
+
+        RegisterStdlibMethods();
+    }
+
+    /// <summary>
+    /// Register all standard library method signatures in <c>_implMethods</c>.
+    /// These allow the type checker to resolve method calls on built-in types
+    /// without requiring explicit impl blocks in user code.
+    /// </summary>
+    private void RegisterStdlibMethods()
+    {
+        var tv = () => (AsterType)new TypeVariable();
+        var strT = PrimitiveType.StringType;
+        var boolT = PrimitiveType.Bool;
+        var usizeT = PrimitiveType.Usize;
+        var voidT = PrimitiveType.Void;
+        var i32T = PrimitiveType.I32;
+        var i64T = PrimitiveType.I64;
+        var f64T = PrimitiveType.F64;
+        var vecStr = new TypeApp(new StructType("Vec", Array.Empty<(string, AsterType)>()), new AsterType[] { strT });
+        var optUsize = new TypeApp(new StructType("Option", Array.Empty<(string, AsterType)>()), new AsterType[] { usizeT });
+
+        // ── String methods ──
+        var stringMethods = new Dictionary<string, FunctionType>(StringComparer.Ordinal)
+        {
+            ["len"]          = new(Array.Empty<AsterType>(), usizeT),
+            ["is_empty"]     = new(Array.Empty<AsterType>(), boolT),
+            ["push_str"]     = new(new AsterType[] { strT }, voidT),
+            ["push"]         = new(new AsterType[] { PrimitiveType.Char }, voidT),
+            ["starts_with"]  = new(new AsterType[] { strT }, boolT),
+            ["ends_with"]    = new(new AsterType[] { strT }, boolT),
+            ["contains"]     = new(new AsterType[] { strT }, boolT),
+            ["find"]         = new(new AsterType[] { strT }, optUsize),
+            ["replace"]      = new(new AsterType[] { strT, strT }, strT),
+            ["trim"]         = new(Array.Empty<AsterType>(), strT),
+            ["trim_start"]   = new(Array.Empty<AsterType>(), strT),
+            ["trim_end"]     = new(Array.Empty<AsterType>(), strT),
+            ["to_uppercase"] = new(Array.Empty<AsterType>(), strT),
+            ["to_lowercase"] = new(Array.Empty<AsterType>(), strT),
+            ["to_string"]    = new(Array.Empty<AsterType>(), strT),
+            ["split"]        = new(new AsterType[] { strT }, vecStr),
+            ["chars"]        = new(Array.Empty<AsterType>(), new TypeApp(new StructType("Vec", Array.Empty<(string, AsterType)>()), new AsterType[] { PrimitiveType.Char })),
+            ["as_str"]       = new(Array.Empty<AsterType>(), strT),
+            ["clone"]        = new(Array.Empty<AsterType>(), strT),
+            ["repeat"]       = new(new AsterType[] { usizeT }, strT),
+            ["parse"]        = new(Array.Empty<AsterType>(), tv()),
+        };
+        _implMethods["String"] = stringMethods;
+
+        // ── Vec<T> methods (iterator-style use TypeVariable for T) ──
+        var t = tv();
+        var u = tv();
+        var fnTU = new FunctionType(new AsterType[] { t }, u);
+        var fnTBool = new FunctionType(new AsterType[] { t }, boolT);
+        var vecT = new TypeApp(new StructType("Vec", Array.Empty<(string, AsterType)>()), new AsterType[] { t });
+        var vecU = new TypeApp(new StructType("Vec", Array.Empty<(string, AsterType)>()), new AsterType[] { u });
+
+        if (!_implMethods.TryGetValue("Vec", out var vecMethods))
+        {
+            vecMethods = new Dictionary<string, FunctionType>(StringComparer.Ordinal);
+            _implMethods["Vec"] = vecMethods;
+        }
+        vecMethods["iter"]       = new(Array.Empty<AsterType>(), vecT);
+        vecMethods["iter_mut"]   = new(Array.Empty<AsterType>(), vecT);
+        vecMethods["into_iter"]  = new(Array.Empty<AsterType>(), vecT);
+        vecMethods["map"]        = new(new AsterType[] { fnTU }, vecU);
+        vecMethods["filter"]     = new(new AsterType[] { fnTBool }, vecT);
+        vecMethods["fold"]       = new(new AsterType[] { u, new FunctionType(new AsterType[] { u, t }, u) }, u);
+        vecMethods["collect"]    = new(Array.Empty<AsterType>(), vecT);
+        vecMethods["enumerate"]  = new(Array.Empty<AsterType>(), vecT);
+        vecMethods["zip"]        = new(new AsterType[] { vecU }, vecT);
+        vecMethods["flatten"]    = new(Array.Empty<AsterType>(), vecT);
+        vecMethods["chain"]      = new(new AsterType[] { vecT }, vecT);
+        vecMethods["take"]       = new(new AsterType[] { usizeT }, vecT);
+        vecMethods["skip"]       = new(new AsterType[] { usizeT }, vecT);
+        vecMethods["count"]      = new(Array.Empty<AsterType>(), usizeT);
+        vecMethods["any"]        = new(new AsterType[] { fnTBool }, boolT);
+        vecMethods["all"]        = new(new AsterType[] { fnTBool }, boolT);
+        vecMethods["find"]       = new(new AsterType[] { fnTBool }, new TypeApp(new StructType("Option", Array.Empty<(string, AsterType)>()), new AsterType[] { t }));
+        vecMethods["position"]   = new(new AsterType[] { fnTBool }, new TypeApp(new StructType("Option", Array.Empty<(string, AsterType)>()), new AsterType[] { usizeT }));
+        vecMethods["first"]      = new(Array.Empty<AsterType>(), new TypeApp(new StructType("Option", Array.Empty<(string, AsterType)>()), new AsterType[] { t }));
+        vecMethods["last"]       = new(Array.Empty<AsterType>(), new TypeApp(new StructType("Option", Array.Empty<(string, AsterType)>()), new AsterType[] { t }));
+        vecMethods["sort"]       = new(Array.Empty<AsterType>(), voidT);
+        vecMethods["dedup"]      = new(Array.Empty<AsterType>(), voidT);
+        vecMethods["retain"]     = new(new AsterType[] { fnTBool }, voidT);
+        vecMethods["extend"]     = new(new AsterType[] { vecT }, voidT);
+        vecMethods["truncate"]   = new(new AsterType[] { usizeT }, voidT);
+        vecMethods["clear"]      = new(Array.Empty<AsterType>(), voidT);
+        vecMethods["clone"]      = new(Array.Empty<AsterType>(), vecT);
+        vecMethods["contains"]   = new(new AsterType[] { t }, boolT);
+        vecMethods["windows"]    = new(new AsterType[] { usizeT }, vecT);
+        vecMethods["chunks"]     = new(new AsterType[] { usizeT }, vecT);
+        vecMethods["join"]       = new(new AsterType[] { strT }, strT);
+
+        // ── HashMap<K,V> iterator methods ──
+        var k = tv();
+        var v = tv();
+        var kvPair = new TupleType(new AsterType[] { k, v });
+        var vecKv = new TypeApp(new StructType("Vec", Array.Empty<(string, AsterType)>()), new AsterType[] { kvPair });
+        var vecK = new TypeApp(new StructType("Vec", Array.Empty<(string, AsterType)>()), new AsterType[] { k });
+        var vecV = new TypeApp(new StructType("Vec", Array.Empty<(string, AsterType)>()), new AsterType[] { v });
+        var optV = new TypeApp(new StructType("Option", Array.Empty<(string, AsterType)>()), new AsterType[] { v });
+
+        if (!_implMethods.TryGetValue("HashMap", out var hmMethods))
+        {
+            hmMethods = new Dictionary<string, FunctionType>(StringComparer.Ordinal);
+            _implMethods["HashMap"] = hmMethods;
+        }
+        hmMethods["iter"]        = new(Array.Empty<AsterType>(), vecKv);
+        hmMethods["keys"]        = new(Array.Empty<AsterType>(), vecK);
+        hmMethods["values"]      = new(Array.Empty<AsterType>(), vecV);
+        hmMethods["values_mut"]  = new(Array.Empty<AsterType>(), vecV);
+        hmMethods["len"]         = new(Array.Empty<AsterType>(), usizeT);
+        hmMethods["is_empty"]    = new(Array.Empty<AsterType>(), boolT);
+        hmMethods["contains_key"]= new(new AsterType[] { k }, boolT);
+        hmMethods["get"]         = new(new AsterType[] { k }, optV);
+        hmMethods["get_mut"]     = new(new AsterType[] { k }, optV);
+        hmMethods["remove"]      = new(new AsterType[] { k }, optV);
+        hmMethods["entry"]       = new(new AsterType[] { k }, v);
+        hmMethods["clone"]       = new(Array.Empty<AsterType>(), new TypeApp(new StructType("HashMap", Array.Empty<(string, AsterType)>()), new AsterType[] { k, v }));
+
+        // ── Option<T> combinators ──
+        var optT = new TypeApp(new StructType("Option", Array.Empty<(string, AsterType)>()), new AsterType[] { t });
+        var optU = new TypeApp(new StructType("Option", Array.Empty<(string, AsterType)>()), new AsterType[] { u });
+        var errT = tv();
+        var resultT = new TypeApp(new StructType("Result", Array.Empty<(string, AsterType)>()), new AsterType[] { t, errT });
+
+        if (!_implMethods.TryGetValue("Option", out var optMethods))
+        {
+            optMethods = new Dictionary<string, FunctionType>(StringComparer.Ordinal);
+            _implMethods["Option"] = optMethods;
+        }
+        optMethods["map"]           = new(new AsterType[] { new FunctionType(new AsterType[] { t }, u) }, optU);
+        optMethods["and_then"]      = new(new AsterType[] { new FunctionType(new AsterType[] { t }, optU) }, optU);
+        optMethods["or_else"]       = new(new AsterType[] { new FunctionType(Array.Empty<AsterType>(), optT) }, optT);
+        optMethods["unwrap"]        = new(Array.Empty<AsterType>(), t);
+        optMethods["unwrap_or"]     = new(new AsterType[] { t }, t);
+        optMethods["unwrap_or_else"]= new(new AsterType[] { new FunctionType(Array.Empty<AsterType>(), t) }, t);
+        optMethods["unwrap_or_default"] = new(Array.Empty<AsterType>(), t);
+        optMethods["is_some"]       = new(Array.Empty<AsterType>(), boolT);
+        optMethods["is_none"]       = new(Array.Empty<AsterType>(), boolT);
+        optMethods["filter"]        = new(new AsterType[] { fnTBool }, optT);
+        optMethods["ok_or"]         = new(new AsterType[] { errT }, resultT);
+        optMethods["ok_or_else"]    = new(new AsterType[] { new FunctionType(Array.Empty<AsterType>(), errT) }, resultT);
+        optMethods["flatten"]       = new(Array.Empty<AsterType>(), optT);
+        optMethods["take"]          = new(Array.Empty<AsterType>(), optT);
+        optMethods["replace"]       = new(new AsterType[] { t }, optT);
+        optMethods["cloned"]        = new(Array.Empty<AsterType>(), optT);
+        optMethods["as_ref"]        = new(Array.Empty<AsterType>(), optT);
+
+        // ── Result<T,E> combinators ──
+        var errU = tv();
+        var resultU = new TypeApp(new StructType("Result", Array.Empty<(string, AsterType)>()), new AsterType[] { u, errT });
+        var resultErrU = new TypeApp(new StructType("Result", Array.Empty<(string, AsterType)>()), new AsterType[] { t, errU });
+
+        if (!_implMethods.TryGetValue("Result", out var resMethods))
+        {
+            resMethods = new Dictionary<string, FunctionType>(StringComparer.Ordinal);
+            _implMethods["Result"] = resMethods;
+        }
+        resMethods["map"]             = new(new AsterType[] { new FunctionType(new AsterType[] { t }, u) }, resultU);
+        resMethods["map_err"]         = new(new AsterType[] { new FunctionType(new AsterType[] { errT }, errU) }, resultErrU);
+        resMethods["and_then"]        = new(new AsterType[] { new FunctionType(new AsterType[] { t }, resultU) }, resultU);
+        resMethods["or_else"]         = new(new AsterType[] { new FunctionType(new AsterType[] { errT }, resultErrU) }, resultErrU);
+        resMethods["unwrap"]          = new(Array.Empty<AsterType>(), t);
+        resMethods["unwrap_or"]       = new(new AsterType[] { t }, t);
+        resMethods["unwrap_or_else"]  = new(new AsterType[] { new FunctionType(new AsterType[] { errT }, t) }, t);
+        resMethods["unwrap_or_default"] = new(Array.Empty<AsterType>(), t);
+        resMethods["is_ok"]           = new(Array.Empty<AsterType>(), boolT);
+        resMethods["is_err"]          = new(Array.Empty<AsterType>(), boolT);
+        resMethods["ok"]              = new(Array.Empty<AsterType>(), optT);
+        resMethods["err"]             = new(Array.Empty<AsterType>(), new TypeApp(new StructType("Option", Array.Empty<(string, AsterType)>()), new AsterType[] { errT }));
+        resMethods["as_ref"]          = new(Array.Empty<AsterType>(), resultT);
+        resMethods["flatten"]         = new(Array.Empty<AsterType>(), resultT);
+        resMethods["expect"]          = new(new AsterType[] { strT }, t);
+
+        // ── Math functions (registered as free functions on a "Math" pseudo-type) ──
+        var mathMethods = new Dictionary<string, FunctionType>(StringComparer.Ordinal)
+        {
+            ["abs"]   = new(new AsterType[] { f64T }, f64T),
+            ["sqrt"]  = new(new AsterType[] { f64T }, f64T),
+            ["cbrt"]  = new(new AsterType[] { f64T }, f64T),
+            ["pow"]   = new(new AsterType[] { f64T, f64T }, f64T),
+            ["exp"]   = new(new AsterType[] { f64T }, f64T),
+            ["ln"]    = new(new AsterType[] { f64T }, f64T),
+            ["log"]   = new(new AsterType[] { f64T, f64T }, f64T),
+            ["log2"]  = new(new AsterType[] { f64T }, f64T),
+            ["log10"] = new(new AsterType[] { f64T }, f64T),
+            ["floor"] = new(new AsterType[] { f64T }, f64T),
+            ["ceil"]  = new(new AsterType[] { f64T }, f64T),
+            ["round"] = new(new AsterType[] { f64T }, f64T),
+            ["trunc"] = new(new AsterType[] { f64T }, f64T),
+            ["min"]   = new(new AsterType[] { f64T, f64T }, f64T),
+            ["max"]   = new(new AsterType[] { f64T, f64T }, f64T),
+            ["sin"]   = new(new AsterType[] { f64T }, f64T),
+            ["cos"]   = new(new AsterType[] { f64T }, f64T),
+            ["tan"]   = new(new AsterType[] { f64T }, f64T),
+            ["asin"]  = new(new AsterType[] { f64T }, f64T),
+            ["acos"]  = new(new AsterType[] { f64T }, f64T),
+            ["atan"]  = new(new AsterType[] { f64T }, f64T),
+            ["atan2"] = new(new AsterType[] { f64T, f64T }, f64T),
+            ["hypot"] = new(new AsterType[] { f64T, f64T }, f64T),
+        };
+        _implMethods["Math"] = mathMethods;
+
+        // ── f64 instance methods (mirrors f64::sqrt() etc.) ──
+        var f64Methods = new Dictionary<string, FunctionType>(StringComparer.Ordinal)
+        {
+            ["abs"]   = new(Array.Empty<AsterType>(), f64T),
+            ["sqrt"]  = new(Array.Empty<AsterType>(), f64T),
+            ["floor"] = new(Array.Empty<AsterType>(), f64T),
+            ["ceil"]  = new(Array.Empty<AsterType>(), f64T),
+            ["round"] = new(Array.Empty<AsterType>(), f64T),
+            ["powi"]  = new(new AsterType[] { i32T }, f64T),
+            ["powf"]  = new(new AsterType[] { f64T }, f64T),
+            ["ln"]    = new(Array.Empty<AsterType>(), f64T),
+            ["log"]   = new(new AsterType[] { f64T }, f64T),
+            ["log2"]  = new(Array.Empty<AsterType>(), f64T),
+            ["log10"] = new(Array.Empty<AsterType>(), f64T),
+            ["sin"]   = new(Array.Empty<AsterType>(), f64T),
+            ["cos"]   = new(Array.Empty<AsterType>(), f64T),
+            ["tan"]   = new(Array.Empty<AsterType>(), f64T),
+            ["min"]   = new(new AsterType[] { f64T }, f64T),
+            ["max"]   = new(new AsterType[] { f64T }, f64T),
+        };
+        _implMethods["f64"] = f64Methods;
+
+        // ── i32 instance methods ──
+        var i32Methods = new Dictionary<string, FunctionType>(StringComparer.Ordinal)
+        {
+            ["abs"]         = new(Array.Empty<AsterType>(), i32T),
+            ["pow"]         = new(new AsterType[] { usizeT }, i32T),
+            ["min"]         = new(new AsterType[] { i32T }, i32T),
+            ["max"]         = new(new AsterType[] { i32T }, i32T),
+            ["clamp"]       = new(new AsterType[] { i32T, i32T }, i32T),
+            ["to_string"]   = new(Array.Empty<AsterType>(), strT),
+            ["wrapping_add"]= new(new AsterType[] { i32T }, i32T),
+            ["checked_add"] = new(new AsterType[] { i32T }, new TypeApp(new StructType("Option", Array.Empty<(string, AsterType)>()), new AsterType[] { i32T })),
+            ["count_ones"]  = new(Array.Empty<AsterType>(), usizeT),
+            ["leading_zeros"]= new(Array.Empty<AsterType>(), usizeT),
+            ["trailing_zeros"]= new(Array.Empty<AsterType>(), usizeT),
+        };
+        _implMethods["i32"] = i32Methods;
+
+        // ── i64 instance methods ──
+        var i64Methods = new Dictionary<string, FunctionType>(StringComparer.Ordinal)
+        {
+            ["abs"]       = new(Array.Empty<AsterType>(), i64T),
+            ["pow"]       = new(new AsterType[] { usizeT }, i64T),
+            ["min"]       = new(new AsterType[] { i64T }, i64T),
+            ["max"]       = new(new AsterType[] { i64T }, i64T),
+            ["clamp"]     = new(new AsterType[] { i64T, i64T }, i64T),
+            ["to_string"] = new(Array.Empty<AsterType>(), strT),
+        };
+        _implMethods["i64"] = i64Methods;
     }
 
     /// <summary>Type-check an HIR program.</summary>
@@ -33,12 +337,11 @@ public sealed class TypeChecker
             CheckNode(decl);
         }
 
-        // Phase 2: Solve constraints
+        // Phase 2: Solve equality constraints
         _solver.Solve();
 
-        // Phase 3: Check trait constraints
-        var traitConstraints = new List<TraitConstraint>();
-        _traitSolver.CheckConstraints(traitConstraints, _solver);
+        // Phase 3: Check trait constraints (both from generic bounds and call sites)
+        _traitSolver.CheckConstraints(_pendingTraitConstraints, _solver);
 
         // Merge diagnostics
         Diagnostics.AddRange(_solver.Diagnostics);
@@ -50,29 +353,52 @@ public sealed class TypeChecker
     {
         foreach (var decl in program.Declarations)
         {
-            if (decl is HirStructDecl structDecl)
+            CollectTypeDeclaration(decl);
+        }
+    }
+
+    private void CollectTypeDeclaration(HirNode decl)
+    {
+        if (decl is HirStructDecl structDecl)
+        {
+            // Register generic params temporarily for field resolution
+            var savedGp = PushGenericParams(structDecl.GenericParams);
+
+            var fields = new List<(string, AsterType)>();
+            foreach (var field in structDecl.Fields)
             {
-                var fields = new List<(string, AsterType)>();
-                foreach (var field in structDecl.Fields)
-                {
-                    fields.Add((field.Name, ResolveTypeRef(field.TypeRef)));
-                }
-                var structType = new StructType(structDecl.Symbol.Name, fields);
-                _structTypes[structDecl.Symbol.Name] = structType;
-                structDecl.Symbol.Type = structType;
+                fields.Add((field.Name, ResolveTypeRef(field.TypeRef)));
             }
-            else if (decl is HirEnumDecl enumDecl)
+            var structType = new StructType(structDecl.Symbol.Name, fields);
+            _structTypes[structDecl.Symbol.Name] = structType;
+            structDecl.Symbol.Type = structType;
+
+            PopGenericParams(savedGp);
+        }
+        else if (decl is HirEnumDecl enumDecl)
+        {
+            var variants = new List<(string, IReadOnlyList<AsterType>)>();
+            foreach (var v in enumDecl.Variants)
             {
-                var variants = new List<(string, IReadOnlyList<AsterType>)>();
-                foreach (var v in enumDecl.Variants)
-                {
-                    var vFields = v.Fields.Select(f => ResolveTypeRef(f)).ToList();
-                    variants.Add((v.Name, vFields));
-                }
-                var enumType = new EnumType(enumDecl.Symbol.Name, variants);
-                _enumTypes[enumDecl.Symbol.Name] = enumType;
-                enumDecl.Symbol.Type = enumType;
+                var vFields = v.Fields.Select(f => ResolveTypeRef(f)).ToList();
+                variants.Add((v.Name, vFields));
             }
+            var enumType = new EnumType(enumDecl.Symbol.Name, variants);
+            _enumTypes[enumDecl.Symbol.Name] = enumType;
+            enumDecl.Symbol.Type = enumType;
+        }
+        else if (decl is HirModuleDecl mod)
+        {
+            // Recurse into module members so nested types are registered
+            foreach (var member in mod.Members)
+                CollectTypeDeclaration(member);
+        }
+        else if (decl is HirTypeAliasDecl aliasDecl)
+        {
+            // Register alias underlying type so it can be resolved later
+            var underlyingType = ResolveTypeRef(aliasDecl.Target);
+            _typeAliases[aliasDecl.Symbol.Name] = underlyingType;
+            aliasDecl.Symbol.Type = underlyingType;
         }
     }
 
@@ -81,6 +407,26 @@ public sealed class TypeChecker
         HirFunctionDecl fn => CheckFunctionDecl(fn),
         HirStructDecl s => CheckStructDecl(s),
         HirEnumDecl e => CheckEnumDecl(e),
+        HirTraitDecl trait => CheckTraitDecl(trait),
+        HirImplDecl impl => CheckImplDecl(impl),
+        HirModuleDecl mod => CheckModuleDecl(mod),
+        HirForStmt forStmt => CheckForStmt(forStmt),
+        HirBreakStmt => PrimitiveType.Void,
+        HirContinueStmt => PrimitiveType.Void,
+        HirIndexExpr idx => CheckIndexExpr(idx),
+        HirMatchExpr matchExpr => CheckMatchExpr(matchExpr),
+        HirClosureExpr closure => CheckClosureExpr(closure),
+        HirTypeAliasDecl alias => CheckTypeAliasDecl(alias),
+        // Phase 4
+        HirMethodCallExpr mc => CheckMethodCallExpr(mc),
+        HirAssociatedTypeDecl assoc => CheckAssociatedTypeDecl(assoc),
+        HirMacroDecl => PrimitiveType.Void,
+        HirMacroInvocationExpr macroInv => CheckMacroInvocation(macroInv),
+        // Phase 6: casts, array literals
+        HirCastExpr cast => CheckCastExpr(cast),
+        HirArrayLiteralExpr arr => CheckArrayLiteralExpr(arr),
+        // Phase 6b: tuples
+        HirTupleExpr tuple => CheckTupleExpr(tuple),
         HirLetStmt let => CheckLetStmt(let),
         HirReturnStmt ret => ret.Value != null ? CheckNode(ret.Value) : PrimitiveType.Void,
         HirExprStmt es => CheckNode(es.Expression),
@@ -155,6 +501,11 @@ public sealed class TypeChecker
             var typeName = path.Segments[0];
             var variantName = path.Segments[1];
 
+            // Phase 4: check associated type projections first (e.g. Point::Item, Iterator::Item)
+            var assocKey = $"{typeName}::{variantName}";
+            if (_associatedTypes.TryGetValue(assocKey, out var assocType))
+                return assocType;
+
             if (_enumTypes.TryGetValue(typeName, out var enumType))
             {
                 // Check if variant exists
@@ -187,8 +538,68 @@ public sealed class TypeChecker
         return new TypeVariable();
     }
 
+    // ========== Phase 4: Method Calls, Associated Types, Macros ==========
+
+    /// <summary>
+    /// Type-check a method call expression: receiver.method(args).
+    /// Looks up the method in the impl table for the receiver's type.
+    /// Falls back to a TypeVariable return type when the method is not (yet) registered.
+    /// </summary>
+    private AsterType CheckMethodCallExpr(HirMethodCallExpr mc)
+    {
+        var receiverType = CheckNode(mc.Receiver);
+
+        // Determine the name of the receiver's type for method lookup
+        string? typeName = receiverType switch
+        {
+            StructType st => st.Name,
+            EnumType et => et.Name,
+            PrimitiveType pt => pt.Kind.ToString().ToLowerInvariant(),
+            // Phase 4: dyn Trait — dispatch via the trait's impl method table
+            TraitObjectType tot => tot.TraitName,
+            _ => null,
+        };
+
+        if (typeName != null && _implMethods.TryGetValue(typeName, out var methodTable)
+            && methodTable.TryGetValue(mc.MethodName, out var methodType))
+        {
+            // Skip the self parameter when checking arguments
+            var paramTypes = methodType.ParameterTypes.ToList();
+            int firstNonSelfParam = paramTypes.Count > 0 ? 1 : 0; // skip self
+            int argOffset = 0;
+            for (int i = firstNonSelfParam; i < paramTypes.Count && argOffset < mc.Arguments.Count; i++, argOffset++)
+            {
+                var argType = CheckNode(mc.Arguments[argOffset]);
+                _solver.AddConstraint(new EqualityConstraint(argType, paramTypes[i], mc.Arguments[argOffset].Span));
+            }
+            return methodType.ReturnType;
+        }
+
+        // Method not found in impl table — check arguments anyway and return TypeVariable
+        foreach (var arg in mc.Arguments) CheckNode(arg);
+        return new TypeVariable();
+    }
+
+    /// <summary>Type-check an associated type declaration (side-effect: registered in CheckImplDecl).</summary>
+    private AsterType CheckAssociatedTypeDecl(HirAssociatedTypeDecl assoc)
+    {
+        // The associated type is already registered in CheckImplDecl; nothing else to do here.
+        return PrimitiveType.Void;
+    }
+
+    /// <summary>Type-check a macro invocation — delegates to the expanded form if available.</summary>
+    private AsterType CheckMacroInvocation(HirMacroInvocationExpr macroInv)
+    {
+        if (macroInv.Expanded != null)
+            return CheckNode(macroInv.Expanded);
+        return new TypeVariable();
+    }
+
     private AsterType CheckFunctionDecl(HirFunctionDecl fn)
     {
+        // Build generic parameter map for this function (with bounds)
+        var savedGenericParams = PushGenericParams(fn.GenericParams);
+
         var paramTypes = new List<AsterType>();
         foreach (var param in fn.Parameters)
         {
@@ -200,6 +611,17 @@ public sealed class TypeChecker
         var returnType = fn.ReturnType != null ? ResolveTypeRef(fn.ReturnType) : PrimitiveType.Void;
         fn.Symbol.Type = new FunctionType(paramTypes, returnType);
 
+        // Register TypeScheme for generic functions so call sites get fresh type variables
+        // This enables proper return-type inference: identity(42) → i32, not GenericParameter(T)
+        if (fn.GenericParams.Count > 0)
+        {
+            var typeParams = _currentGenericParams.Values.ToList();
+            var bounds = typeParams
+                .SelectMany(gp => gp.Bounds.Select(b => new TraitBound(b.TraitName)))
+                .ToList();
+            _symbolSchemes[fn.Symbol.Id] = new TypeScheme(typeParams, bounds, fn.Symbol.Type);
+        }
+
         var bodyType = CheckBlock(fn.Body);
 
         if (fn.ReturnType != null && !IsAssignableTo(bodyType, returnType))
@@ -207,11 +629,15 @@ public sealed class TypeChecker
             Diagnostics.ReportError("E0300", $"Function '{fn.Symbol.Name}' expects return type '{returnType.DisplayName}' but body has type '{bodyType.DisplayName}'", fn.Span);
         }
 
+        PopGenericParams(savedGenericParams);
         return fn.Symbol.Type;
     }
 
     private AsterType CheckStructDecl(HirStructDecl s)
     {
+        // Register generic type parameters for field type resolution
+        var savedGenericParams = PushGenericParams(s.GenericParams);
+
         var fields = new List<(string, AsterType)>();
         foreach (var field in s.Fields)
         {
@@ -219,7 +645,33 @@ public sealed class TypeChecker
         }
         var structType = new StructType(s.Symbol.Name, fields);
         s.Symbol.Type = structType;
+
+        PopGenericParams(savedGenericParams);
         return structType;
+    }
+
+    /// <summary>
+    /// Push generic type parameters (with their trait bounds) into the current scope,
+    /// returning the saved state so it can be restored with <see cref="PopGenericParams"/>.
+    /// </summary>
+    private Dictionary<string, GenericParameter> PushGenericParams(IReadOnlyList<HirGenericParam> hirParams)
+    {
+        var saved = new Dictionary<string, GenericParameter>(_currentGenericParams);
+        var gpId = 0;
+        foreach (var hp in hirParams)
+        {
+            var bounds = hp.Bounds.Select(b => new TraitBound(b)).ToArray();
+            _currentGenericParams[hp.Name] = new GenericParameter(hp.Name, gpId++, bounds);
+        }
+        return saved;
+    }
+
+    /// <summary>Restore the generic param scope saved by <see cref="PushGenericParams"/>.</summary>
+    private void PopGenericParams(Dictionary<string, GenericParameter> saved)
+    {
+        _currentGenericParams.Clear();
+        foreach (var kv in saved)
+            _currentGenericParams[kv.Key] = kv.Value;
     }
 
     private AsterType CheckEnumDecl(HirEnumDecl e)
@@ -303,11 +755,25 @@ public sealed class TypeChecker
     {
         var calleeType = CheckNode(call.Callee);
 
-        // Handle built-in print function
-        if (call.Callee is HirIdentifierExpr id && (id.Name == "print" || id.Name == "println"))
+        // Handle built-in functions that take any args and return void or never
+        if (call.Callee is HirIdentifierExpr id)
         {
-            foreach (var arg in call.Arguments) CheckNode(arg);
-            return PrimitiveType.Void;
+            switch (id.Name)
+            {
+                case "print":
+                case "println":
+                case "eprint":
+                case "eprintln":
+                case "__format_string":
+                    foreach (var arg in call.Arguments) CheckNode(arg);
+                    return PrimitiveType.Void;
+                case "panic":
+                case "todo":
+                case "unreachable":
+                    // Diverging builtins — return NeverType
+                    foreach (var arg in call.Arguments) CheckNode(arg);
+                    return NeverType.Instance;
+            }
         }
 
         if (calleeType is FunctionType fnType)
@@ -317,10 +783,29 @@ public sealed class TypeChecker
                 Diagnostics.ReportError("E0302", $"Expected {fnType.ParameterTypes.Count} arguments but got {call.Arguments.Count}", call.Span);
             }
 
+            // Collect argument types and add equality constraints
+            var argTypes = new List<AsterType>(call.Arguments.Count);
             for (int i = 0; i < Math.Min(call.Arguments.Count, fnType.ParameterTypes.Count); i++)
             {
                 var argType = CheckNode(call.Arguments[i]);
+                argTypes.Add(argType);
                 _solver.AddConstraint(new EqualityConstraint(argType, fnType.ParameterTypes[i], call.Arguments[i].Span));
+            }
+
+            // Emit trait constraints for bounded generic parameters.
+            // CheckIdentifier may have instantiated a TypeScheme, replacing GenericParameters with
+            // fresh TypeVariables.  To recover the bounds, look up the original symbol type.
+            // The original symbol.Type is a FunctionType whose ParameterTypes are GenericParameters.
+            var originalParamTypes = GetOriginalParamTypes(call.Callee);
+            for (int i = 0; i < Math.Min(argTypes.Count, originalParamTypes.Count); i++)
+            {
+                if (originalParamTypes[i] is GenericParameter gp && gp.Bounds.Count > 0)
+                {
+                    foreach (var bound in gp.Bounds)
+                    {
+                        _pendingTraitConstraints.Add(new TraitConstraint(argTypes[i], bound, call.Arguments[i].Span));
+                    }
+                }
             }
 
             return fnType.ReturnType;
@@ -339,6 +824,21 @@ public sealed class TypeChecker
         }
 
         return returnType;
+    }
+
+    /// <summary>
+    /// Retrieve the original (pre-instantiation) parameter types of the callee's function type.
+    /// This is used for bound checking: TypeScheme instantiation replaces GenericParameters with
+    /// TypeVariables, losing bound information.  The original symbol.Type still has GenericParameters.
+    /// </summary>
+    private static IReadOnlyList<AsterType> GetOriginalParamTypes(HirNode callee)
+    {
+        if (callee is HirIdentifierExpr id &&
+            id.ResolvedSymbol?.Type is FunctionType originalFnType)
+        {
+            return originalFnType.ParameterTypes;
+        }
+        return Array.Empty<AsterType>();
     }
 
     private AsterType CheckIdentifier(HirIdentifierExpr id)
@@ -379,6 +879,9 @@ public sealed class TypeChecker
                 => PrimitiveType.Bool,
             Ast.BinaryOperator.And or Ast.BinaryOperator.Or
                 => PrimitiveType.Bool,
+            // Phase 6: Range expression a..b  → Range<T>
+            Ast.BinaryOperator.Range
+                => new TypeApp(new StructType("Range", Array.Empty<(string, AsterType)>()), new[] { leftType }),
             _ => leftType,
         };
     }
@@ -393,8 +896,29 @@ public sealed class TypeChecker
             Ast.UnaryOperator.BitNot => operandType,
             Ast.UnaryOperator.Ref => new ReferenceType(operandType, false),
             Ast.UnaryOperator.MutRef => new ReferenceType(operandType, true),
+            // ? operator: unwrap Result<T,E> -> T  or  Option<T> -> T
+            Ast.UnaryOperator.Try => UnwrapTryOperand(operandType),
             _ => operandType,
         };
+    }
+
+    /// <summary>
+    /// Unwrap the inner success type for the ? operator.
+    /// Result&lt;T, E&gt; => T;  Option&lt;T&gt; => T;  otherwise return the type unchanged.
+    /// </summary>
+    private static AsterType UnwrapTryOperand(AsterType operandType)
+    {
+        if (operandType is TypeApp ta)
+        {
+            // Result<T, E>  → T  (first argument)
+            if (ta.Constructor is StructType { Name: "Result" } && ta.Arguments.Count >= 1)
+                return ta.Arguments[0];
+            // Option<T>  → T
+            if (ta.Constructor is StructType { Name: "Option" } && ta.Arguments.Count >= 1)
+                return ta.Arguments[0];
+        }
+        // Unknown wrapping type: return type variable (will be inferred)
+        return new TypeVariable();
     }
 
     private AsterType CheckIfExpr(HirIfExpr ifExpr)
@@ -507,6 +1031,28 @@ public sealed class TypeChecker
     {
         if (typeRef == null) return new TypeVariable();
 
+        // Phase 4: dyn TraitName → TraitObjectType
+        if (typeRef.Name == "dyn" && typeRef.TypeArguments.Count == 1)
+            return new TraitObjectType(typeRef.TypeArguments[0].Name);
+
+        // Phase 6: __slice → SliceType, __array → ArrayType, str → StrType
+        if (typeRef.Name == "__slice" && typeRef.TypeArguments.Count == 1)
+            return new SliceType(ResolveTypeRef(typeRef.TypeArguments[0]));
+        if (typeRef.Name == "__array" && typeRef.TypeArguments.Count == 1)
+            return new ArrayType(ResolveTypeRef(typeRef.TypeArguments[0]), 0);
+        if (typeRef.Name == "str")
+            return StrType.Instance;
+
+        // Phase 6b: tuple type (T1, T2, ...)
+        if (typeRef.Name == "__tuple")
+        {
+            var elemTypes = typeRef.TypeArguments.Select(a => ResolveTypeRef(a)).ToList();
+            return new TupleType(elemTypes);
+        }
+        // Phase 6b: never type !
+        if (typeRef.Name == "!")
+            return NeverType.Instance;
+
         // Check primitive types first
         var primitiveType = typeRef.Name switch
         {
@@ -518,6 +1064,8 @@ public sealed class TypeChecker
             "u16" => PrimitiveType.U16,
             "u32" => PrimitiveType.U32,
             "u64" => PrimitiveType.U64,
+            "usize" => PrimitiveType.Usize,
+            "isize" => PrimitiveType.Isize,
             "f32" => PrimitiveType.F32,
             "f64" => PrimitiveType.F64,
             "bool" => PrimitiveType.Bool,
@@ -530,6 +1078,22 @@ public sealed class TypeChecker
         if (primitiveType != null)
             return primitiveType;
 
+        // Check generic type parameters in current scope (e.g. T, A, B)
+        if (_currentGenericParams.TryGetValue(typeRef.Name, out var genericParam))
+            return genericParam;
+
+        // Resolve built-in generic type constructors (Weeks 13-16):
+        // Vec<T>, Option<T>, Result<T,E>, HashMap<K,V>
+        if (BuiltinGenericTypes.Contains(typeRef.Name))
+        {
+            var typeArgs = typeRef.TypeArguments.Select(a => ResolveTypeRef(a)).ToList();
+            // Use a StructType as the constructor token for TypeApp (simple string key)
+            var ctor = new StructType(typeRef.Name, Array.Empty<(string, AsterType)>());
+            return typeArgs.Count > 0
+                ? new TypeApp(ctor, typeArgs)
+                : (AsterType)ctor;
+        }
+
         // Check user-defined types
         if (_structTypes.TryGetValue(typeRef.Name, out var structType))
             return structType;
@@ -537,7 +1101,302 @@ public sealed class TypeChecker
         if (_enumTypes.TryGetValue(typeRef.Name, out var enumType))
             return enumType;
 
+        // Check type aliases
+        if (_typeAliases.TryGetValue(typeRef.Name, out var aliasType))
+            return aliasType;
+
         // Fall back to resolved symbol or type variable
         return typeRef.ResolvedSymbol?.Type ?? new TypeVariable();
     }
+
+    // ===== Week 20: Trait and impl type checking =====
+
+    private AsterType CheckTraitDecl(HirTraitDecl trait)
+    {
+        var traitType = new TraitType(trait.Symbol.Name);
+        trait.Symbol.Type = traitType;
+
+        // Phase 4: Register required (non-default) methods so CheckImplDecl can verify completeness
+        var requiredMethods = trait.Methods
+            .Where(m => !m.HasDefaultBody)
+            .Select(m => m.Name)
+            .ToList();
+        _traitRequiredMethods[trait.Symbol.Name] = requiredMethods;
+
+        // Also populate the impl method table with default method stubs so dyn dispatch works
+        if (trait.Methods.Any(m => m.HasDefaultBody))
+        {
+            if (!_implMethods.TryGetValue(trait.Symbol.Name, out var defaultTable))
+            {
+                defaultTable = new Dictionary<string, FunctionType>(StringComparer.Ordinal);
+                _implMethods[trait.Symbol.Name] = defaultTable;
+            }
+            foreach (var m in trait.Methods.Where(m => m.HasDefaultBody))
+            {
+                // Register a stub FunctionType for the default method (return void for now)
+                defaultTable[m.Name] = new FunctionType(Array.Empty<AsterType>(), PrimitiveType.Void);
+            }
+        }
+
+        return PrimitiveType.Void;
+    }
+
+    private AsterType CheckImplDecl(HirImplDecl impl)
+    {
+        // Register each method in the impl's method table for member-access resolution
+        if (!_implMethods.TryGetValue(impl.TargetTypeName, out var table))
+        {
+            table = new Dictionary<string, FunctionType>(StringComparer.Ordinal);
+            _implMethods[impl.TargetTypeName] = table;
+        }
+
+        foreach (var fn in impl.Methods)
+        {
+            CheckFunctionDecl(fn);
+            if (fn.Symbol.Type is FunctionType ft)
+                table[fn.Symbol.Name] = ft;
+        }
+
+        // Phase 4: register associated types — "TargetType::Item" → resolved type
+        foreach (var assoc in impl.AssociatedTypes)
+        {
+            var resolvedType = assoc.TypeRef != null ? ResolveTypeRef(assoc.TypeRef) : new TypeVariable();
+            _associatedTypes[$"{impl.TargetTypeName}::{assoc.Name}"] = resolvedType;
+        }
+
+        // If this is a trait impl, register it in the trait solver and verify required methods
+        if (impl.TraitName != null)
+        {
+            // Resolve target type
+            AsterType targetType = _structTypes.TryGetValue(impl.TargetTypeName, out var st)
+                ? st
+                : (_enumTypes.TryGetValue(impl.TargetTypeName, out var et) ? et : new TypeVariable());
+            _traitSolver.RegisterImpl(new TraitImpl(impl.TraitName, targetType));
+
+            // Phase 4: verify all required (non-default) methods of the trait are provided
+            if (_traitRequiredMethods.TryGetValue(impl.TraitName, out var requiredMethods))
+            {
+                // Impl method symbols use qualified names like "Square::area"; extract the unqualified part
+                var providedMethodNames = impl.Methods
+                    .Select(m =>
+                    {
+                        var n = m.Symbol.Name;
+                        var sep = n.LastIndexOf("::", StringComparison.Ordinal);
+                        return sep >= 0 ? n[(sep + 2)..] : n;
+                    })
+                    .ToHashSet(StringComparer.Ordinal);
+                foreach (var required in requiredMethods)
+                {
+                    if (!providedMethodNames.Contains(required))
+                    {
+                        Diagnostics.ReportError("E0700",
+                            $"impl of '{impl.TraitName}' for '{impl.TargetTypeName}' is missing required method '{required}'",
+                            impl.Span);
+                    }
+                }
+            }
+        }
+
+        return PrimitiveType.Void;
+    }
+
+    // ===== Weeks 17-19: Module type checking =====
+
+    private AsterType CheckModuleDecl(HirModuleDecl mod)
+    {
+        // Type-check all module members
+        foreach (var member in mod.Members)
+            CheckNode(member);
+        return PrimitiveType.Void;
+    }
+
+    // ===== Phase 2 Closeout: for / match / break / continue / index =====
+
+    private AsterType CheckForStmt(HirForStmt forStmt)
+    {
+        // Check the iterable — should be Vec<T>, Range, or any iterable type
+        var iterableType = CheckNode(forStmt.Iterable);
+
+        // Infer the element type: if Vec<T>, element is T; otherwise use TypeVariable
+        AsterType elementType;
+        if (iterableType is TypeApp app && app.Constructor is StructType st &&
+            (st.Name == "Vec" || st.Name == "Range") && app.Arguments.Count > 0)
+        {
+            elementType = app.Arguments[0];
+        }
+        else
+        {
+            elementType = new TypeVariable();
+        }
+
+        // Assign the inferred element type to the loop variable
+        if (forStmt.Variable.Type == null)
+            forStmt.Variable.Type = elementType;
+
+        // Type-check the body
+        foreach (var stmt in forStmt.Body.Statements)
+            CheckNode(stmt);
+        if (forStmt.Body.TailExpression != null)
+            CheckNode(forStmt.Body.TailExpression);
+
+        return PrimitiveType.Void;
+    }
+
+    private AsterType CheckIndexExpr(HirIndexExpr idx)
+    {
+        // Check the target — should be Vec<T> or an array-like type
+        var targetType = CheckNode(idx.Target);
+        var indexType = CheckNode(idx.Index);
+
+        // Ensure index is a supported integer type (TypeVariable means unconstrained)
+        if (indexType is not TypeVariable && !IsIntegerType(indexType))
+            Diagnostics.ReportError("E0307", "Index must be an integer type", idx.Span);
+
+        // Return element type: Vec<T>[i] → T
+        if (targetType is TypeApp app && app.Arguments.Count > 0)
+            return app.Arguments[0];
+
+        // For unknown/generic target, return a fresh TypeVariable
+        return new TypeVariable();
+    }
+
+    /// <summary>Returns true if the type is one of the supported integer primitive types.</summary>
+    private static bool IsIntegerType(AsterType type) =>
+        type is PrimitiveType p &&
+        (p == PrimitiveType.I32 || p == PrimitiveType.I64 ||
+         p == PrimitiveType.U32 || p == PrimitiveType.U64);
+
+    private AsterType CheckMatchExpr(HirMatchExpr matchExpr)
+    {
+        var scrutineeType = CheckNode(matchExpr.Scrutinee);
+
+        // The match expression's type is determined by the first arm's body type
+        // All arms must unify to the same type
+        AsterType? resultType = null;
+        foreach (var arm in matchExpr.Arms)
+        {
+            CheckPattern(arm.Pattern, scrutineeType);
+            var armType = CheckNode(arm.Body);
+            if (resultType == null)
+                resultType = armType;
+            else
+                _solver.Unify(resultType, armType);
+        }
+
+        return resultType ?? PrimitiveType.Void;
+    }
+
+    private void CheckPattern(HirPattern pattern, AsterType expectedType)
+    {
+        switch (pattern.Kind)
+        {
+            case PatternKind.Variable:
+                // Bind the variable to the scrutinee type
+                if (pattern.Name != null)
+                {
+                    // Find the symbol by name among scope's variables
+                    // (already registered in NameResolver; just assign type here)
+                }
+                break;
+
+            case PatternKind.Literal:
+                // Check the literal matches the expected type
+                if (pattern.LiteralValue is int or long)
+                    _solver.Unify(expectedType, PrimitiveType.I32);
+                else if (pattern.LiteralValue is bool)
+                    _solver.Unify(expectedType, PrimitiveType.Bool);
+                else if (pattern.LiteralValue is string)
+                    _solver.Unify(expectedType, PrimitiveType.StringType);
+                break;
+
+            case PatternKind.Constructor:
+                // Check sub-patterns (simplified — full exhaustiveness checking is future work)
+                foreach (var sub in pattern.SubPatterns)
+                    CheckPattern(sub, new TypeVariable());
+                break;
+
+            case PatternKind.Wildcard:
+            default:
+                // Wildcards and unknown patterns are always valid
+                break;
+        }
+    }
+
+    /// <summary>Type-check a closure expression. Returns FunctionType(paramTypes, bodyType).</summary>
+    private AsterType CheckClosureExpr(HirClosureExpr closure)
+    {
+        var paramTypes = new List<AsterType>();
+        foreach (var param in closure.Parameters)
+        {
+            var pType = param.TypeRef != null ? ResolveTypeRef(param.TypeRef) : new TypeVariable();
+            param.Symbol.Type = pType;
+            paramTypes.Add(pType);
+        }
+        var bodyType = CheckNode(closure.Body);
+        return new FunctionType(paramTypes, bodyType);
+    }
+
+    /// <summary>Type-check a type alias declaration. Returns Void (side-effect: register alias).</summary>
+    private AsterType CheckTypeAliasDecl(HirTypeAliasDecl alias)
+    {
+        // Already registered in CollectTypeDeclarations; nothing else to do here.
+        return PrimitiveType.Void;
+    }
+
+    // ========== Phase 6: Casts, Array Literals, Slices ==========
+
+    private AsterType CheckCastExpr(HirCastExpr cast)
+    {
+        var sourceType = CheckNode(cast.Expression);
+        var target = cast.TargetType;
+
+        // Validate: numeric casts are allowed between numeric types
+        bool sourceIsNumeric = IsNumericType(sourceType);
+        bool targetIsNumeric = IsNumericType(target);
+
+        if (!sourceIsNumeric && !targetIsNumeric)
+        {
+            // Allow pointer-like casts (references → slice, etc.) silently
+            // Report error only when both source and target are known non-numeric, non-pointer concrete types
+            if (sourceType is PrimitiveType && target is PrimitiveType &&
+                sourceType != PrimitiveType.Void && target != PrimitiveType.Void)
+            {
+                Diagnostics.ReportError("E0600", $"Cannot cast from '{sourceType.DisplayName}' to '{target.DisplayName}'", cast.Span);
+            }
+        }
+
+        // For `T as str` or `T as [U]`, just return the target type
+        return target;
+    }
+
+    private AsterType CheckArrayLiteralExpr(HirArrayLiteralExpr arr)
+    {
+        if (arr.Elements.Count == 0)
+            return new ArrayType(new TypeVariable(), 0);
+
+        var elemType = CheckNode(arr.Elements[0]);
+        for (int i = 1; i < arr.Elements.Count; i++)
+        {
+            var t = CheckNode(arr.Elements[i]);
+            _solver.AddConstraint(new EqualityConstraint(elemType, t, arr.Span));
+        }
+        return new ArrayType(elemType, arr.Elements.Count);
+    }
+
+    /// <summary>Phase 6b: Check tuple expression (a, b, c) → TupleType(T1, T2, T3).</summary>
+    private AsterType CheckTupleExpr(HirTupleExpr tuple)
+    {
+        if (tuple.Elements.Count == 0)
+            return PrimitiveType.Void; // unit ()
+        var elemTypes = tuple.Elements.Select(e => CheckNode(e)).ToList();
+        return new TupleType(elemTypes);
+    }
+
+    private static bool IsNumericType(AsterType t) =>
+        t == PrimitiveType.I32 || t == PrimitiveType.I64 ||
+        t == PrimitiveType.F32 || t == PrimitiveType.F64 ||
+        t == PrimitiveType.Usize || t == PrimitiveType.Isize ||
+        t == PrimitiveType.I8 || t == PrimitiveType.I16 ||
+        t == PrimitiveType.U8 || t == PrimitiveType.U16 ||
+        t == PrimitiveType.U32 || t == PrimitiveType.U64;
 }

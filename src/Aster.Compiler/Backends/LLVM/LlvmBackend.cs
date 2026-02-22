@@ -15,12 +15,15 @@ public sealed class LlvmBackend : IBackend
     private int _stringCounter;
     private readonly List<(string Name, string Value)> _stringLiterals = new();
     private readonly bool _stage1Mode;
+    private readonly LlvmTargetInfo _target;
 
     /// <summary>Create a new LLVM backend.</summary>
     /// <param name="stage1Mode">If true, generate Stage1 CLI wrapper around main function.</param>
-    public LlvmBackend(bool stage1Mode = false)
+    /// <param name="target">Target platform info; defaults to x86-64 Linux.</param>
+    public LlvmBackend(bool stage1Mode = false, LlvmTargetInfo? target = null)
     {
         _stage1Mode = stage1Mode;
+        _target = target ?? LlvmTargetInfo.Default;
     }
 
     /// <summary>Emit LLVM IR from a MIR module.</summary>
@@ -30,7 +33,7 @@ public sealed class LlvmBackend : IBackend
         _stringLiterals.Clear();
         _stringCounter = 0;
 
-        // Emit module header
+        // Emit module header (target triple + datalayout + declarations)
         EmitHeader();
 
         // First pass: collect string literals
@@ -74,7 +77,28 @@ public sealed class LlvmBackend : IBackend
             EmitStage1CliWrapper();
         }
 
+        // Emit debug metadata stubs (DIFile / DICompileUnit)
+        EmitDebugMetadata(module);
+
         return _output.ToString();
+    }
+
+    /// <summary>
+    /// Emit LLVM debug metadata stubs: DIFile and DICompileUnit.
+    /// This provides a foundation for source-level debugging; DILocation per instruction
+    /// would be added in a future phase once we carry source spans into MIR.
+    /// </summary>
+    private void EmitDebugMetadata(MirModule module)
+    {
+        _output.AppendLine();
+        _output.AppendLine("; Debug metadata (DWARF stubs)");
+        _output.AppendLine("!llvm.dbg.cu = !{!0}");
+        _output.AppendLine("!llvm.module.flags = !{!1, !2}");
+        _output.AppendLine();
+        _output.AppendLine("!0 = distinct !DICompileUnit(language: DW_LANG_C99, file: !3, producer: \"Aster Compiler\", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug)");
+        _output.AppendLine("!1 = !{i32 7, !\"Dwarf Version\", i32 4}");
+        _output.AppendLine("!2 = !{i32 2, !\"Debug Info Version\", i32 3}");
+        _output.AppendLine("!3 = !DIFile(filename: \"module.ast\", directory: \".\")");
     }
 
     private void EmitHeader()
@@ -82,12 +106,16 @@ public sealed class LlvmBackend : IBackend
         _output.AppendLine("; ASTER Compiler - LLVM IR Output");
         _output.AppendLine($"; Generated at {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC");
         _output.AppendLine();
+        // Emit target triple and data layout for the selected platform
+        _output.AppendLine($"target triple = \"{_target.Triple}\"");
+        _output.AppendLine($"target datalayout = \"{_target.DataLayout}\"");
+        _output.AppendLine();
         _output.AppendLine("; External runtime declarations");
         _output.AppendLine("declare i32 @puts(ptr)");
         _output.AppendLine("declare i32 @printf(ptr, ...)");
         _output.AppendLine("declare ptr @malloc(i64)");
         _output.AppendLine("declare void @free(ptr)");
-        _output.AppendLine("declare void @exit(i32)");
+        _output.AppendLine("declare void @exit(i32) #0");
         
         if (_stage1Mode)
         {
@@ -110,6 +138,9 @@ public sealed class LlvmBackend : IBackend
         _output.AppendLine("define ptr @String_new() { ret ptr null }");
         _output.AppendLine("define ptr @String_from(ptr %s) { ret ptr %s }");
         _output.AppendLine();
+        // Attribute group #0: noreturn (used by exit, panic, etc.)
+        _output.AppendLine("attributes #0 = { noreturn }");
+        _output.AppendLine();
     }
 
     private void EmitFunction(MirFunction fn)
@@ -122,7 +153,9 @@ public sealed class LlvmBackend : IBackend
         var retType = MapType(fn.ReturnType);
         var paramList = string.Join(", ", fn.Parameters.Select(p => $"{MapType(p.Type)} %{p.Name}"));
 
-        _output.AppendLine($"define {retType} @{name}({paramList}) {{");
+        // Emit noreturn attribute (#0) for functions that never return (! return type)
+        var attrs = fn.ReturnType.Name is "never" or "!" ? " #0" : "";
+        _output.AppendLine($"define {retType} @{name}({paramList}){attrs} {{");
 
         foreach (var block in fn.BasicBlocks)
         {
@@ -470,17 +503,43 @@ public sealed class LlvmBackend : IBackend
     {
         return type.Name switch
         {
+            "i8"  => "i8",
+            "i16" => "i16",
             "i32" => "i32",
             "i64" => "i64",
-            "f32" => "float",
-            "f64" => "double",
+            "u8"  => "i8",
+            "u16" => "i16",
+            "u32" => "i32",
+            "u64" => "i64",
+            // usize/isize: pointer-width integer (target-dependent)
+            "usize" or "isize" => _target.NativeIntType,
+            "f32"  => "float",
+            "f64"  => "double",
             "bool" => "i1",
             "char" => "i8",
-            "ptr" => "ptr",
+            "ptr"  => "ptr",
+            "str"  => "ptr", // &str is a fat pointer; simplified to ptr here
             "void" => "void",
+            // NeverType (!) maps to void; callers must emit unreachable after calls
+            "never" or "!" => "void",
+            _ when type.Name.StartsWith("tuple.") =>
+                // tuple.T1.T2 → { T1, T2 }  (encoded by MirLowering as "tuple.i32.i64" etc.)
+                BuildTupleLlvmType(type.Name),
             _ when type.Name.StartsWith("struct.") => $"%{type.Name}",
             _ => "i64",
         };
+    }
+
+    /// <summary>Convert a "tuple.T1.T2" MirType name into an LLVM anonymous struct type.</summary>
+    private string BuildTupleLlvmType(string mirName)
+    {
+        // mirName format: "tuple.T1.T2.T3..."
+        // parts[0] == "tuple"; parts[1..] are individual element type names
+        var parts = mirName.Split('.');
+        var elementTypes = parts.Skip(1)
+            .Select(p => MapType(MirType.Custom(p)))
+            .ToList();
+        return $"{{ {string.Join(", ", elementTypes)} }}";
     }
 
     private void CollectStrings(MirFunction fn)

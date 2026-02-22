@@ -8,22 +8,28 @@ using Aster.Compiler.Frontend.Lexer;
 using Aster.Compiler.Frontend.NameResolution;
 using Aster.Compiler.Frontend.Parser;
 using Aster.Compiler.Frontend.TypeSystem;
+using Aster.Compiler.MiddleEnd.AsyncLowering;
 using Aster.Compiler.MiddleEnd.BorrowChecker;
 using Aster.Compiler.MiddleEnd.DropLowering;
+using Aster.Compiler.MiddleEnd.Generics;
 using Aster.Compiler.MiddleEnd.Mir;
+using Aster.Compiler.MiddleEnd.Optimizations;
 using Aster.Compiler.MiddleEnd.PatternLowering;
+using Aster.Compiler.MiddleEnd.PatternMatching;
 
 namespace Aster.Compiler.Driver;
 
 /// <summary>
 /// Compilation pipeline driver.
 /// Orchestrates the full compilation process:
-/// Lexer → Parser → AST → HIR → TypeCheck → Effects → BorrowCheck → MIR → LLVM → Binary
+/// Lexer → Parser → AST → HIR → TypeCheck → Monomorphize → Effects → BorrowCheck → MIR → LLVM → Binary
 /// </summary>
 public sealed class CompilationDriver
 {
     private readonly DiagnosticBag _diagnostics = new();
     private readonly bool _stage1Mode;
+    private MonomorphizationTable? _monoTable;
+    private readonly CompilationCache? _cache;
 
     /// <summary>All diagnostics from the compilation.</summary>
     public DiagnosticBag Diagnostics => _diagnostics;
@@ -32,20 +38,40 @@ public sealed class CompilationDriver
     public bool Stage1Mode => _stage1Mode;
 
     /// <summary>
+    /// Monomorphization table populated after <see cref="Compile"/> or <see cref="Check"/> runs.
+    /// Contains all generic instantiations discovered during compilation.
+    /// </summary>
+    public MonomorphizationTable? MonomorphizationTable => _monoTable;
+
+    /// <summary>
+    /// The compilation cache used for incremental builds (null if not in incremental mode).
+    /// </summary>
+    public CompilationCache? Cache => _cache;
+
+    /// <summary>
     /// Create a new compilation driver.
     /// </summary>
     /// <param name="stage1Mode">If true, enforces Stage1 (Core-0) language subset restrictions.</param>
-    public CompilationDriver(bool stage1Mode = false)
+    /// <param name="cache">Optional compilation cache for incremental builds. When provided,
+    /// unchanged source files are served from cache without re-running the full pipeline.</param>
+    public CompilationDriver(bool stage1Mode = false, CompilationCache? cache = null)
     {
         _stage1Mode = stage1Mode;
+        _cache = cache;
     }
 
     /// <summary>
     /// Compile source code through the entire pipeline.
     /// Returns the LLVM IR string on success, null on failure.
+    /// When an incremental <see cref="CompilationCache"/> was provided and the source
+    /// is unchanged since the last compile, the cached LLVM IR is returned immediately.
     /// </summary>
     public string? Compile(string source, string fileName)
     {
+        // Incremental compilation: return cached result if source is unchanged
+        if (_cache != null && _cache.TryGet(fileName, source, out var cached) && cached != null)
+            return cached.LlvmIr;
+
         // Phase 1: Lexing
         var lexer = new AsterLexer(source, fileName);
         var tokens = lexer.Tokenize();
@@ -78,7 +104,15 @@ public sealed class CompilationDriver
         if (_diagnostics.HasErrors)
             return null;
 
-        // Phase 5: Effect Checking
+        // Phase 4b: Pattern exhaustiveness checking (Phase 3 completion)
+        RunPatternChecker(hir, typeChecker);
+
+        // Phase 5: Monomorphization (Week 11)
+        // Collects all generic instantiations; the table is available for downstream phases.
+        var monomorphizer = new Monomorphizer();
+        _monoTable = monomorphizer.Run(hir);
+
+        // Phase 6: Effect Checking
         var effectChecker = new EffectChecker();
         effectChecker.Check(hir);
         _diagnostics.AddRange(effectChecker.Diagnostics);
@@ -91,6 +125,15 @@ public sealed class CompilationDriver
         if (_diagnostics.HasErrors)
             return null;
 
+        // Phase 6b: Optimization passes (Phase 3 — constant folding + DCE; Phase 4 — CSE; Phase 5 — LICM + inlining + SROA; Phase 6 — loop unrolling)
+        new ConstantFolder().Fold(mir);
+        new DeadCodeEliminator().Eliminate(mir);
+        new CsePass().Eliminate(mir);
+        new LicmPass().Hoist(mir);
+        new InliningPass().Inline(mir);
+        new SroaPass().Replace(mir);
+        mir = new LoopUnrollPass().Run(mir);
+
         // Phase 7: Pattern Lowering
         var patternLower = new PatternLower();
         patternLower.Lower(mir);
@@ -98,6 +141,11 @@ public sealed class CompilationDriver
         // Phase 8: Drop Lowering
         var dropLower = new DropLower();
         dropLower.Lower(mir);
+
+        // Phase 8b: Async Lowering (Phase 3 completion — lowers async state machines)
+        var asyncLower = new AsyncLower();
+        asyncLower.Lower(mir);
+        _diagnostics.AddRange(asyncLower.Diagnostics);
 
         // Phase 9: Borrow Checking
         var borrowChecker = new BorrowCheck();
@@ -110,6 +158,9 @@ public sealed class CompilationDriver
         // Phase 10: LLVM IR Emission
         IBackend backend = new LlvmBackend(_stage1Mode);
         var llvmIr = backend.Emit(mir);
+
+        // Store in incremental cache for future compilations
+        _cache?.Put(fileName, source, llvmIr);
 
         return llvmIr;
     }
@@ -137,6 +188,11 @@ public sealed class CompilationDriver
         var typeChecker = new TypeChecker();
         typeChecker.Check(hir);
         _diagnostics.AddRange(typeChecker.Diagnostics);
+
+        if (!_diagnostics.HasErrors)
+        {
+            _monoTable = new Monomorphizer().Run(hir);
+        }
 
         return !_diagnostics.HasErrors;
     }
@@ -230,5 +286,71 @@ public sealed class CompilationDriver
             return null;
 
         return tokens;
+    }
+
+    /// <summary>
+    /// Walk the HIR and run exhaustiveness/reachability checking on every match expression.
+    /// Warnings are added to <see cref="Diagnostics"/>; errors are rare (only empty-match).
+    /// </summary>
+    private void RunPatternChecker(HirProgram hir, TypeChecker typeChecker)
+    {
+        var checker = new PatternChecker();
+        WalkForMatches(hir.Declarations, checker);
+        _diagnostics.AddRange(checker.Diagnostics);
+    }
+
+    private static void WalkForMatches(IEnumerable<HirNode> nodes, PatternChecker checker)
+    {
+        foreach (var node in nodes)
+        {
+            if (node is HirMatchExpr match)
+            {
+                // Build a list of (Pattern, Span) pairs for the checker
+                var arms = match.Arms.Select(a => (ToCheckerPattern(a.Pattern), a.Span)).ToList();
+                // Use a generic scrutinee type (we pass void as a placeholder; checker uses wildcards)
+                checker.CheckMatch(PrimitiveType.Void, arms);
+            }
+
+            // Recurse into child nodes
+            WalkNodeForMatches(node, checker);
+        }
+    }
+
+    private static void WalkNodeForMatches(HirNode node, PatternChecker checker)
+    {
+        switch (node)
+        {
+            case HirFunctionDecl fn: WalkForMatches(fn.Body.Statements, checker); break;
+            case HirBlock block: WalkForMatches(block.Statements, checker); break;
+            case HirLetStmt let when let.Initializer != null: WalkNodeForMatches(let.Initializer, checker); break;
+            case HirExprStmt es: WalkNodeForMatches(es.Expression, checker); break;
+            case HirReturnStmt ret when ret.Value != null: WalkNodeForMatches(ret.Value, checker); break;
+            case HirIfExpr ifExpr:
+                WalkNodeForMatches(ifExpr.Condition, checker);
+                WalkForMatches(ifExpr.ThenBranch.Statements, checker);
+                if (ifExpr.ElseBranch != null) WalkNodeForMatches(ifExpr.ElseBranch, checker);
+                break;
+            case HirMatchExpr matchExpr:
+                WalkNodeForMatches(matchExpr.Scrutinee, checker);
+                foreach (var arm in matchExpr.Arms) WalkNodeForMatches(arm.Body, checker);
+                break;
+            case HirModuleDecl mod: WalkForMatches(mod.Members, checker); break;
+            default: break;
+        }
+    }
+
+    private static Pattern ToCheckerPattern(HirPattern p)
+    {
+        return p.Kind switch
+        {
+            PatternKind.Wildcard => new WildcardPattern(p.Span),
+            PatternKind.Variable => new VariablePattern(p.Name ?? "_", false, p.Span),
+            PatternKind.Literal  => new LiteralPattern(p.LiteralValue ?? 0, p.Span),
+            PatternKind.Constructor => new ConstructorPattern(
+                p.Constructor ?? "_",
+                p.SubPatterns.Select(ToCheckerPattern).ToList(),
+                p.Span),
+            _ => new WildcardPattern(p.Span),
+        };
     }
 }

@@ -88,6 +88,13 @@ public enum TokenKind
     Semicolon,      // ;
     At,             // @
     Hash,           // #
+    Dollar,         // $
+
+    // Lifetime annotation token: 'a, 'static (distinct from char literal 'a')
+    Lifetime,       // 'name
+
+    // Phase 6 keyword
+    As,             // as (cast)
 
     // Special
     Eof,

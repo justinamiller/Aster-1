@@ -41,4 +41,22 @@ public interface IAstVisitor<T>
     T VisitBreakStmt(BreakStmtNode node);
     T VisitContinueStmt(ContinueStmtNode node);
     T VisitExpressionStmt(ExpressionStmtNode node);
+    T VisitClosureExpr(ClosureExprNode node);
+    T VisitTypeAliasDecl(TypeAliasDeclNode node);
+    // ========== Phase 4 ==========
+    T VisitMethodCallExpr(MethodCallExprNode node);
+    T VisitAssociatedTypeDecl(AssociatedTypeDeclNode node);
+    T VisitMacroRule(MacroRuleNode node);
+    T VisitMacroDecl(MacroDeclNode node);
+    T VisitMacroInvocationExpr(MacroInvocationExprNode node);
+    // Phase 5: attributes
+    T VisitAttribute(AttributeNode node);
+    T VisitAttributeArg(AttributeArgNode node);
+    // Phase 6: slices, casts, array literals
+    T VisitCastExpr(CastExprNode node);
+    T VisitArrayLiteralExpr(ArrayLiteralExprNode node);
+    T VisitSliceTypeAnnotation(SliceTypeAnnotationNode node);
+    // Phase 6b: tuples
+    T VisitTupleExpr(TupleExprNode node);
+    T VisitTupleTypeAnnotation(TupleTypeAnnotationNode node);
 }

@@ -33,6 +33,9 @@ public sealed class Diagnostic
     /// <summary>Diagnostic category for grouping and filtering.</summary>
     public DiagnosticCategory Category { get; }
 
+    /// <summary>Machine-applicable fix-it suggestions (may be empty).</summary>
+    public IReadOnlyList<DiagnosticSuggestion> Suggestions { get; }
+
     /// <summary>Legacy: Primary span (for backward compatibility).</summary>
     public Span Span => PrimarySpan;
 
@@ -48,7 +51,8 @@ public sealed class Diagnostic
         DiagnosticCategory category,
         IReadOnlyList<SecondarySpan>? secondarySpans = null,
         string? help = null,
-        IReadOnlyList<string>? notes = null)
+        IReadOnlyList<string>? notes = null,
+        IReadOnlyList<DiagnosticSuggestion>? suggestions = null)
     {
         Code = code;
         Severity = severity;
@@ -59,6 +63,7 @@ public sealed class Diagnostic
         SecondarySpans = secondarySpans ?? Array.Empty<SecondarySpan>();
         Help = help;
         Notes = notes ?? Array.Empty<string>();
+        Suggestions = suggestions ?? Array.Empty<DiagnosticSuggestion>();
     }
 
     /// <summary>Legacy constructor for backward compatibility.</summary>

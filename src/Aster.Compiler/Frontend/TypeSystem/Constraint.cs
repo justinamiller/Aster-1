@@ -133,6 +133,12 @@ public sealed class ConstraintSolver
             return true;
         }
 
+        // Generic type parameters implement unconstrained polymorphism: they can unify
+        // with any concrete type. When constraint bounds are added in a future phase,
+        // this is where bound checking (e.g. T: Ord) would be enforced.
+        if (a is GenericParameter || b is GenericParameter)
+            return true;
+
         if (a is PrimitiveType pa && b is PrimitiveType pb)
         {
             // Exact match
@@ -187,6 +193,51 @@ public sealed class ConstraintSolver
         if (a is EnumType ea && b is EnumType eb)
             return ea.Name == eb.Name;
 
+        // Phase 6: slice and array types
+        if (a is SliceType sla && b is SliceType slb)
+            return Unify(sla.ElementType, slb.ElementType);
+
+        if (a is ArrayType ata && b is ArrayType atb)
+            return ata.Length == atb.Length && Unify(ata.ElementType, atb.ElementType);
+
+        if (a is StrType && b is StrType)
+            return true;
+
+        // Allow SliceType ↔ ArrayType coercion (array coerces to slice)
+        if (a is ArrayType atc && b is SliceType slc)
+            return Unify(atc.ElementType, slc.ElementType);
+        if (a is SliceType sld && b is ArrayType atd)
+            return Unify(sld.ElementType, atd.ElementType);
+
+        // Allow StrType ↔ String coercion
+        if (a is StrType && b is PrimitiveType pb2 && pb2.Kind == PrimitiveKind.String)
+            return true;
+        if (b is StrType && a is PrimitiveType pa2 && pa2.Kind == PrimitiveKind.String)
+            return true;
+
+        // Phase 6b: NeverType (!) unifies with any type (it's a bottom type)
+        if (a is NeverType || b is NeverType)
+            return true;
+
+        // Phase 6b: TupleType — element-wise unification
+        if (a is TupleType tupleA && b is TupleType tupleB)
+        {
+            if (tupleA.Elements.Count != tupleB.Elements.Count) return false;
+            for (int i = 0; i < tupleA.Elements.Count; i++)
+                if (!Unify(tupleA.Elements[i], tupleB.Elements[i])) return false;
+            return true;
+        }
+
+        // Phase 6b: usize/isize coerce to/from i64/u64 for index operations
+        if (a is PrimitiveType pa3 && b is PrimitiveType pb3)
+        {
+            static bool IsWordSized(PrimitiveKind k) =>
+                k == PrimitiveKind.Usize || k == PrimitiveKind.Isize ||
+                k == PrimitiveKind.I64 || k == PrimitiveKind.U64;
+            if (IsWordSized(pa3.Kind) && IsWordSized(pb3.Kind))
+                return true;
+        }
+
         return false;
     }
 
@@ -219,6 +270,9 @@ public sealed class ConstraintSolver
             return OccursCheck(tv, ta.Constructor) || ta.Arguments.Any(a => OccursCheck(tv, a));
         }
 
+        if (type is TupleType tup)
+            return tup.Elements.Any(e => OccursCheck(tv, e));
+
         return false;
     }
 
@@ -239,9 +293,10 @@ public sealed class ConstraintSolver
                 ft.ParameterTypes.Select(ApplySubstitutions).ToList(),
                 ApplySubstitutions(ft.ReturnType)),
             ReferenceType rt => new ReferenceType(ApplySubstitutions(rt.Inner), rt.IsMutable),
-            TypeApp ta => new TypeApp(
-                ApplySubstitutions(ta.Constructor),
-                ta.Arguments.Select(ApplySubstitutions).ToList()),
+            TypeApp tap => new TypeApp(
+                ApplySubstitutions(tap.Constructor),
+                tap.Arguments.Select(ApplySubstitutions).ToList()),
+            TupleType tupleT => new TupleType(tupleT.Elements.Select(ApplySubstitutions).ToList()),
             _ => type
         };
     }
@@ -256,21 +311,21 @@ public sealed class ConstraintSolver
         var coercionRules = new Dictionary<PrimitiveKind, PrimitiveKind[]>
         {
             // Signed integer widening
-            [PrimitiveKind.I8] = new[] { PrimitiveKind.I16, PrimitiveKind.I32, PrimitiveKind.I64 },
-            [PrimitiveKind.I16] = new[] { PrimitiveKind.I32, PrimitiveKind.I64 },
-            [PrimitiveKind.I32] = new[] { PrimitiveKind.I64 },
+            [PrimitiveKind.I8] = new[] { PrimitiveKind.I16, PrimitiveKind.I32, PrimitiveKind.I64, PrimitiveKind.Isize },
+            [PrimitiveKind.I16] = new[] { PrimitiveKind.I32, PrimitiveKind.I64, PrimitiveKind.Isize },
+            [PrimitiveKind.I32] = new[] { PrimitiveKind.I64, PrimitiveKind.F64, PrimitiveKind.Isize, PrimitiveKind.Usize },
             
             // Unsigned integer widening
-            [PrimitiveKind.U8] = new[] { PrimitiveKind.U16, PrimitiveKind.U32, PrimitiveKind.U64 },
-            [PrimitiveKind.U16] = new[] { PrimitiveKind.U32, PrimitiveKind.U64 },
-            [PrimitiveKind.U32] = new[] { PrimitiveKind.U64 },
+            [PrimitiveKind.U8] = new[] { PrimitiveKind.U16, PrimitiveKind.U32, PrimitiveKind.U64, PrimitiveKind.Usize },
+            [PrimitiveKind.U16] = new[] { PrimitiveKind.U32, PrimitiveKind.U64, PrimitiveKind.Usize },
+            [PrimitiveKind.U32] = new[] { PrimitiveKind.U64, PrimitiveKind.F64, PrimitiveKind.Usize },
             
             // Float widening
             [PrimitiveKind.F32] = new[] { PrimitiveKind.F64 },
             
-            // Integer to float (lossy but commonly useful)
-            [PrimitiveKind.I32] = new[] { PrimitiveKind.F64 },  // i32 -> f64 is safe
-            [PrimitiveKind.U32] = new[] { PrimitiveKind.F64 },  // u32 -> f64 is safe
+            // usize/isize widen to i64/u64 (platform pointer size ≤ 64-bit)
+            [PrimitiveKind.Usize] = new[] { PrimitiveKind.U64, PrimitiveKind.I64 },
+            [PrimitiveKind.Isize] = new[] { PrimitiveKind.I64 },
         };
 
         if (coercionRules.TryGetValue(from.Kind, out var allowedTargets))

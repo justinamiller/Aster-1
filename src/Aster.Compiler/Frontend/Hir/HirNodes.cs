@@ -1,4 +1,5 @@
 using Aster.Compiler.Diagnostics;
+using Aster.Compiler.Frontend.TypeSystem;
 
 namespace Aster.Compiler.Frontend.Hir;
 
@@ -27,17 +28,31 @@ public sealed class HirProgram : HirNode
     public HirProgram(IReadOnlyList<HirNode> declarations, Span span) : base(span) => Declarations = declarations;
 }
 
+/// <summary>
+/// A resolved generic type parameter in HIR (e.g. the T in fn foo&lt;T: Clone&gt;).
+/// Carries the parameter name and the names of any trait bounds.
+/// </summary>
+public sealed class HirGenericParam
+{
+    public string Name { get; }
+    /// <summary>Trait-bound names (e.g. ["Clone", "Debug"]).</summary>
+    public IReadOnlyList<string> Bounds { get; }
+    public HirGenericParam(string name, IReadOnlyList<string> bounds)
+    { Name = name; Bounds = bounds; }
+}
+
 /// <summary>HIR function declaration with resolved symbol.</summary>
 public sealed class HirFunctionDecl : HirNode
 {
     public Symbol Symbol { get; }
+    public IReadOnlyList<HirGenericParam> GenericParams { get; }
     public IReadOnlyList<HirParameter> Parameters { get; }
     public HirBlock Body { get; }
     public HirTypeRef? ReturnType { get; }
     public bool IsAsync { get; }
 
-    public HirFunctionDecl(Symbol symbol, IReadOnlyList<HirParameter> parameters, HirBlock body, HirTypeRef? returnType, bool isAsync, Span span)
-        : base(span) { Symbol = symbol; Parameters = parameters; Body = body; ReturnType = returnType; IsAsync = isAsync; }
+    public HirFunctionDecl(Symbol symbol, IReadOnlyList<HirGenericParam> genericParams, IReadOnlyList<HirParameter> parameters, HirBlock body, HirTypeRef? returnType, bool isAsync, Span span)
+        : base(span) { Symbol = symbol; GenericParams = genericParams; Parameters = parameters; Body = body; ReturnType = returnType; IsAsync = isAsync; }
 }
 
 /// <summary>HIR parameter.</summary>
@@ -167,12 +182,23 @@ public sealed class HirWhileStmt : HirNode
 }
 
 /// <summary>HIR struct declaration.</summary>
+/// <summary>Phase 5: Derive attribute on a struct or enum.</summary>
+public sealed class HirDeriveAttr
+{
+    /// <summary>Trait names to derive, e.g. ["Debug", "Clone", "PartialEq"].</summary>
+    public IReadOnlyList<string> TraitNames { get; }
+    public HirDeriveAttr(IReadOnlyList<string> traitNames) => TraitNames = traitNames;
+}
+
 public sealed class HirStructDecl : HirNode
 {
     public Symbol Symbol { get; }
+    public IReadOnlyList<HirGenericParam> GenericParams { get; }
     public IReadOnlyList<HirFieldDecl> Fields { get; }
-    public HirStructDecl(Symbol symbol, IReadOnlyList<HirFieldDecl> fields, Span span)
-        : base(span) { Symbol = symbol; Fields = fields; }
+    /// <summary>Phase 5: derive attributes (may be empty).</summary>
+    public IReadOnlyList<HirDeriveAttr> DeriveAttrs { get; }
+    public HirStructDecl(Symbol symbol, IReadOnlyList<HirGenericParam> genericParams, IReadOnlyList<HirFieldDecl> fields, Span span, IReadOnlyList<HirDeriveAttr>? deriveAttrs = null)
+        : base(span) { Symbol = symbol; GenericParams = genericParams; Fields = fields; DeriveAttrs = deriveAttrs ?? Array.Empty<HirDeriveAttr>(); }
 }
 
 /// <summary>HIR field declaration.</summary>
@@ -188,8 +214,10 @@ public sealed class HirEnumDecl : HirNode
 {
     public Symbol Symbol { get; }
     public IReadOnlyList<HirEnumVariant> Variants { get; }
-    public HirEnumDecl(Symbol symbol, IReadOnlyList<HirEnumVariant> variants, Span span)
-        : base(span) { Symbol = symbol; Variants = variants; }
+    /// <summary>Phase 5: derive attributes (may be empty).</summary>
+    public IReadOnlyList<HirDeriveAttr> DeriveAttrs { get; }
+    public HirEnumDecl(Symbol symbol, IReadOnlyList<HirEnumVariant> variants, Span span, IReadOnlyList<HirDeriveAttr>? deriveAttrs = null)
+        : base(span) { Symbol = symbol; Variants = variants; DeriveAttrs = deriveAttrs ?? Array.Empty<HirDeriveAttr>(); }
 }
 
 /// <summary>HIR enum variant.</summary>
@@ -233,4 +261,234 @@ public sealed class HirFieldInit : HirNode
     public HirNode Value { get; }
     public HirFieldInit(string fieldName, HirNode value, Span span)
         : base(span) { FieldName = fieldName; Value = value; }
+}
+
+/// <summary>HIR module declaration (Week 17-19).</summary>
+public sealed class HirModuleDecl : HirNode
+{
+    public Symbol Symbol { get; }
+    public IReadOnlyList<HirNode> Members { get; }
+    public HirModuleDecl(Symbol symbol, IReadOnlyList<HirNode> members, Span span)
+        : base(span) { Symbol = symbol; Members = members; }
+}
+
+/// <summary>HIR trait method signature.</summary>
+public sealed class HirTraitMethod : HirNode
+{
+    public string Name { get; }
+    public IReadOnlyList<string> ParamTypeNames { get; }
+    public string? ReturnTypeName { get; }
+    /// <summary>
+    /// True when the trait method has a default implementation body.
+    /// Impl blocks are NOT required to override this method.
+    /// False means the method is abstract/required.
+    /// </summary>
+    public bool HasDefaultBody { get; }
+    public HirTraitMethod(string name, IReadOnlyList<string> paramTypeNames, string? returnTypeName, Span span, bool hasDefaultBody = false)
+        : base(span) { Name = name; ParamTypeNames = paramTypeNames; ReturnTypeName = returnTypeName; HasDefaultBody = hasDefaultBody; }
+}
+
+/// <summary>HIR trait declaration (Week 20).</summary>
+public sealed class HirTraitDecl : HirNode
+{
+    public Symbol Symbol { get; }
+    public IReadOnlyList<HirGenericParam> GenericParams { get; }
+    public IReadOnlyList<HirTraitMethod> Methods { get; }
+    public HirTraitDecl(Symbol symbol, IReadOnlyList<HirGenericParam> genericParams, IReadOnlyList<HirTraitMethod> methods, Span span)
+        : base(span) { Symbol = symbol; GenericParams = genericParams; Methods = methods; }
+}
+
+/// <summary>HIR impl block declaration (Week 20).</summary>
+public sealed class HirImplDecl : HirNode
+{
+    /// <summary>The type being implemented (e.g. "Point").</summary>
+    public string TargetTypeName { get; }
+    /// <summary>Trait being implemented, or null for inherent impls.</summary>
+    public string? TraitName { get; }
+    public IReadOnlyList<HirFunctionDecl> Methods { get; }
+    /// <summary>Phase 4: associated type declarations in this impl block.</summary>
+    public IReadOnlyList<HirAssociatedTypeDecl> AssociatedTypes { get; }
+    public HirImplDecl(string targetTypeName, string? traitName, IReadOnlyList<HirFunctionDecl> methods, IReadOnlyList<HirAssociatedTypeDecl> associatedTypes, Span span)
+        : base(span) { TargetTypeName = targetTypeName; TraitName = traitName; Methods = methods; AssociatedTypes = associatedTypes; }
+}
+
+// ========== Phase 2 Closeout: for / match / break / continue / index ==========
+
+/// <summary>Kinds of patterns in match arms.</summary>
+public enum PatternKind
+{
+    Wildcard,    // _
+    Variable,    // x (binding)
+    Literal,     // 42, "hello", true
+    Constructor, // Some(x), Ok(v), EnumVariant(a,b)
+}
+
+/// <summary>for variable in iterable { body }</summary>
+public sealed class HirForStmt : HirNode
+{
+    public Symbol Variable { get; }
+    public HirNode Iterable { get; }
+    public HirBlock Body { get; }
+    public HirForStmt(Symbol variable, HirNode iterable, HirBlock body, Span span)
+        : base(span) { Variable = variable; Iterable = iterable; Body = body; }
+}
+
+/// <summary>break statement inside a loop.</summary>
+public sealed class HirBreakStmt : HirNode
+{
+    public HirBreakStmt(Span span) : base(span) { }
+}
+
+/// <summary>continue statement inside a loop.</summary>
+public sealed class HirContinueStmt : HirNode
+{
+    public HirContinueStmt(Span span) : base(span) { }
+}
+
+/// <summary>Index expression: target[index]</summary>
+public sealed class HirIndexExpr : HirNode
+{
+    public HirNode Target { get; }
+    public HirNode Index { get; }
+    public HirIndexExpr(HirNode target, HirNode index, Span span)
+        : base(span) { Target = target; Index = index; }
+}
+
+/// <summary>Represents a single pattern in a match arm.</summary>
+public sealed class HirPattern : HirNode
+{
+    /// <summary>Wildcard `_`, literal, variable binding, or constructor pattern.</summary>
+    public PatternKind Kind { get; }
+    /// <summary>Bound variable name (for variable/binding patterns).</summary>
+    public string? Name { get; }
+    /// <summary>Literal value (for literal patterns).</summary>
+    public object? LiteralValue { get; }
+    /// <summary>Constructor name (for enum/struct patterns).</summary>
+    public string? Constructor { get; }
+    /// <summary>Sub-patterns for constructor patterns.</summary>
+    public IReadOnlyList<HirPattern> SubPatterns { get; }
+
+    public HirPattern(PatternKind kind, string? name, object? literalValue, string? constructor,
+        IReadOnlyList<HirPattern> subPatterns, Span span)
+        : base(span)
+    {
+        Kind = kind; Name = name; LiteralValue = literalValue;
+        Constructor = constructor; SubPatterns = subPatterns;
+    }
+}
+
+/// <summary>A single arm in a match expression.</summary>
+public sealed class HirMatchArm : HirNode
+{
+    public HirPattern Pattern { get; }
+    public HirNode Body { get; }
+    public HirMatchArm(HirPattern pattern, HirNode body, Span span)
+        : base(span) { Pattern = pattern; Body = body; }
+}
+
+/// <summary>match scrutinee { arm1, arm2, ... }</summary>
+public sealed class HirMatchExpr : HirNode
+{
+    public HirNode Scrutinee { get; }
+    public IReadOnlyList<HirMatchArm> Arms { get; }
+    public HirMatchExpr(HirNode scrutinee, IReadOnlyList<HirMatchArm> arms, Span span)
+        : base(span) { Scrutinee = scrutinee; Arms = arms; }
+}
+
+/// <summary>Closure expression: |x, y| body. CapturedVariables lists free vars identified at resolve time.</summary>
+public sealed class HirClosureExpr : HirNode
+{
+    public IReadOnlyList<HirParameter> Parameters { get; }
+    public HirNode Body { get; }
+    /// <summary>Unique mangled name for this closure (e.g. "__closure_0").</summary>
+    public string MangledName { get; }
+    /// <summary>Variables captured from the enclosing scope (free variables).</summary>
+    public IReadOnlyList<Symbol> CapturedVariables { get; }
+    public HirClosureExpr(IReadOnlyList<HirParameter> parameters, HirNode body, string mangledName,
+        IReadOnlyList<Symbol> capturedVariables, Span span)
+        : base(span) { Parameters = parameters; Body = body; MangledName = mangledName; CapturedVariables = capturedVariables; }
+}
+
+/// <summary>Type alias declaration: type Name = SomeType;</summary>
+public sealed class HirTypeAliasDecl : HirNode
+{
+    public Symbol Symbol { get; }
+    public HirTypeRef Target { get; }
+    public HirTypeAliasDecl(Symbol symbol, HirTypeRef target, Span span)
+        : base(span) { Symbol = symbol; Target = target; }
+}
+
+// ========== Phase 4: Method Calls, Associated Types, Macros ==========
+
+/// <summary>Phase 4: Method call — receiver.method(args).</summary>
+public sealed class HirMethodCallExpr : HirNode
+{
+    public HirNode Receiver { get; }
+    public string MethodName { get; }
+    public IReadOnlyList<HirNode> Arguments { get; }
+    public HirMethodCallExpr(HirNode receiver, string methodName, IReadOnlyList<HirNode> arguments, Span span)
+        : base(span) { Receiver = receiver; MethodName = methodName; Arguments = arguments; }
+}
+
+/// <summary>Phase 4: Associated type declaration inside an impl block (type Item = i32;).</summary>
+public sealed class HirAssociatedTypeDecl : HirNode
+{
+    public string Name { get; }
+    /// <summary>The owning impl's target type name (e.g. "Point").</summary>
+    public string OwnerTypeName { get; }
+    /// <summary>Resolved type ref, or null for abstract associated types in traits.</summary>
+    public HirTypeRef? TypeRef { get; }
+    public HirAssociatedTypeDecl(string name, string ownerTypeName, HirTypeRef? typeRef, Span span)
+        : base(span) { Name = name; OwnerTypeName = ownerTypeName; TypeRef = typeRef; }
+}
+
+/// <summary>Phase 4: macro_rules! declaration (resolved name only; body stored for expansion).</summary>
+public sealed class HirMacroDecl : HirNode
+{
+    public Symbol Symbol { get; }
+    /// <summary>Number of rules in this macro.</summary>
+    public int RuleCount { get; }
+    public HirMacroDecl(Symbol symbol, int ruleCount, Span span)
+        : base(span) { Symbol = symbol; RuleCount = ruleCount; }
+}
+
+/// <summary>Phase 4: Macro invocation — already expanded to an HIR node.</summary>
+public sealed class HirMacroInvocationExpr : HirNode
+{
+    public string MacroName { get; }
+    /// <summary>The HIR node this invocation expanded into, or null if the macro is unknown/empty.</summary>
+    public HirNode? Expanded { get; }
+    public HirMacroInvocationExpr(string macroName, HirNode? expanded, Span span)
+        : base(span) { MacroName = macroName; Expanded = expanded; }
+}
+
+// ========== Phase 6: Slices, Casts, Array Literals ==========
+
+/// <summary>Phase 6: Cast expression — expr as TargetType.</summary>
+public sealed class HirCastExpr : HirNode
+{
+    public HirNode Expression { get; }
+    public AsterType TargetType { get; }
+    public HirCastExpr(HirNode expression, AsterType targetType, Span span)
+        : base(span) { Expression = expression; TargetType = targetType; }
+}
+
+/// <summary>Phase 6: Array literal — [a, b, c].</summary>
+public sealed class HirArrayLiteralExpr : HirNode
+{
+    public IReadOnlyList<HirNode> Elements { get; }
+    public AsterType ElementType { get; }
+    public HirArrayLiteralExpr(IReadOnlyList<HirNode> elements, AsterType elementType, Span span)
+        : base(span) { Elements = elements; ElementType = elementType; }
+}
+
+// ========== Phase 6b: Tuples ==========
+
+/// <summary>Phase 6b: Tuple expression — (a, b, c).</summary>
+public sealed class HirTupleExpr : HirNode
+{
+    public IReadOnlyList<HirNode> Elements { get; }
+    public TupleType TupleType { get; }
+    public HirTupleExpr(IReadOnlyList<HirNode> elements, TupleType tupleType, Span span)
+        : base(span) { Elements = elements; TupleType = tupleType; }
 }
