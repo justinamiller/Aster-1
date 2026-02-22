@@ -163,8 +163,16 @@ public sealed class MirType
     public static readonly MirType StringPtr = new("ptr");
     public static readonly MirType Void = new("void");
     public static readonly MirType Ptr = new("ptr");
+    public static readonly MirType Never = new("never");
+    public static readonly MirType Usize = new("usize");
+    public static readonly MirType Isize = new("isize");
 
     public static MirType Struct(string name) => new($"struct.{name}");
+    /// <summary>Encode a tuple type as "tuple.T1.T2..." for LLVM backend expansion.</summary>
+    public static MirType Tuple(IEnumerable<MirType> elementTypes) =>
+        new("tuple." + string.Join(".", elementTypes.Select(t => t.Name)));
+    /// <summary>Create a custom named type (e.g. for u8/u16/u32/u64/str).</summary>
+    public static MirType Custom(string name) => new(name);
 
     public override string ToString() => Name;
 }

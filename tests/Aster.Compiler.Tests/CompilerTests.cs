@@ -5858,3 +5858,485 @@ fn main() -> i32 { unreachable_arm(5) }
     }
 }
 
+
+// ========== Phase 7: LLVM Backend Tests ==========
+
+public class Phase7LlvmBackendTests
+{
+    [Fact]
+    public void TargetInfo_X86_64Linux_HasCorrectTriple()
+    {
+        var info = LlvmTargetInfo.For(TargetTriple.X86_64Linux);
+        Assert.Equal("x86_64-unknown-linux-gnu", info.Triple);
+        Assert.Equal(64, info.PointerBits);
+        Assert.Equal("i64", info.NativeIntType);
+    }
+
+    [Fact]
+    public void TargetInfo_Aarch64Darwin_HasCorrectTriple()
+    {
+        var info = LlvmTargetInfo.For(TargetTriple.Aarch64Darwin);
+        Assert.Equal("aarch64-apple-macosx11.0.0", info.Triple);
+        Assert.Equal(64, info.PointerBits);
+    }
+
+    [Fact]
+    public void LlvmBackend_EmitsTargetTriple()
+    {
+        var driver = new CompilationDriver();
+        var ir = driver.Compile("fn main() -> i32 { 0 }", "t.ast");
+        Assert.NotNull(ir);
+        Assert.Contains("target triple = \"x86_64-unknown-linux-gnu\"", ir);
+        Assert.Contains("target datalayout", ir);
+    }
+
+    [Fact]
+    public void LlvmBackend_EmitsTargetTriple_ForAarch64()
+    {
+        var backend = new LlvmBackend(stage1Mode: false, target: LlvmTargetInfo.For(TargetTriple.Aarch64Darwin));
+        var module = new MirModule("test");
+        var fn = new MirFunction("main") { ReturnType = MirType.I32 };
+        var block = new MirBasicBlock("entry", 0);
+        block.Terminator = new MirReturn(MirOperand.Constant(0, MirType.I32));
+        fn.BasicBlocks.Add(block);
+        module.Functions.Add(fn);
+        var ir = backend.Emit(module);
+        Assert.Contains("aarch64-apple-macosx11.0.0", ir);
+    }
+
+    [Fact]
+    public void LlvmBackend_MapType_NeverType_EmitsVoid()
+    {
+        // A function with return type "never" should emit void + noreturn
+        var backend = new LlvmBackend();
+        var module = new MirModule("test");
+        var fn = new MirFunction("panic_fn") { ReturnType = MirType.Never };
+        var block = new MirBasicBlock("entry", 0);
+        block.Terminator = new MirReturn(null);
+        fn.BasicBlocks.Add(block);
+        module.Functions.Add(fn);
+        var ir = backend.Emit(module);
+        Assert.Contains("define void @panic_fn()", ir);
+        Assert.Contains("#0", ir); // noreturn attribute applied
+        Assert.Contains("attributes #0 = { noreturn }", ir);
+    }
+
+    [Fact]
+    public void LlvmBackend_MapType_TupleType_EmitsStruct()
+    {
+        // MirType.Tuple should expand to LLVM { T1, T2 }
+        var tupleType = MirType.Tuple(new[] { MirType.I32, MirType.F32 });
+        Assert.Equal("tuple.i32.f32", tupleType.Name);
+
+        var backend = new LlvmBackend();
+        var module = new MirModule("test");
+        var fn = new MirFunction("get_tuple") { ReturnType = tupleType };
+        var block = new MirBasicBlock("entry", 0);
+        block.Terminator = new MirReturn(null);
+        fn.BasicBlocks.Add(block);
+        module.Functions.Add(fn);
+        var ir = backend.Emit(module);
+        Assert.Contains("{ i32, float }", ir);
+    }
+
+    [Fact]
+    public void LlvmBackend_MapType_Usize_EmitsI64()
+    {
+        var backend = new LlvmBackend();
+        var module = new MirModule("test");
+        var fn = new MirFunction("get_size") { ReturnType = MirType.Usize };
+        var block = new MirBasicBlock("entry", 0);
+        block.Terminator = new MirReturn(MirOperand.Constant(0L, MirType.I64));
+        fn.BasicBlocks.Add(block);
+        module.Functions.Add(fn);
+        var ir = backend.Emit(module);
+        Assert.Contains("define i64 @get_size()", ir);
+    }
+
+    [Fact]
+    public void LlvmBackend_DebugInfo_EmitsDIFile()
+    {
+        var driver = new CompilationDriver();
+        var ir = driver.Compile("fn main() -> i32 { 0 }", "t.ast");
+        Assert.NotNull(ir);
+        Assert.Contains("!DIFile", ir);
+        Assert.Contains("!DICompileUnit", ir);
+        Assert.Contains("!llvm.dbg.cu", ir);
+    }
+
+    [Fact]
+    public void LlvmBackend_MapType_StrType_EmitsPtr()
+    {
+        var backend = new LlvmBackend();
+        var module = new MirModule("test");
+        var strType = MirType.Custom("str");
+        var fn = new MirFunction("get_str") { ReturnType = strType };
+        var block = new MirBasicBlock("entry", 0);
+        block.Terminator = new MirReturn(null);
+        fn.BasicBlocks.Add(block);
+        module.Functions.Add(fn);
+        var ir = backend.Emit(module);
+        Assert.Contains("define ptr @get_str()", ir);
+    }
+}
+
+// ========== Phase 7: Diagnostics Engine Tests ==========
+
+public class Phase7DiagnosticsTests
+{
+    [Fact]
+    public void Suggestion_HasSpanAndReplacement()
+    {
+        var span = new Span("test.ast", 1, 5, 0, 3);
+        var suggestion = new DiagnosticSuggestion(span, "i64", "change the type to i64", machineApplicable: true);
+        Assert.Equal(span, suggestion.Span);
+        Assert.Equal("i64", suggestion.Replacement);
+        Assert.Equal("change the type to i64", suggestion.Message);
+        Assert.True(suggestion.IsMachineApplicable);
+    }
+
+    [Fact]
+    public void LintRegistry_DefaultLevel_ForUnusedVariables()
+    {
+        var registry = new LintRegistry();
+        Assert.Equal(LintLevel.Warn, registry.GetLevel("unused_variables"));
+    }
+
+    [Fact]
+    public void LintRegistry_DefaultLevel_ForMissingDocs_IsAllow()
+    {
+        var registry = new LintRegistry();
+        Assert.Equal(LintLevel.Allow, registry.GetLevel("missing_docs"));
+    }
+
+    [Fact]
+    public void LintRegistry_Override_ToAllow()
+    {
+        var registry = new LintRegistry();
+        var result = registry.TrySetLevel("unused_variables", LintLevel.Allow);
+        Assert.True(result);
+        Assert.Equal(LintLevel.Allow, registry.GetLevel("unused_variables"));
+        Assert.Equal(DiagnosticSeverity.Hint, registry.ToSeverity("unused_variables"));
+    }
+
+    [Fact]
+    public void LintRegistry_Forbid_CannotBeDowngraded()
+    {
+        var registry = new LintRegistry();
+        registry.TrySetLevel("dead_code", LintLevel.Forbid);
+        var result = registry.TrySetLevel("dead_code", LintLevel.Allow); // should fail
+        Assert.False(result);
+        Assert.Equal(LintLevel.Forbid, registry.GetLevel("dead_code"));
+        Assert.Equal(DiagnosticSeverity.Error, registry.ToSeverity("dead_code"));
+    }
+
+    [Fact]
+    public void HumanRenderer_RendersSuggestion()
+    {
+        var span = new Span("test.ast", 1, 5, 0, 3);
+        var suggestion = new DiagnosticSuggestion(span, "i64", "change the type to i64", machineApplicable: true);
+        var diag = new Diagnostic(
+            "E3000",
+            DiagnosticSeverity.Error,
+            "type mismatch",
+            "type mismatch",
+            span,
+            DiagnosticCategory.TypeSystem,
+            suggestions: new[] { suggestion });
+
+        var renderer = new Aster.Compiler.Diagnostics.Rendering.HumanDiagnosticRenderer(useColor: false);
+        var output = renderer.Render(diag);
+        Assert.Contains("suggestion", output);
+        Assert.Contains("change the type to i64", output);
+        Assert.Contains("machine-applicable", output);
+    }
+}
+
+// ========== Phase 7: Stdlib Tests ==========
+
+public class Phase7StdlibTests
+{
+    private bool Checks(string source) =>
+        new CompilationDriver().Check(source, "t.ast");
+
+    [Fact]
+    public void String_len_TypeChecks()
+    {
+        Assert.True(Checks(@"
+fn main() -> i32 {
+    let s = ""hello"";
+    let n = s.len();
+    0
+}"));
+    }
+
+    [Fact]
+    public void String_push_str_TypeChecks()
+    {
+        Assert.True(Checks(@"
+fn greet() -> i32 {
+    let s = ""hello"";
+    s.push_str("" world"");
+    0
+}"));
+    }
+
+    [Fact]
+    public void String_starts_with_TypeChecks()
+    {
+        Assert.True(Checks(@"
+fn check(s: String) -> bool {
+    s.starts_with(""hello"")
+}"));
+    }
+
+    [Fact]
+    public void String_to_uppercase_TypeChecks()
+    {
+        Assert.True(Checks(@"
+fn up(s: String) -> String {
+    s.to_uppercase()
+}"));
+    }
+
+    [Fact]
+    public void Vec_iter_TypeChecks()
+    {
+        Assert.True(Checks(@"
+fn demo(v: Vec<i32>) -> i32 {
+    let it = v.iter();
+    0
+}"));
+    }
+
+    [Fact]
+    public void Vec_count_TypeChecks()
+    {
+        Assert.True(Checks(@"
+fn count_items(v: Vec<i32>) -> i32 {
+    let n = v.count();
+    0
+}"));
+    }
+
+    [Fact]
+    public void Option_is_some_TypeChecks()
+    {
+        Assert.True(Checks(@"
+fn check(x: Option<i32>) -> bool {
+    x.is_some()
+}"));
+    }
+
+    [Fact]
+    public void Option_unwrap_or_TypeChecks()
+    {
+        Assert.True(Checks(@"
+fn get(x: Option<i32>) -> i32 {
+    x.unwrap_or(0)
+}"));
+    }
+
+    [Fact]
+    public void Option_and_then_TypeChecks()
+    {
+        Assert.True(Checks(@"
+fn chain(x: Option<i32>) -> Option<i32> {
+    x.and_then(|v| Some(v * 2))
+}"));
+    }
+
+    [Fact]
+    public void Result_is_ok_TypeChecks()
+    {
+        Assert.True(Checks(@"
+fn check(r: Result<i32, String>) -> bool {
+    r.is_ok()
+}"));
+    }
+
+    [Fact]
+    public void Result_unwrap_or_TypeChecks()
+    {
+        Assert.True(Checks(@"
+fn get(r: Result<i32, String>) -> i32 {
+    r.unwrap_or(0)
+}"));
+    }
+
+    [Fact]
+    public void Integration_StringAndOptionChain_TypeChecks()
+    {
+        Assert.True(Checks(@"
+fn process(s: String, x: Option<i32>) -> bool {
+    let big = s.to_uppercase();
+    let has = x.is_some();
+    has
+}"));
+    }
+}
+
+// ========== Phase 7: Incremental Compilation Tests ==========
+
+public class Phase7IncrementalTests
+{
+    private const string SimpleSrc = "fn main() -> i32 { 42 }";
+
+    [Fact]
+    public void CompilationCache_Miss_ReturnsNull()
+    {
+        var cache = new CompilationCache();
+        var hit = cache.TryGet("test.ast", SimpleSrc, out var module);
+        Assert.False(hit);
+        Assert.Null(module);
+    }
+
+    [Fact]
+    public void CompilationCache_Hit_ReturnsCached()
+    {
+        var cache = new CompilationCache();
+        cache.Put("test.ast", SimpleSrc, "; fake IR");
+
+        var hit = cache.TryGet("test.ast", SimpleSrc, out var module);
+        Assert.True(hit);
+        Assert.NotNull(module);
+        Assert.Equal("; fake IR", module!.LlvmIr);
+    }
+
+    [Fact]
+    public void CompilationCache_DifferentSource_Miss()
+    {
+        var cache = new CompilationCache();
+        cache.Put("test.ast", SimpleSrc, "; fake IR");
+
+        var hit = cache.TryGet("test.ast", "fn main() -> i32 { 0 }", out var module);
+        Assert.False(hit); // different source → different hash → cache miss
+        Assert.Null(module);
+    }
+
+    [Fact]
+    public void IncrementalDriver_CachesOnFirstCompile_ReturnsOnSecond()
+    {
+        var cache = new CompilationCache();
+
+        // First compile — cold cache
+        var driver1 = new CompilationDriver(cache: cache);
+        var ir1 = driver1.Compile(SimpleSrc, "main.ast");
+        Assert.NotNull(ir1);
+        Assert.Equal(1, cache.Count);
+
+        // Second compile — should hit cache
+        var driver2 = new CompilationDriver(cache: cache);
+        var ir2 = driver2.Compile(SimpleSrc, "main.ast");
+        Assert.Equal(ir1, ir2); // same output
+    }
+}
+
+// ========== Phase 7: Self-Hosting Progress Tests ==========
+
+public class Phase7SelfHostingTests
+{
+    private bool ChecksFile(string source) =>
+        new CompilationDriver().Check(source, "self.ast");
+
+    [Fact]
+    public void SelfHosting_BasicResolvePattern_Compiles()
+    {
+        // Tests the kind of code found in resolve.ast
+        Assert.True(ChecksFile(@"
+struct SymbolTable {
+    parent: i32,
+}
+fn new_scope(parent: i32) -> SymbolTable {
+    SymbolTable { parent: parent }
+}
+fn main() -> i32 {
+    let _s = new_scope(0);
+    0
+}"));
+    }
+
+    [Fact]
+    public void SelfHosting_BasicTypecheckPattern_Compiles()
+    {
+        // Tests the kind of code found in typecheck.ast
+        Assert.True(ChecksFile(@"
+enum TypeKind {
+    Int,
+    Bool,
+    Str,
+}
+fn type_name(kind: TypeKind) -> i32 {
+    match kind {
+        TypeKind::Int => 0,
+        TypeKind::Bool => 1,
+        TypeKind::Str => 2,
+    }
+}
+fn main() -> i32 { type_name(TypeKind::Int) }"));
+    }
+
+    [Fact]
+    public void SelfHosting_BasicIrgenPattern_Compiles()
+    {
+        // Tests HIR lowering patterns found in irgen.ast
+        Assert.True(ChecksFile(@"
+fn emit_instr(op: i32, dest: i32) -> i32 {
+    op + dest
+}
+fn main() -> i32 {
+    emit_instr(1, 2)
+}"));
+    }
+
+    [Fact]
+    public void SelfHosting_BasicCodegenPattern_Compiles()
+    {
+        // Tests LLVM IR emission patterns found in codegen.ast
+        Assert.True(ChecksFile(@"
+fn llvm_type(kind: i32) -> i32 {
+    if kind == 0 { 32 } else { 64 }
+}
+fn main() -> i32 {
+    let t = llvm_type(0);
+    t
+}"));
+    }
+
+    [Fact]
+    public void SelfHosting_PipelineStruct_Compiles()
+    {
+        Assert.True(ChecksFile(@"
+struct PipelineResult {
+    success: bool,
+    errors: i32,
+}
+fn run_pipeline(source: String) -> PipelineResult {
+    PipelineResult { success: true, errors: 0 }
+}
+fn main() -> i32 {
+    let r = run_pipeline(""test"");
+    if r.success { 0 } else { 1 }
+}"));
+    }
+
+    [Fact]
+    public void SelfHosting_LexerPattern_Compiles()
+    {
+        // Simplified lexer pattern from frontend/lexer.ast
+        Assert.True(ChecksFile(@"
+fn is_digit(c: char) -> bool {
+    c == '0'
+}
+fn is_alpha(c: char) -> bool {
+    c == 'a'
+}
+fn scan_number(src: String) -> i32 {
+    src.len()
+}
+fn main() -> i32 {
+    let d = is_digit('5');
+    0
+}"));
+    }
+}

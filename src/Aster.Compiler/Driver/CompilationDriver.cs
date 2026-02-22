@@ -29,6 +29,7 @@ public sealed class CompilationDriver
     private readonly DiagnosticBag _diagnostics = new();
     private readonly bool _stage1Mode;
     private MonomorphizationTable? _monoTable;
+    private readonly CompilationCache? _cache;
 
     /// <summary>All diagnostics from the compilation.</summary>
     public DiagnosticBag Diagnostics => _diagnostics;
@@ -43,20 +44,34 @@ public sealed class CompilationDriver
     public MonomorphizationTable? MonomorphizationTable => _monoTable;
 
     /// <summary>
+    /// The compilation cache used for incremental builds (null if not in incremental mode).
+    /// </summary>
+    public CompilationCache? Cache => _cache;
+
+    /// <summary>
     /// Create a new compilation driver.
     /// </summary>
     /// <param name="stage1Mode">If true, enforces Stage1 (Core-0) language subset restrictions.</param>
-    public CompilationDriver(bool stage1Mode = false)
+    /// <param name="cache">Optional compilation cache for incremental builds. When provided,
+    /// unchanged source files are served from cache without re-running the full pipeline.</param>
+    public CompilationDriver(bool stage1Mode = false, CompilationCache? cache = null)
     {
         _stage1Mode = stage1Mode;
+        _cache = cache;
     }
 
     /// <summary>
     /// Compile source code through the entire pipeline.
     /// Returns the LLVM IR string on success, null on failure.
+    /// When an incremental <see cref="CompilationCache"/> was provided and the source
+    /// is unchanged since the last compile, the cached LLVM IR is returned immediately.
     /// </summary>
     public string? Compile(string source, string fileName)
     {
+        // Incremental compilation: return cached result if source is unchanged
+        if (_cache != null && _cache.TryGet(fileName, source, out var cached) && cached != null)
+            return cached.LlvmIr;
+
         // Phase 1: Lexing
         var lexer = new AsterLexer(source, fileName);
         var tokens = lexer.Tokenize();
@@ -143,6 +158,9 @@ public sealed class CompilationDriver
         // Phase 10: LLVM IR Emission
         IBackend backend = new LlvmBackend(_stage1Mode);
         var llvmIr = backend.Emit(mir);
+
+        // Store in incremental cache for future compilations
+        _cache?.Put(fileName, source, llvmIr);
 
         return llvmIr;
     }

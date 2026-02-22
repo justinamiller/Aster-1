@@ -68,6 +68,261 @@ public sealed class TypeChecker
             _traitSolver.RegisterImpl(new TraitImpl("PartialEq", t));
             _traitSolver.RegisterImpl(new TraitImpl("Hash", t));
         }
+
+        RegisterStdlibMethods();
+    }
+
+    /// <summary>
+    /// Register all standard library method signatures in <c>_implMethods</c>.
+    /// These allow the type checker to resolve method calls on built-in types
+    /// without requiring explicit impl blocks in user code.
+    /// </summary>
+    private void RegisterStdlibMethods()
+    {
+        var tv = () => (AsterType)new TypeVariable();
+        var strT = PrimitiveType.StringType;
+        var boolT = PrimitiveType.Bool;
+        var usizeT = PrimitiveType.Usize;
+        var voidT = PrimitiveType.Void;
+        var i32T = PrimitiveType.I32;
+        var i64T = PrimitiveType.I64;
+        var f64T = PrimitiveType.F64;
+        var vecStr = new TypeApp(new StructType("Vec", Array.Empty<(string, AsterType)>()), new AsterType[] { strT });
+        var optUsize = new TypeApp(new StructType("Option", Array.Empty<(string, AsterType)>()), new AsterType[] { usizeT });
+
+        // ── String methods ──
+        var stringMethods = new Dictionary<string, FunctionType>(StringComparer.Ordinal)
+        {
+            ["len"]          = new(Array.Empty<AsterType>(), usizeT),
+            ["is_empty"]     = new(Array.Empty<AsterType>(), boolT),
+            ["push_str"]     = new(new AsterType[] { strT }, voidT),
+            ["push"]         = new(new AsterType[] { PrimitiveType.Char }, voidT),
+            ["starts_with"]  = new(new AsterType[] { strT }, boolT),
+            ["ends_with"]    = new(new AsterType[] { strT }, boolT),
+            ["contains"]     = new(new AsterType[] { strT }, boolT),
+            ["find"]         = new(new AsterType[] { strT }, optUsize),
+            ["replace"]      = new(new AsterType[] { strT, strT }, strT),
+            ["trim"]         = new(Array.Empty<AsterType>(), strT),
+            ["trim_start"]   = new(Array.Empty<AsterType>(), strT),
+            ["trim_end"]     = new(Array.Empty<AsterType>(), strT),
+            ["to_uppercase"] = new(Array.Empty<AsterType>(), strT),
+            ["to_lowercase"] = new(Array.Empty<AsterType>(), strT),
+            ["to_string"]    = new(Array.Empty<AsterType>(), strT),
+            ["split"]        = new(new AsterType[] { strT }, vecStr),
+            ["chars"]        = new(Array.Empty<AsterType>(), new TypeApp(new StructType("Vec", Array.Empty<(string, AsterType)>()), new AsterType[] { PrimitiveType.Char })),
+            ["as_str"]       = new(Array.Empty<AsterType>(), strT),
+            ["clone"]        = new(Array.Empty<AsterType>(), strT),
+            ["repeat"]       = new(new AsterType[] { usizeT }, strT),
+            ["parse"]        = new(Array.Empty<AsterType>(), tv()),
+        };
+        _implMethods["String"] = stringMethods;
+
+        // ── Vec<T> methods (iterator-style use TypeVariable for T) ──
+        var t = tv();
+        var u = tv();
+        var fnTU = new FunctionType(new AsterType[] { t }, u);
+        var fnTBool = new FunctionType(new AsterType[] { t }, boolT);
+        var vecT = new TypeApp(new StructType("Vec", Array.Empty<(string, AsterType)>()), new AsterType[] { t });
+        var vecU = new TypeApp(new StructType("Vec", Array.Empty<(string, AsterType)>()), new AsterType[] { u });
+
+        if (!_implMethods.TryGetValue("Vec", out var vecMethods))
+        {
+            vecMethods = new Dictionary<string, FunctionType>(StringComparer.Ordinal);
+            _implMethods["Vec"] = vecMethods;
+        }
+        vecMethods["iter"]       = new(Array.Empty<AsterType>(), vecT);
+        vecMethods["iter_mut"]   = new(Array.Empty<AsterType>(), vecT);
+        vecMethods["into_iter"]  = new(Array.Empty<AsterType>(), vecT);
+        vecMethods["map"]        = new(new AsterType[] { fnTU }, vecU);
+        vecMethods["filter"]     = new(new AsterType[] { fnTBool }, vecT);
+        vecMethods["fold"]       = new(new AsterType[] { u, new FunctionType(new AsterType[] { u, t }, u) }, u);
+        vecMethods["collect"]    = new(Array.Empty<AsterType>(), vecT);
+        vecMethods["enumerate"]  = new(Array.Empty<AsterType>(), vecT);
+        vecMethods["zip"]        = new(new AsterType[] { vecU }, vecT);
+        vecMethods["flatten"]    = new(Array.Empty<AsterType>(), vecT);
+        vecMethods["chain"]      = new(new AsterType[] { vecT }, vecT);
+        vecMethods["take"]       = new(new AsterType[] { usizeT }, vecT);
+        vecMethods["skip"]       = new(new AsterType[] { usizeT }, vecT);
+        vecMethods["count"]      = new(Array.Empty<AsterType>(), usizeT);
+        vecMethods["any"]        = new(new AsterType[] { fnTBool }, boolT);
+        vecMethods["all"]        = new(new AsterType[] { fnTBool }, boolT);
+        vecMethods["find"]       = new(new AsterType[] { fnTBool }, new TypeApp(new StructType("Option", Array.Empty<(string, AsterType)>()), new AsterType[] { t }));
+        vecMethods["position"]   = new(new AsterType[] { fnTBool }, new TypeApp(new StructType("Option", Array.Empty<(string, AsterType)>()), new AsterType[] { usizeT }));
+        vecMethods["first"]      = new(Array.Empty<AsterType>(), new TypeApp(new StructType("Option", Array.Empty<(string, AsterType)>()), new AsterType[] { t }));
+        vecMethods["last"]       = new(Array.Empty<AsterType>(), new TypeApp(new StructType("Option", Array.Empty<(string, AsterType)>()), new AsterType[] { t }));
+        vecMethods["sort"]       = new(Array.Empty<AsterType>(), voidT);
+        vecMethods["dedup"]      = new(Array.Empty<AsterType>(), voidT);
+        vecMethods["retain"]     = new(new AsterType[] { fnTBool }, voidT);
+        vecMethods["extend"]     = new(new AsterType[] { vecT }, voidT);
+        vecMethods["truncate"]   = new(new AsterType[] { usizeT }, voidT);
+        vecMethods["clear"]      = new(Array.Empty<AsterType>(), voidT);
+        vecMethods["clone"]      = new(Array.Empty<AsterType>(), vecT);
+        vecMethods["contains"]   = new(new AsterType[] { t }, boolT);
+        vecMethods["windows"]    = new(new AsterType[] { usizeT }, vecT);
+        vecMethods["chunks"]     = new(new AsterType[] { usizeT }, vecT);
+        vecMethods["join"]       = new(new AsterType[] { strT }, strT);
+
+        // ── HashMap<K,V> iterator methods ──
+        var k = tv();
+        var v = tv();
+        var kvPair = new TupleType(new AsterType[] { k, v });
+        var vecKv = new TypeApp(new StructType("Vec", Array.Empty<(string, AsterType)>()), new AsterType[] { kvPair });
+        var vecK = new TypeApp(new StructType("Vec", Array.Empty<(string, AsterType)>()), new AsterType[] { k });
+        var vecV = new TypeApp(new StructType("Vec", Array.Empty<(string, AsterType)>()), new AsterType[] { v });
+        var optV = new TypeApp(new StructType("Option", Array.Empty<(string, AsterType)>()), new AsterType[] { v });
+
+        if (!_implMethods.TryGetValue("HashMap", out var hmMethods))
+        {
+            hmMethods = new Dictionary<string, FunctionType>(StringComparer.Ordinal);
+            _implMethods["HashMap"] = hmMethods;
+        }
+        hmMethods["iter"]        = new(Array.Empty<AsterType>(), vecKv);
+        hmMethods["keys"]        = new(Array.Empty<AsterType>(), vecK);
+        hmMethods["values"]      = new(Array.Empty<AsterType>(), vecV);
+        hmMethods["values_mut"]  = new(Array.Empty<AsterType>(), vecV);
+        hmMethods["len"]         = new(Array.Empty<AsterType>(), usizeT);
+        hmMethods["is_empty"]    = new(Array.Empty<AsterType>(), boolT);
+        hmMethods["contains_key"]= new(new AsterType[] { k }, boolT);
+        hmMethods["get"]         = new(new AsterType[] { k }, optV);
+        hmMethods["get_mut"]     = new(new AsterType[] { k }, optV);
+        hmMethods["remove"]      = new(new AsterType[] { k }, optV);
+        hmMethods["entry"]       = new(new AsterType[] { k }, v);
+        hmMethods["clone"]       = new(Array.Empty<AsterType>(), new TypeApp(new StructType("HashMap", Array.Empty<(string, AsterType)>()), new AsterType[] { k, v }));
+
+        // ── Option<T> combinators ──
+        var optT = new TypeApp(new StructType("Option", Array.Empty<(string, AsterType)>()), new AsterType[] { t });
+        var optU = new TypeApp(new StructType("Option", Array.Empty<(string, AsterType)>()), new AsterType[] { u });
+        var errT = tv();
+        var resultT = new TypeApp(new StructType("Result", Array.Empty<(string, AsterType)>()), new AsterType[] { t, errT });
+
+        if (!_implMethods.TryGetValue("Option", out var optMethods))
+        {
+            optMethods = new Dictionary<string, FunctionType>(StringComparer.Ordinal);
+            _implMethods["Option"] = optMethods;
+        }
+        optMethods["map"]           = new(new AsterType[] { new FunctionType(new AsterType[] { t }, u) }, optU);
+        optMethods["and_then"]      = new(new AsterType[] { new FunctionType(new AsterType[] { t }, optU) }, optU);
+        optMethods["or_else"]       = new(new AsterType[] { new FunctionType(Array.Empty<AsterType>(), optT) }, optT);
+        optMethods["unwrap"]        = new(Array.Empty<AsterType>(), t);
+        optMethods["unwrap_or"]     = new(new AsterType[] { t }, t);
+        optMethods["unwrap_or_else"]= new(new AsterType[] { new FunctionType(Array.Empty<AsterType>(), t) }, t);
+        optMethods["unwrap_or_default"] = new(Array.Empty<AsterType>(), t);
+        optMethods["is_some"]       = new(Array.Empty<AsterType>(), boolT);
+        optMethods["is_none"]       = new(Array.Empty<AsterType>(), boolT);
+        optMethods["filter"]        = new(new AsterType[] { fnTBool }, optT);
+        optMethods["ok_or"]         = new(new AsterType[] { errT }, resultT);
+        optMethods["ok_or_else"]    = new(new AsterType[] { new FunctionType(Array.Empty<AsterType>(), errT) }, resultT);
+        optMethods["flatten"]       = new(Array.Empty<AsterType>(), optT);
+        optMethods["take"]          = new(Array.Empty<AsterType>(), optT);
+        optMethods["replace"]       = new(new AsterType[] { t }, optT);
+        optMethods["cloned"]        = new(Array.Empty<AsterType>(), optT);
+        optMethods["as_ref"]        = new(Array.Empty<AsterType>(), optT);
+
+        // ── Result<T,E> combinators ──
+        var errU = tv();
+        var resultU = new TypeApp(new StructType("Result", Array.Empty<(string, AsterType)>()), new AsterType[] { u, errT });
+        var resultErrU = new TypeApp(new StructType("Result", Array.Empty<(string, AsterType)>()), new AsterType[] { t, errU });
+
+        if (!_implMethods.TryGetValue("Result", out var resMethods))
+        {
+            resMethods = new Dictionary<string, FunctionType>(StringComparer.Ordinal);
+            _implMethods["Result"] = resMethods;
+        }
+        resMethods["map"]             = new(new AsterType[] { new FunctionType(new AsterType[] { t }, u) }, resultU);
+        resMethods["map_err"]         = new(new AsterType[] { new FunctionType(new AsterType[] { errT }, errU) }, resultErrU);
+        resMethods["and_then"]        = new(new AsterType[] { new FunctionType(new AsterType[] { t }, resultU) }, resultU);
+        resMethods["or_else"]         = new(new AsterType[] { new FunctionType(new AsterType[] { errT }, resultErrU) }, resultErrU);
+        resMethods["unwrap"]          = new(Array.Empty<AsterType>(), t);
+        resMethods["unwrap_or"]       = new(new AsterType[] { t }, t);
+        resMethods["unwrap_or_else"]  = new(new AsterType[] { new FunctionType(new AsterType[] { errT }, t) }, t);
+        resMethods["unwrap_or_default"] = new(Array.Empty<AsterType>(), t);
+        resMethods["is_ok"]           = new(Array.Empty<AsterType>(), boolT);
+        resMethods["is_err"]          = new(Array.Empty<AsterType>(), boolT);
+        resMethods["ok"]              = new(Array.Empty<AsterType>(), optT);
+        resMethods["err"]             = new(Array.Empty<AsterType>(), new TypeApp(new StructType("Option", Array.Empty<(string, AsterType)>()), new AsterType[] { errT }));
+        resMethods["as_ref"]          = new(Array.Empty<AsterType>(), resultT);
+        resMethods["flatten"]         = new(Array.Empty<AsterType>(), resultT);
+        resMethods["expect"]          = new(new AsterType[] { strT }, t);
+
+        // ── Math functions (registered as free functions on a "Math" pseudo-type) ──
+        var mathMethods = new Dictionary<string, FunctionType>(StringComparer.Ordinal)
+        {
+            ["abs"]   = new(new AsterType[] { f64T }, f64T),
+            ["sqrt"]  = new(new AsterType[] { f64T }, f64T),
+            ["cbrt"]  = new(new AsterType[] { f64T }, f64T),
+            ["pow"]   = new(new AsterType[] { f64T, f64T }, f64T),
+            ["exp"]   = new(new AsterType[] { f64T }, f64T),
+            ["ln"]    = new(new AsterType[] { f64T }, f64T),
+            ["log"]   = new(new AsterType[] { f64T, f64T }, f64T),
+            ["log2"]  = new(new AsterType[] { f64T }, f64T),
+            ["log10"] = new(new AsterType[] { f64T }, f64T),
+            ["floor"] = new(new AsterType[] { f64T }, f64T),
+            ["ceil"]  = new(new AsterType[] { f64T }, f64T),
+            ["round"] = new(new AsterType[] { f64T }, f64T),
+            ["trunc"] = new(new AsterType[] { f64T }, f64T),
+            ["min"]   = new(new AsterType[] { f64T, f64T }, f64T),
+            ["max"]   = new(new AsterType[] { f64T, f64T }, f64T),
+            ["sin"]   = new(new AsterType[] { f64T }, f64T),
+            ["cos"]   = new(new AsterType[] { f64T }, f64T),
+            ["tan"]   = new(new AsterType[] { f64T }, f64T),
+            ["asin"]  = new(new AsterType[] { f64T }, f64T),
+            ["acos"]  = new(new AsterType[] { f64T }, f64T),
+            ["atan"]  = new(new AsterType[] { f64T }, f64T),
+            ["atan2"] = new(new AsterType[] { f64T, f64T }, f64T),
+            ["hypot"] = new(new AsterType[] { f64T, f64T }, f64T),
+        };
+        _implMethods["Math"] = mathMethods;
+
+        // ── f64 instance methods (mirrors f64::sqrt() etc.) ──
+        var f64Methods = new Dictionary<string, FunctionType>(StringComparer.Ordinal)
+        {
+            ["abs"]   = new(Array.Empty<AsterType>(), f64T),
+            ["sqrt"]  = new(Array.Empty<AsterType>(), f64T),
+            ["floor"] = new(Array.Empty<AsterType>(), f64T),
+            ["ceil"]  = new(Array.Empty<AsterType>(), f64T),
+            ["round"] = new(Array.Empty<AsterType>(), f64T),
+            ["powi"]  = new(new AsterType[] { i32T }, f64T),
+            ["powf"]  = new(new AsterType[] { f64T }, f64T),
+            ["ln"]    = new(Array.Empty<AsterType>(), f64T),
+            ["log"]   = new(new AsterType[] { f64T }, f64T),
+            ["log2"]  = new(Array.Empty<AsterType>(), f64T),
+            ["log10"] = new(Array.Empty<AsterType>(), f64T),
+            ["sin"]   = new(Array.Empty<AsterType>(), f64T),
+            ["cos"]   = new(Array.Empty<AsterType>(), f64T),
+            ["tan"]   = new(Array.Empty<AsterType>(), f64T),
+            ["min"]   = new(new AsterType[] { f64T }, f64T),
+            ["max"]   = new(new AsterType[] { f64T }, f64T),
+        };
+        _implMethods["f64"] = f64Methods;
+
+        // ── i32 instance methods ──
+        var i32Methods = new Dictionary<string, FunctionType>(StringComparer.Ordinal)
+        {
+            ["abs"]         = new(Array.Empty<AsterType>(), i32T),
+            ["pow"]         = new(new AsterType[] { usizeT }, i32T),
+            ["min"]         = new(new AsterType[] { i32T }, i32T),
+            ["max"]         = new(new AsterType[] { i32T }, i32T),
+            ["clamp"]       = new(new AsterType[] { i32T, i32T }, i32T),
+            ["to_string"]   = new(Array.Empty<AsterType>(), strT),
+            ["wrapping_add"]= new(new AsterType[] { i32T }, i32T),
+            ["checked_add"] = new(new AsterType[] { i32T }, new TypeApp(new StructType("Option", Array.Empty<(string, AsterType)>()), new AsterType[] { i32T })),
+            ["count_ones"]  = new(Array.Empty<AsterType>(), usizeT),
+            ["leading_zeros"]= new(Array.Empty<AsterType>(), usizeT),
+            ["trailing_zeros"]= new(Array.Empty<AsterType>(), usizeT),
+        };
+        _implMethods["i32"] = i32Methods;
+
+        // ── i64 instance methods ──
+        var i64Methods = new Dictionary<string, FunctionType>(StringComparer.Ordinal)
+        {
+            ["abs"]       = new(Array.Empty<AsterType>(), i64T),
+            ["pow"]       = new(new AsterType[] { usizeT }, i64T),
+            ["min"]       = new(new AsterType[] { i64T }, i64T),
+            ["max"]       = new(new AsterType[] { i64T }, i64T),
+            ["clamp"]     = new(new AsterType[] { i64T, i64T }, i64T),
+            ["to_string"] = new(Array.Empty<AsterType>(), strT),
+        };
+        _implMethods["i64"] = i64Methods;
     }
 
     /// <summary>Type-check an HIR program.</summary>
