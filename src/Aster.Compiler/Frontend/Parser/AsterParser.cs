@@ -431,6 +431,29 @@ public sealed class AsterParser
         return new WhileStmtNode(condition, body, MakeSpan(startSpan));
     }
 
+    private LoopStmtNode ParseLoopStmt()
+    {
+        var startSpan = Current.Span;
+        Expect(TokenKind.Loop, "Expected 'loop'");
+        var body = ParseBlock();
+
+        return new LoopStmtNode(body, MakeSpan(startSpan));
+    }
+
+    private DoWhileStmtNode ParseDoWhileStmt()
+    {
+        var startSpan = Current.Span;
+        Expect(TokenKind.Do, "Expected 'do'");
+        var body = ParseBlock();
+        Expect(TokenKind.While, "Expected 'while' after do block");
+        var condition = ParseExpression();
+        
+        if (Check(TokenKind.Semicolon))
+            Advance();
+
+        return new DoWhileStmtNode(body, condition, MakeSpan(startSpan));
+    }
+
     private AstNode ParseExpressionStatement()
     {
         var startSpan = Current.Span;
@@ -671,6 +694,31 @@ public sealed class AsterParser
                 return new IdentifierExprNode(name, span);
         }
 
+        // Array literal: [elem1, elem2, ...]
+        if (Check(TokenKind.LeftBracket))
+        {
+            var startSpan = Current.Span;
+            Advance();
+            var elements = new List<AstNode>();
+            
+            while (!Check(TokenKind.RightBracket) && !IsAtEnd)
+            {
+                elements.Add(ParseExpression());
+                
+                if (!Check(TokenKind.RightBracket))
+                {
+                    Expect(TokenKind.Comma, "Expected ',' or ']'");
+                }
+                else
+                {
+                    break;
+                }
+            }
+            
+            Expect(TokenKind.RightBracket, "Expected ']'");
+            return new ArrayLiteralExprNode(elements, MakeSpan(startSpan));
+        }
+
         // Grouped expression
         if (Check(TokenKind.LeftParen))
         {
@@ -699,6 +747,14 @@ public sealed class AsterParser
         // While
         if (Check(TokenKind.While))
             return ParseWhileStmt();
+
+        // Loop
+        if (Check(TokenKind.Loop))
+            return ParseLoopStmt();
+
+        // Do-while
+        if (Check(TokenKind.Do))
+            return ParseDoWhileStmt();
 
         // For
         if (Check(TokenKind.For))
@@ -887,6 +943,14 @@ public sealed class AsterParser
             else if (Check(TokenKind.While))
             {
                 statements.Add(ParseWhileStmt());
+            }
+            else if (Check(TokenKind.Loop))
+            {
+                statements.Add(ParseLoopStmt());
+            }
+            else if (Check(TokenKind.Do))
+            {
+                statements.Add(ParseDoWhileStmt());
             }
             else if (Check(TokenKind.For))
             {

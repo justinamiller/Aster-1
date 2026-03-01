@@ -4,19 +4,20 @@
 // This is the root of the Aster standard library.
 // Import this module to get access to all stdlib functionality.
 //
-// The stdlib is organized into 12 layered modules:
+// The stdlib is organized into 13 layered modules:
 // 1. core   - Primitives, no alloc, no IO
 // 2. alloc  - Heap allocation
-// 3. sync   - Concurrency primitives
-// 4. io     - I/O operations
-// 5. fs     - Filesystem
-// 6. net    - Networking
-// 7. time   - Time and duration
-// 8. fmt    - Formatting
-// 9. math   - Mathematics
-// 10. testing - Test framework
-// 11. env   - Environment
-// 12. process - Process control
+// 3. collections - Collection data structures
+// 4. sync   - Concurrency primitives
+// 5. io     - I/O operations
+// 6. fs     - Filesystem
+// 7. net    - Networking
+// 8. time   - Time and duration
+// 9. fmt    - Formatting
+// 10. math   - Mathematics
+// 11. testing - Test framework
+// 12. env   - Environment
+// 13. process - Process control
 //
 // Stability: Mixed (see individual modules)
 // Effects: Varies by module
@@ -24,6 +25,7 @@
 // Re-export all stdlib modules
 pub mod core;
 pub mod alloc;
+pub mod collections;
 pub mod sync;
 pub mod io;
 pub mod fs;
@@ -57,6 +59,9 @@ pub mod prelude {
     
     // Allocation
     pub use alloc::{Vec, String, Box, new_vec, new_string, new_box};
+    
+    // Collections
+    pub use collections::{HashMap, HashSet, LinkedList, new_hashmap, new_hashset, new_list};
     
     // Formatting
     pub use fmt::{print, println, eprint, eprintln};

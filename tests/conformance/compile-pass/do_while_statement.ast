@@ -1,0 +1,8 @@
+// Test: Do-while statement
+fn main() {
+    let mut count = 0;
+    
+    do {
+        count = count + 1;
+    } while count < 5;
+}

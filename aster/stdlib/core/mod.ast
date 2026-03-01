@@ -16,6 +16,7 @@ pub use result::*;
 pub use traits::*;
 pub use slice::*;
 pub use str::*;
+pub use range::*;
 
 // Panic function (implemented by runtime)
 @stable
