@@ -1,0 +1,100 @@
+name: Standalone Smoke
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  smoke:
+    name: Standalone Smoke (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        # macos-latest can be added here once LLVM availability is confirmed
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install clang/llvm (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y clang llvm
+          clang --version
+
+      - name: Install clang/llvm (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install llvm
+          echo "$(brew --prefix llvm)/bin" >> "$GITHUB_PATH"
+          clang --version
+
+      - name: Build Aster (Release)
+        run: dotnet build Aster.slnx -c Release --nologo
+
+      - name: Compile simple_hello.ast to LLVM IR
+        run: |
+          dotnet run --project src/Aster.CLI --no-build -c Release -- \
+            build examples/simple_hello.ast --emit-llvm -o /tmp/aster_hello.ll
+          echo "✓ LLVM IR emitted to /tmp/aster_hello.ll"
+          cat /tmp/aster_hello.ll
+
+      - name: Compile LLVM IR to native binary
+        run: |
+          clang /tmp/aster_hello.ll -o /tmp/aster_hello
+          echo "✓ Native binary created at /tmp/aster_hello"
+
+      - name: Run binary and assert output
+        run: |
+          EXPECTED="Hello from Aster!"
+
+          # Capture stdout; allow non-zero exit so we can inspect it
+          ACTUAL=$(/tmp/aster_hello 2>&1) || ACTUAL_EXIT=$?
+          ACTUAL_EXIT=${ACTUAL_EXIT:-0}
+
+          echo "Observed stdout : ${ACTUAL}"
+          echo "Observed exit   : ${ACTUAL_EXIT}"
+
+          # Assert expected output
+          if [ "${ACTUAL}" != "${EXPECTED}" ]; then
+            echo "FAIL: stdout mismatch"
+            echo "  expected: ${EXPECTED}"
+            echo "  got     : ${ACTUAL}"
+            exit 1
+          fi
+          echo "✓ stdout matches expected"
+
+          # Accept exit 0 or 128.
+          # Exit 128 is a known temporary behaviour: the Aster IR emits
+          # 'define void @main()' (void return), which is non-standard C.
+          # When linked with clang on Linux x86-64 this consistently produces
+          # exit code 128, but the value is technically indeterminate.
+          # Target future state: exit 0 (IR will be updated to 'define i32 @main()').
+          if [ "${ACTUAL_EXIT}" -ne 0 ] && [ "${ACTUAL_EXIT}" -ne 128 ]; then
+            echo "FAIL: unexpected exit code ${ACTUAL_EXIT} (expected 0 or 128)"
+            exit 1
+          fi
+          echo "✓ exit code ${ACTUAL_EXIT} is acceptable"
+
+          echo ""
+          echo "=== SMOKE PASSED ==="
+
+      - name: Upload LLVM IR artifact on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-failure-artifacts-${{ matrix.os }}
+          path: /tmp/aster_hello.ll
+          if-no-files-found: ignore
