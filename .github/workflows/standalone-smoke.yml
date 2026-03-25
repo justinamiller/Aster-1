@@ -67,11 +67,21 @@ jobs:
           echo "Observed stdout : ${ACTUAL}"
           echo "Observed exit   : ${ACTUAL_EXIT}"
 
+          # Persist a concise log for the failure artifact
+          {
+            echo "=== Standalone Smoke Log ==="
+            echo "Date         : $(date -u)"
+            echo "Runner OS    : ${{ runner.os }}"
+            echo "Observed stdout : ${ACTUAL}"
+            echo "Observed exit   : ${ACTUAL_EXIT}"
+          } > /tmp/smoke_run.log
+
           # Assert expected output
           if [ "${ACTUAL}" != "${EXPECTED}" ]; then
             echo "FAIL: stdout mismatch"
             echo "  expected: ${EXPECTED}"
             echo "  got     : ${ACTUAL}"
+            echo "FAIL: stdout mismatch (expected='${EXPECTED}' got='${ACTUAL}')" >> /tmp/smoke_run.log
             exit 1
           fi
           echo "✓ stdout matches expected"
@@ -84,17 +94,21 @@ jobs:
           # Target future state: exit 0 (IR will be updated to 'define i32 @main()').
           if [ "${ACTUAL_EXIT}" -ne 0 ] && [ "${ACTUAL_EXIT}" -ne 128 ]; then
             echo "FAIL: unexpected exit code ${ACTUAL_EXIT} (expected 0 or 128)"
+            echo "FAIL: unexpected exit code ${ACTUAL_EXIT}" >> /tmp/smoke_run.log
             exit 1
           fi
           echo "✓ exit code ${ACTUAL_EXIT} is acceptable"
+          echo "PASS" >> /tmp/smoke_run.log
 
           echo ""
           echo "=== SMOKE PASSED ==="
 
-      - name: Upload LLVM IR artifact on failure
+      - name: Upload artifacts on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: smoke-failure-artifacts-${{ matrix.os }}
-          path: /tmp/aster_hello.ll
+          path: |
+            /tmp/aster_hello.ll
+            /tmp/smoke_run.log
           if-no-files-found: ignore

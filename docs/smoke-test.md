@@ -1,8 +1,80 @@
-# One-Command Smoke Test
+# Smoke Tests
 
-## Quick Start
+## Standalone smoke (recommended — full compile + run)
 
-Test the compiler in one command:
+The **standalone smoke** test proves the complete end-to-end toolchain:
+`Aster source → LLVM IR → native binary → run`.
+
+```bash
+bash scripts/standalone-smoke.sh
+```
+
+This verifies:
+1. ✅ Compiler builds (`dotnet build Aster.slnx -c Release`)
+2. ✅ Compiles `examples/simple_hello.ast` to LLVM IR
+3. ✅ LLVM IR is compiled to a native binary with clang
+4. ✅ Native binary executes and prints the expected output
+
+### Expected output
+
+```
+======================================================
+  Aster Standalone Smoke Test
+======================================================
+
+[STEP] 1/4  dotnet build Aster.slnx -c Release
+[PASS] Build succeeded
+
+[STEP] 2/4  Compiling examples/simple_hello.ast -> /tmp/aster_hello.ll
+[PASS] LLVM IR emitted (26 lines)
+
+[STEP] 3/4  clang /tmp/aster_hello.ll -o /tmp/aster_hello
+[PASS] Native binary created
+
+[STEP] 4/4  Running /tmp/aster_hello
+  stdout      : Hello from Aster!
+  exit code   : 128
+
+[PASS] exit code 128 is acceptable
+
+======================================================
+  SMOKE PASSED
+======================================================
+```
+
+### Exit code policy
+
+| Check | Expected |
+|-------|----------|
+| **stdout** | `Hello from Aster!` (exact match) |
+| **exit code** | `0` or `128` |
+
+Exit code 128 is a known temporary behaviour caused by the IR emitting
+`define void @main()` (non-standard C).  See `docs/BOOTSTRAP_RUNBOOK.md §5`
+for full rationale and target future state.
+
+### Options
+
+```bash
+# Keep /tmp/aster_hello.ll and /tmp/aster_hello after the run
+bash scripts/standalone-smoke.sh --keep-artifacts
+
+# Via the bootstrap verify wrapper
+bash bootstrap/scripts/verify-standalone.sh
+```
+
+### Prerequisites
+
+```bash
+sudo apt-get install clang   # Linux
+brew install llvm            # macOS
+```
+
+---
+
+## Legacy IR-only smoke (CI step)
+
+The original one-command smoke test (IR generation only, no execution):
 
 ```bash
 ./scripts/smoke_test.sh
@@ -10,167 +82,68 @@ Test the compiler in one command:
 
 This verifies:
 1. ✅ Compiler builds successfully
-2. ✅ Can compile simple programs
-3. ✅ Generates valid LLVM IR
-4. ✅ Output structure is correct
+2. ✅ Can compile simple programs to LLVM IR
+3. ✅ Generated IR contains a valid `@main` function definition
 
-## Expected Output
+> **Note:** This test does **not** execute the compiled binary.
+> Use `scripts/standalone-smoke.sh` for the full end-to-end check.
 
-```
-======================================
-  Aster Compiler Smoke Test
-======================================
-
-[1/4] Building compiler...
-✓ Compiler built
-[2/4] Compiling hello world...
-✓ Compilation successful
-[3/4] Verifying output...
-✓ LLVM IR generated (25 lines)
-[4/4] Validating LLVM IR...
-✓ Valid LLVM IR structure
-
-======================================
-✓ Smoke test PASSED
-======================================
-
-The Aster compiler is working correctly!
-Output: /tmp/hello.ll
-
-To compile your own programs:
-  aster build my_program.ast
-```
-
-## Running Compiled Programs (Future)
-
-Once LLVM backend is fully integrated:
-
-```bash
-# Compile to LLVM IR
-aster build hello.ast -o hello.ll
-
-# Compile to executable with LLVM
-llc hello.ll -o hello.s
-clang hello.s -o hello
-
-# Run
-./hello
-```
-
-Or use the `run` command (when implemented):
-
-```bash
-aster run hello.ast
-```
-
-## What the Smoke Test Does
-
-### 1. Build Compiler
-Runs `dotnet build` to ensure the C# compiler builds.
-
-### 2. Compile Example
-Compiles `examples/simple_hello.ast` to LLVM IR.
-
-### 3. Verify Output
-Checks that:
-- Output file exists
-- Has reasonable size (> 0 lines)
-
-### 4. Validate Structure
-Verifies LLVM IR contains:
-- Function definition (`define`)
-- Main function (`@main`)
-
-## Troubleshooting
-
-### Build Fails
-
-**Error**: "Failed to build compiler"
-
-**Solution**:
-```bash
-# Restore dependencies
-dotnet restore
-
-# Build manually to see errors
-dotnet build
-```
-
-### Compilation Fails
-
-**Error**: "Compilation failed"
-
-**Solution**:
-```bash
-# Run manually to see error messages
-dotnet run --project src/Aster.CLI -- build examples/simple_hello.ast
-```
-
-### Invalid Output
-
-**Error**: "Invalid LLVM IR structure"
-
-**Solution**:
-```bash
-# Check output directly
-cat /tmp/hello.ll
-
-# Should contain:
-# define i32 @main() {
-#   ...
-# }
-```
+---
 
 ## CI Integration
 
-Add to GitHub Actions:
+Both smoke tests are run in CI automatically:
+
+| Workflow | Script | Trigger |
+|----------|--------|---------|
+| `Aster CI` (`ci.yml`) | `scripts/smoke_test.sh` | push / PR to main |
+| `Standalone Smoke` (`standalone-smoke.yml`) | full sequence | push / PR to main |
+
+Add to a GitHub Actions workflow:
 
 ```yaml
-- name: Smoke Test
-  run: ./scripts/smoke_test.sh
+- name: Standalone Smoke
+  run: bash scripts/standalone-smoke.sh
 ```
 
-## Alternative: Quick Manual Test
+---
+
+## Troubleshooting
+
+### Build fails
 
 ```bash
-# Build
-dotnet build
-
-# Compile an example
-dotnet run --project src/Aster.CLI -- build examples/simple_hello.ast
-
-# Check output
-ls -lh simple_hello.ll
-cat simple_hello.ll
+dotnet restore
+dotnet build Aster.slnx -c Release
 ```
 
-## Success Criteria
+### `clang not found`
 
-Smoke test passes if:
-1. Compiler builds without errors
-2. Example compiles without errors
-3. LLVM IR is generated
-4. IR contains expected structure
-
-## What Smoke Test Does NOT Check
-
-- ❌ Full test suite (use `dotnet test`)
-- ❌ Execution of compiled code (would need LLVM backend)
-- ❌ Complex programs (just simple hello world)
-- ❌ All language features (just basic compilation)
-
-For comprehensive testing, use:
 ```bash
-dotnet test  # Run all 119 tests
+sudo apt-get install clang   # Linux
+brew install llvm            # macOS
+```
+
+### Output mismatch
+
+```bash
+# Inspect the generated IR
+cat /tmp/aster_hello.ll
+
+# Run with kept artifacts
+bash scripts/standalone-smoke.sh --keep-artifacts
+/tmp/aster_hello
 ```
 
 ## See Also
 
-- [README.md](../README.md) - Full project documentation
-- [CI Workflow](../.github/workflows/ci.yml) - Automated testing
-- [Examples](../examples/) - More example programs
+- [README.md — Standalone Smoke Gate](../README.md#standalone-smoke-gate)
+- [docs/BOOTSTRAP_RUNBOOK.md](BOOTSTRAP_RUNBOOK.md) — Full bootstrap runbook
+- [examples/simple_hello.ast](../examples/simple_hello.ast) — Source under test
+- [.github/workflows/standalone-smoke.yml](../.github/workflows/standalone-smoke.yml) — CI workflow
 
 ---
 
-**Last Updated**: 2026-02-15  
-**Status**: Smoke test available for Stage0 compiler
+**Last Updated**: 2026-03-25
+**Status**: Full compile + run smoke available (Stage 0 compiler + clang)
+
